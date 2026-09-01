@@ -19,7 +19,8 @@ async function inspectSource(source:{id:string;url:string;name:string}) {
     const sample=body.slice(0,1_000_000);
     const titleMatch=sample.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
     const keywordHits=(sample.match(/공모|지원사업|사업공고|모집/g)||[]).length;
-    return {id:crypto.randomUUID(),sourceId:source.id,outcome:response.ok?'success':'http_error',statusCode:response.status,contentHash:await sha256(sample),contentBytes:new TextEncoder().encode(body).byteLength,keywordHits,pageTitle:titleMatch?decoder(titleMatch[1]).slice(0,200):source.name,message:response.ok?null:`HTTP ${response.status}`,startedAt,finishedAt:new Date()};
+    const usable=response.ok&&(body.length>5000||keywordHits>0);
+    return {id:crypto.randomUUID(),sourceId:source.id,outcome:usable?'success':response.ok?'content_error':'http_error',statusCode:response.status,contentHash:await sha256(sample),contentBytes:new TextEncoder().encode(body).byteLength,keywordHits,pageTitle:titleMatch?decoder(titleMatch[1]).slice(0,200):source.name,message:usable?null:response.ok?'응답 본문 확인 필요':`HTTP ${response.status}`,startedAt,finishedAt:new Date()};
   } catch(error) {
     return {id:crypto.randomUUID(),sourceId:source.id,outcome:'fetch_error',statusCode:null,contentHash:null,contentBytes:null,keywordHits:null,pageTitle:source.name,message:error instanceof Error?error.message.slice(0,300):'Fetch failed',startedAt,finishedAt:new Date()};
   }
