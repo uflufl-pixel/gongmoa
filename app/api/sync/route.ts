@@ -8,8 +8,8 @@ export async function GET() {
 
 export async function POST() {
   try {
-    const results=await syncOfficialSources();
-    return Response.json({ok:true,results,finishedAt:new Date().toISOString()});
+    const sync=await syncOfficialSources();
+    return Response.json({ok:true,...sync,finishedAt:new Date().toISOString()});
   } catch(error) {
     return Response.json({error:error instanceof Error?error.message:'Sync failed'},{status:500});
   }
