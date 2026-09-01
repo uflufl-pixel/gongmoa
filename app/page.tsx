@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 type Notice = { id:string; org:string; group:string; title:string; due:string; dday:number; tag:string; audience:string; source:string; url:string };
+type SourceCheck = { id:string; sourceId:string; outcome:string; statusCode:number|null; contentBytes:number|null; keywordHits:number|null; pageTitle:string|null; message:string|null; finishedAt:string };
 const fallback: Notice[] = [
   {id:'govtech-2026',org:'과학기술정보통신부',group:'중앙부처',title:'2026년 GovTech 창업 경진대회 모집 공고',due:'2026.09.21',dday:20,tag:'창업',audience:'기업·예비창업자',source:'기업마당',url:'https://www.bizinfo.go.kr/sii/siia/selectSIIA200View.do'},
   {id:'export-logistics-2026',org:'중소벤처기업부',group:'중앙부처',title:'2026년 2차 온라인수출 중소기업 물류 지원 사업',due:'2026.09.16',dday:15,tag:'수출',audience:'중소기업',source:'기업마당',url:'https://www.bizinfo.go.kr/sii/siia/selectSIIA200View.do'},
@@ -26,6 +27,7 @@ function daysUntil(value:string|null) {
 export default function Home() {
   const [notices,setNotices]=useState<Notice[]>(fallback); const [query,setQuery]=useState(''); const [group,setGroup]=useState('전체');
   const [saved,setSaved]=useState<string[]>([]); const [showSaved,setShowSaved]=useState(false); const [mode,setMode]=useState<'connecting'|'live-db'|'fallback'>('connecting'); const [deviceKey,setDeviceKey]=useState('');
+  const [checks,setChecks]=useState<SourceCheck[]>([]); const [syncing,setSyncing]=useState(false);
   useEffect(()=>{
     const key=localStorage.getItem('gongmoa-device')||crypto.randomUUID().replaceAll('-',''); localStorage.setItem('gongmoa-device',key); setDeviceKey(key);
     fetch('/api/notices').then(r=>r.ok?r.json():Promise.reject()).then(data=>{
@@ -33,9 +35,11 @@ export default function Home() {
       setMode('live-db');
     }).catch(()=>setMode('fallback'));
     fetch(`/api/bookmarks?deviceKey=${key}`).then(r=>r.ok?r.json():Promise.reject()).then(data=>setSaved(data.items.map((x:{noticeId:string})=>x.noticeId))).catch(()=>{});
+    fetch('/api/sync').then(r=>r.ok?r.json():Promise.reject()).then(data=>setChecks(data.items)).catch(()=>{});
   },[]);
   const filtered=useMemo(()=>notices.filter(n=>(group==='전체'||n.group===group)&&(!showSaved||saved.includes(n.id))&&(`${n.org} ${n.title} ${n.tag} ${n.audience}`).toLowerCase().includes(query.toLowerCase())),[notices,query,group,saved,showSaved]);
   const toggle=(id:string)=>{const next=!saved.includes(id);setSaved(s=>next?[...s,id]:s.filter(x=>x!==id));if(deviceKey)fetch('/api/bookmarks',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceKey,noticeId:id,saved:next})}).catch(()=>{});};
+  const runSync=async()=>{setSyncing(true);try{const response=await fetch('/api/sync',{method:'POST'});if(!response.ok)throw new Error();const data=await response.json();setChecks(data.results);}finally{setSyncing(false)}};
   return <main>
     <header className="topbar"><a className="brand" href="#"><span>공</span>모아</a><nav><a href="#notices">공모 찾기</a><a href="#sources">수집 범위</a><button onClick={()=>setShowSaved(v=>!v)} className={showSaved?'active':''}>관심 공모 {saved.length}</button></nav></header>
     <section className="hero"><div className="eyebrow">대한민국 공모사업 통합 탐색</div><h1>흩어진 공모사업,<br/><em>한곳에서 놓치지 않게.</em></h1><p>정부 부처부터 위원회, 공사·공단, 지방자치단체까지 공식 공고를 모아 정리합니다.</p><form className="search" onSubmit={e=>{e.preventDefault();document.querySelector('#notices')?.scrollIntoView()}}><span>⌕</span><input value={query} onChange={e=>setQuery(e.target.value)} aria-label="공모 검색" placeholder="기관명, 사업명, 지원 분야를 검색하세요"/><button>검색</button></form><div className="quick"><span>빠른 탐색</span>{['창업','수출','교육','환경'].map(x=><button key={x} onClick={()=>setQuery(x)}>{x}</button>)}</div></section>
@@ -45,6 +49,7 @@ export default function Home() {
     </section>
     <section className="scope" id="sources"><div className="scopeintro"><span>COLLECTION MAP</span><h2>조직도를 수집 지도로 바꿨어요.</h2><p>제공된 2026년 정부 조직도를 1차 기관 체계로 삼고, 공공기관과 지자체를 단계적으로 확장합니다.</p></div><div className="scopegrid">{institutions.map((x,i)=><article key={x[0]}><i>0{i+1}</i><h3>{x[0]}</h3><strong>{x[1]}</strong><p>{x[2]}</p></article>)}</div></section>
     <section className="pipeline"><div><span>공식 출처 레지스트리</span><b>수집 상태 기록</b></div><i>→</i><div><span>원문 해시 비교</span><b>중복·변경 감지</b></div><i>→</i><div><span>마감일·대상 정규화</span><b>검증 대기열</b></div><i>→</i><div><span>기기별 영구 저장</span><b>관심 공모 동기화</b></div></section>
+    <section className="syncCenter"><div className="syncHead"><div><span>SOURCE MONITOR</span><h2>공식 출처 수집 상태</h2><p>원문 접근 여부와 콘텐츠 해시를 저장해 변경을 감지합니다.</p></div><button onClick={runSync} disabled={syncing}>{syncing?'확인 중…':'지금 출처 확인'}</button></div><div className="syncGrid">{checks.length?checks.slice(0,4).map(check=><article key={check.id}><div><i className={check.outcome==='success'?'ok':'warn'}></i><strong>{check.pageTitle||check.sourceId}</strong></div><p>{check.outcome==='success'?`정상 · 키워드 ${check.keywordHits??0}회 · ${Math.round((check.contentBytes||0)/1024).toLocaleString()}KB`:check.message||'확인 필요'}</p><time>{new Date(check.finishedAt).toLocaleString('ko-KR')}</time></article>):<div className="syncEmpty">아직 실행 이력이 없습니다. 출처 확인을 실행하면 상태와 변경 기준 해시가 저장됩니다.</div>}</div><small>기업마당·보조금통합포털의 정식 데이터 API는 별도 인증키 발급 후 목록 수집 모드로 전환됩니다.</small></section>
     <section className="sources"><h2>연결된 공식 출처</h2><div><a href="https://www.bojo.go.kr/retrieveSearchPubBiz.do" target="_blank">보조금통합포털 <small>60분 주기 대상</small></a><a href="https://www.bizinfo.go.kr/sii/siia/selectSIIA200View.do" target="_blank">기업마당 <small>60분 주기 대상</small></a><a href="https://www.gov.kr/portal/orgSite" target="_blank">정부24 기관 누리집 <small>기관 기준정보</small></a><a href="https://www.moe.go.kr/boardCnts/listRenew.do?boardID=72761&m=020502&s=moe" target="_blank">교육부 사업공고 <small>원문 교차검증</small></a></div><p>공고·출처·기관·변경이력·관심 공모를 영구 저장하는 운영 데이터 구조가 연결되었습니다. 다음 수집 확장은 기관별 이용정책 확인 후 API 또는 허용된 게시판 수집기로 추가합니다.</p></section>
     <footer className="footer"><a className="brand" href="#"><span>공</span>모아</a><p>공식 원문을 가장 먼저 확인하세요. 공모아는 탐색을 돕는 통합 안내 서비스입니다.</p><a href="mailto:hello@gongmoa.kr">제보·문의</a></footer>
   </main>

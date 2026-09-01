@@ -62,3 +62,20 @@ export const bookmarks = sqliteTable('bookmarks', {
   noticeId: text('notice_id').notNull().references(() => notices.id),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 }, (t) => [primaryKey({ columns: [t.deviceKey, t.noticeId] }), index('idx_bookmarks_device').on(t.deviceKey)]);
+
+export const sourceChecks = sqliteTable('source_checks', {
+  id: text('id').primaryKey(),
+  sourceId: text('source_id').notNull().references(() => sources.id),
+  outcome: text('outcome').notNull(),
+  statusCode: integer('status_code'),
+  contentHash: text('content_hash'),
+  contentBytes: integer('content_bytes'),
+  keywordHits: integer('keyword_hits'),
+  pageTitle: text('page_title'),
+  message: text('message'),
+  startedAt: integer('started_at', { mode: 'timestamp_ms' }).notNull(),
+  finishedAt: integer('finished_at', { mode: 'timestamp_ms' }).notNull(),
+}, (t) => [
+  index('idx_source_checks_source_finished').on(t.sourceId, t.finishedAt),
+  index('idx_source_checks_outcome_finished').on(t.outcome, t.finishedAt),
+]);

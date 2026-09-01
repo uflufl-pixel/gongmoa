@@ -1,6 +1,6 @@
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq } from 'drizzle-orm';
 import { getDb } from './index';
-import { bookmarks, institutions, notices, sources } from './schema';
+import { bookmarks, institutions, notices, sourceChecks, sources } from './schema';
 
 const now = new Date('2026-09-01T14:00:00.000Z');
 const seedInstitutions = [
@@ -57,4 +57,9 @@ export async function setBookmark(deviceKey:string, noticeId:string, saved:boole
   const db=getDb();
   if(saved) await db.insert(bookmarks).values({ deviceKey, noticeId, createdAt:new Date() }).onConflictDoNothing();
   else await db.delete(bookmarks).where(and(eq(bookmarks.deviceKey, deviceKey),eq(bookmarks.noticeId,noticeId)));
+}
+
+export async function listRecentChecks() {
+  await ensureSeeded();
+  return getDb().select().from(sourceChecks).orderBy(desc(sourceChecks.finishedAt)).limit(40);
 }
