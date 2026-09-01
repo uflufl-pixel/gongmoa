@@ -27,12 +27,14 @@ export async function ensureSeeded() {
   const db = getDb();
   await db.insert(institutions).values(seedInstitutions).onConflictDoNothing();
   await db.insert(sources).values(seedSources).onConflictDoNothing();
-  await db.insert(notices).values(seedNotices.map((n) => ({
-    id:n[0], sourceId:n[1], externalId:n[2], institution:n[3], group:n[4], title:n[5], summary:null,
-    category:n[6], audience:n[7], region:null, sourceName:n[8], sourceUrl:seedSources.find(s=>s.id===n[1])!.url,
-    applicationUrl:null, opensAt:null, closesAt:n[10] ? new Date(n[10]) : null, deadlineLabel:n[9], status:'open',
-    contentHash:`seed-${n[0]}-v1`, verifiedAt:now, createdAt:now, updatedAt:now,
-  }))).onConflictDoNothing();
+  for (const n of seedNotices) {
+    await db.insert(notices).values({
+      id:n[0], sourceId:n[1], externalId:n[2], institution:n[3], group:n[4], title:n[5], summary:null,
+      category:n[6], audience:n[7], region:null, sourceName:n[8], sourceUrl:seedSources.find(s=>s.id===n[1])!.url,
+      applicationUrl:null, opensAt:null, closesAt:n[10] ? new Date(n[10]) : null, deadlineLabel:n[9], status:'open',
+      contentHash:`seed-${n[0]}-v1`, verifiedAt:now, createdAt:now, updatedAt:now,
+    }).onConflictDoNothing();
+  }
 }
 
 export async function listNotices() {
