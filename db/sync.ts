@@ -13,7 +13,8 @@ async function sha256(value:string) {
 async function inspectSource(source:{id:string;url:string;name:string}) {
   const startedAt=new Date();
   try {
-    const response=await fetch(source.url,{headers:{accept:'text/html,application/xhtml+xml,application/json','user-agent':'GongmoaSourceMonitor/1.0 (+https://gongmoa.uflufl.chatgpt.site)'},signal:AbortSignal.timeout(12000),redirect:'follow'});
+    const fetchUrl=source.id==='bojo'?'https://www.bojo.go.kr/':source.url;
+    const response=await fetch(fetchUrl,{headers:{accept:'text/html,application/xhtml+xml,application/json','user-agent':'GongmoaSourceMonitor/1.0 (+https://gongmoa.uflufl.chatgpt.site)'},signal:AbortSignal.timeout(12000),redirect:'follow'});
     const body=await response.text();
     const sample=body.slice(0,1_000_000);
     const titleMatch=sample.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
