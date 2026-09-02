@@ -3,6 +3,16 @@ import assert from 'node:assert/strict';
 // @ts-expect-error Native Node TypeScript runner.
 import {centralCollectors,parseCentralBoard,centralGrantCandidate} from '../lib/central-collectors.ts';
 const c=centralCollectors[0];
+test('MOF distinguishes project plans from selection results and personnel notices',()=>{
+  const config=centralCollectors.find(x=>x.id==='mof-board')!;
+  const titles=['사업 신규과제 선정계획 재공고','사업대상지 추가 선정 연장 공고','지원사업 선정결과','설치준비위원회 모집','고객만족도 조사 사업자 선정 공고','채용 모집 공고'];
+  const body=titles.map((title,i)=>`<tr><td class="tit"><a onclick="fn_selectDoc('${100+i}')" title="[게시글 바로가기] ${title}">${title}</a></td><td class="t-date">2026.09.02.</td></tr>`).join('');
+  const r=parseCentralBoard(body,config);assert.equal(r.parsedRows,6);assert.deepEqual(r.items.map(x=>x.title),titles.slice(0,2));
+  assert.equal(r.items[0].sourceUrl,'https://www.mof.go.kr/doc/ko/selectDoc.do?docSeq=100&menuSeq=375&bbsSeq=9');
+  assert.equal(r.items[0].announcedFrom,'2026-09-02');assert.equal(r.items[0].applicationTo,null);
+  assert.throws(()=>parseCentralBoard(body.replace("fn_selectDoc('100')","fn_selectDoc('invalid')"),config));
+  assert.throws(()=>parseCentralBoard(body.replaceAll('[게시글 바로가기]','changed'),config));
+});
 test('MOLIT resolves relative links and decodes numeric Korean entities',()=>{
   const config=centralCollectors.find(x=>x.id==='molit-board')!;
   const body='<table>'+['수탁기관 &#44277;&#47784;','채용 모집','지원사업 선정 결과'].map((t,i)=>`<tr><td class="bd_title"><a href="./DTL.jsp?id=N01_B&amp;mode=view&amp;idx=${i+1}">${t}</a></td><td class='bd_date'>2026-09-01</td></tr>`).join('')+'</table>';

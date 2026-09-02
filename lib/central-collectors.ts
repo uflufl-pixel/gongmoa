@@ -12,6 +12,7 @@ export const centralCollectors=[
   {id:'moel-board',institutionId:'central-1492000',institution:'고용노동부',name:'고용노동부 공지사항',url:'https://www.moel.go.kr/news/notice/noticeList.do',origin:'https://www.moel.go.kr',format:'moel',category:'고용·노동'},
   {id:'moel-support',institutionId:'central-1492000',institution:'고용노동부',name:'고용노동부 국고보조사업',url:'https://www.moel.go.kr/info/govsupport/govsupportcon/govSupportSubList.do?pageIndex=1',origin:'https://www.moel.go.kr',format:'moel',category:'고용·노동'},
   {id:'molit-board',institutionId:'central-1613000',institution:'국토교통부',name:'국토교통부 알림마당',url:'https://www.molit.go.kr/USR/BORD0201/m_69/LST.jsp?id=N01_B',origin:'https://www.molit.go.kr',format:'molit',category:'국토·교통'},
+  {id:'mof-board',institutionId:'central-1192000',institution:'해양수산부',name:'해양수산부 공지사항',url:'https://www.mof.go.kr/doc/ko/selectDocList.do?menuSeq=375&bbsSeq=9',origin:'https://www.mof.go.kr',format:'mof',category:'해양·수산'},
 ] as const;
 type Config=typeof centralCollectors[number];
 export function centralGrantCandidate(title:string){
@@ -34,6 +35,7 @@ function publicationDate(s:string){
 function identity(raw:string,c:Config){
   const u=new URL(raw,c.origin);if(!['https:','http:'].includes(u.protocol)||u.hostname!==new URL(c.origin).hostname||u.username||u.password)throw new Error('공식 공고 주소 확인 필요');
   let id:string|null=null;
+  if(c.id==='mof-board'&&u.pathname==='/doc/ko/selectDoc.do'&&u.searchParams.get('bbsSeq')==='9'&&u.searchParams.get('menuSeq')==='375')id=u.searchParams.get('docSeq');
   if(c.id==='molit-board'&&u.pathname==='/USR/BORD0201/m_69/DTL.jsp'&&u.searchParams.get('id')==='N01_B'&&u.searchParams.get('mode')==='view')id=u.searchParams.get('idx');
   if(c.format==='moel'&&u.pathname===(c.id==='moel-board'?'/news/notice/noticeView.do':'/info/govsupport/govsupportcon/govSupportSubView.do'))id=u.searchParams.get('bbs_seq');
   if(c.id==='mfds-board'&&u.pathname==='/brd/m_76/view.do')id=u.searchParams.get('seq');
@@ -61,6 +63,14 @@ export function parseCentralBoard(body:string,c:Config){
     for(const match of body.matchAll(/<item>[\s\S]*?<\/item>/g)){
       const field=(tag:string)=>text(match[0].match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`))?.[1]||'');
       rows.push({title:c.id==='kma-board'?text(field('title')):field('title'),link:field('link'),posted:field('pubDate')});
+    }
+  }else if(c.format==='mof'){
+    for(const match of body.matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)){
+      const cell=match[0].match(/<td\b[^>]*class="tit"[^>]*>([\s\S]*?)<\/td>/);if(!cell)continue;
+      const id=cell[1].match(/onclick="fn_selectDoc\('(\d+)'\)"/)?.[1];
+      const title=cell[1].match(/title="\[게시글 바로가기\]\s*([^"]+)"/)?.[1];
+      if(!id||!title)throw new Error('해양수산부 제목·식별자 확인 필요');
+      rows.push({title:text(title),link:`${c.origin}/doc/ko/selectDoc.do?docSeq=${id}&menuSeq=375&bbsSeq=9`,posted:text(match[0].match(/<td class="t-date">([\s\S]*?)<\/td>/)?.[1]||'').replaceAll('.','-').replace(/-$/,'')});
     }
   }else if(c.format==='molit'){
     for(const match of body.matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)){
@@ -102,7 +112,8 @@ export function parseCentralBoard(body:string,c:Config){
   const items=rows.flatMap(row=>{
     if(!row.title||!row.link)throw new Error('목록 제목·링크 누락');
     const ref=identity(row.link,c);if(seen.has(ref.id))return [];seen.add(ref.id);
-    const candidateTitle=c.id==='mfds-board'&&/용역연구개발과제.*주관연구기관.*공모/.test(row.title)?row.title.replace('용역연구개발과제','연구개발과제'):row.title;
+    let candidateTitle=c.id==='mfds-board'&&/용역연구개발과제.*주관연구기관.*공모/.test(row.title)?row.title.replace('용역연구개발과제','연구개발과제'):row.title;
+    if(c.id==='mof-board'&&/(신규과제 선정계획|사업대상지.*선정 연장 공고)/.test(row.title))candidateTitle='지원사업 '+candidateTitle;
     if(!centralGrantCandidate(candidateTitle))return [];
     return [{sourceId:c.id,externalId:ref.id,institution:c.institution,group:'중앙부처',title:row.title,category:c.category,audience:'원문 지원자격 확인',region:null,sourceName:c.name,sourceUrl:ref.url,
       announcedFrom:publicationDate(row.posted),opensAt:null,closesAt:null,applicationFrom:null,applicationTo:null,deadlineLabel:'접수기간 원문 확인',status:'open'}];
