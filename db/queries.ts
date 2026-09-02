@@ -51,7 +51,9 @@ const seedNotices = [
 
 export async function ensureSeeded() {
   const db = getDb();
-  await db.insert(institutions).values(seedInstitutions).onConflictDoNothing();
+  for(let offset=0;offset<seedInstitutions.length;offset+=8) {
+    await db.insert(institutions).values(seedInstitutions.slice(offset,offset+8)).onConflictDoNothing();
+  }
   // D1 limits the number of bound parameters in one statement. Keep source
   // seeding below that ceiling as the registry grows.
   for(let offset=0;offset<seedSources.length;offset+=8) {
