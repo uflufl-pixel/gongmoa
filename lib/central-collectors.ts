@@ -16,18 +16,24 @@ export const centralCollectors=[
   {id:'moj-board',institutionId:'central-1270000',institution:'법무부',name:'법무부 공지사항',url:'https://www.moj.go.kr/moj/116/subview.do',origin:'https://www.moj.go.kr',format:'moj',category:'법무·사회'},
   {id:'khs-board',institutionId:'central-1833100',institution:'국가유산청',name:'국가유산청 공지사항',url:'https://www.khs.go.kr/multiBbz/selectMultiBbzList.do?bbzId=newpublic&mn=NS_01_01',origin:'https://khs.go.kr',format:'khs',category:'국가유산·문화'},
   {id:'mods-board',institutionId:'central-1241000',institution:'국가데이터처',name:'국가데이터처 공지사항 RSS',url:'https://mods.go.kr/board.es?mid=a10306020000&bid=a103060100&act=rss',origin:'https://mods.go.kr',format:'rss',category:'통계·데이터'},
+  {id:'unikorea-board',institutionId:'central-1250000',institution:'통일부',name:'통일부 공지사항 RSS',url:'https://unikorea.go.kr/web/unikorea/rss/bbs_0000000000000001',origin:'https://unikorea.go.kr',format:'rss',category:'통일·사회'},
 ] as const;
 // Registered rows retain history; audited collector definitions own fetch endpoints.
 export function centralCollectorUrl(id:string,fallback:string){return centralCollectors.find(c=>c.id===id)?.url||fallback;}
 type Config=typeof centralCollectors[number];
 export function centralGrantCandidate(title:string){
   if(/(수상작\s*발표|수상자\s*(공고|발표)|자문단|현장투어|모니터단|서포터즈)/.test(title))return false;
-  if(/(선정\s*공고|우선협상.*선정)/.test(title))return false;
+  if(/(선정\s*공고|우선협상.*선정|최종\s*선정과제)/.test(title))return false;
   if(/(체험단|연수생|면허.*시험|자격시험)/.test(title))return false;
   return /(공모|모집|지원사업|신규지원|시행계획|지원계획)/.test(title)&&!/(채용|임원|이사장|기관장|원장|본부장|강사|매니저|후보자|위원|참여단|직위|임용|근로자|공무직|공무원|전입희망|입찰|용역|개찰|결과|합격|공개검증|의견수렴|공시송달|취소|포상|서훈)/.test(title);
 }
 function text(s:string){return s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1').replace(/<[^>]+>/g,' ').replace(/&#(x[\da-f]+|\d+);/gi,(_,v:string)=>{const n=v.startsWith('x')?parseInt(v.slice(1),16):Number(v);return n<=0x10ffff?String.fromCodePoint(n):'';}).replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();}
 function publicationDate(s:string){
+  if(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} [A-Z][a-z]{2} \d{4} \d{2}:\d{2}:\d{2} \+0900$/.test(s)){
+    const local=s.replace(' +0900',' GMT');
+    const timestamp=Date.parse(local);
+    return Number.isFinite(timestamp)&&new Date(timestamp).toUTCString()===local?new Date(timestamp).toISOString().slice(0,10):null;
+  }
   if(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} [A-Z][a-z]{2} \d{4} \d{2}:\d{2}:\d{2} GMT$/.test(s)){
     const timestamp=Date.parse(s);
     if(Number.isFinite(timestamp)&&new Date(timestamp).toUTCString()===s)return new Date(timestamp+9*60*60*1000).toISOString().slice(0,10);
@@ -41,6 +47,7 @@ function publicationDate(s:string){
 function identity(raw:string,c:Config){
   const u=new URL(raw,c.origin);if(!['https:','http:'].includes(u.protocol)||u.hostname!==new URL(c.origin).hostname||u.username||u.password)throw new Error('공식 공고 주소 확인 필요');
   let id:string|null=null;
+  if(c.id==='unikorea-board')id=/^\/web\/unikorea\/bbs\/bbs_0000000000000001\/(\d+)$/.exec(u.pathname)?.[1]||null;
   if(c.id==='mods-board'&&u.pathname==='/board.es'&&u.searchParams.get('bid')==='108'&&u.searchParams.get('act')==='view')id=u.searchParams.get('list_no');
   if(c.id==='khs-board'){
     const path=u.pathname.replace(/;jsessionid=[A-Za-z0-9_.-]+$/,'');

@@ -110,6 +110,15 @@ test('KDCA relative official links and non-grant exclusions',()=>{
   assert.equal(centralGrantCandidate('박사 후 연수생 모집'),false);
 });
 const rss=(titles:string[],host='www.mss.go.kr')=>`<rss><channel>${titles.map((t,i)=>`<item><title><![CDATA[${t}]]></title><link><![CDATA[https://${host}/site/smba/ex/bbs/View.do?cbIdx=310&bcIdx=${i+100}]]></link><pubDate>20260901090226</pubDate></item>`).join('')}</channel></rss>`;
+test('Unikorea validates official board and Korean-offset dates without inventing reception',()=>{
+  const config=centralCollectors.find(x=>x.id==='unikorea-board')!;
+  const body='<rss><channel>'+['콘텐츠 공모전 개최','신진연구자 정책연구과제 공모 최종 선정과제 공고','연구용역 제안서 공모'].map((t,i)=>`<item><title>${t}</title><link>https://unikorea.go.kr/web/unikorea/bbs/bbs_0000000000000001/${59506+i}</link><pubDate>Thu, 06 Aug 2026 00:32:50 +0900</pubDate></item>`).join('')+'</channel></rss>';
+  const r=parseCentralBoard(body,config);assert.equal(r.parsedRows,3);assert.equal(r.items.length,1);assert.equal(r.items[0].externalId,'59506');assert.equal(r.items[0].announcedFrom,'2026-08-06');assert.equal(r.items[0].applicationFrom,null);
+  assert.equal(parseCentralBoard(body.replaceAll('06 Aug','30 Feb'),config).items[0].announcedFrom,null);
+  assert.throws(()=>parseCentralBoard(body.replaceAll('bbs_0000000000000001/','bbs_0000000000000004/'),config));
+  assert.throws(()=>parseCentralBoard(body.replaceAll('https://unikorea.go.kr/','https://example.com/'),config));
+  assert.equal(parseCentralBoard(body.replace('콘텐츠 공모전 개최','공무원 채용 모집'),config).items.length,0);
+});
 test('RSS imports official grants and keeps publication separate from reception',()=>{
   const r=parseCentralBoard(rss(['기업 모집 공고','사업 선정결과 공고','채용 모집 공고']),c);
   assert.equal(r.parsedRows,3);assert.equal(r.items.length,1);assert.equal(r.items[0].announcedFrom,'2026-09-01');assert.equal(r.items[0].opensAt,null);assert.equal(r.items[0].applicationFrom,null);
