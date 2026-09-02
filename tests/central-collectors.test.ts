@@ -3,6 +3,13 @@ import assert from 'node:assert/strict';
 // @ts-expect-error Native Node TypeScript runner.
 import {centralCollectors,parseCentralBoard,centralGrantCandidate} from '../lib/central-collectors.ts';
 const c=centralCollectors[0];
+test('MFDS research-call exception stays narrow and GMT publication becomes Korean date',()=>{
+  const config=centralCollectors.find(x=>x.id==='mfds-board')!;
+  const body='<rss><channel>'+['용역연구개발과제 주관연구기관 공모','용역연구개발과제 주관연구기관 공모 결과','연구 용역 입찰 모집','원장 후보자 모집'].map((t,i)=>`<item><title>${t}</title><link>https://www.mfds.go.kr/brd/m_76/view.do?seq=${i+1}</link><pubDate>Mon, 31 Aug 2026 18:00:00 GMT</pubDate></item>`).join('')+'</channel></rss>';
+  const r=parseCentralBoard(body,config);assert.equal(r.items.length,1);assert.equal(r.items[0].title,'용역연구개발과제 주관연구기관 공모');assert.equal(r.items[0].announcedFrom,'2026-09-01');assert.equal(r.items[0].applicationFrom,null);
+  assert.throws(()=>parseCentralBoard(body.replaceAll('/m_76/','/m_99/'),config));
+  assert.equal(parseCentralBoard(body.replaceAll('Mon, 31 Aug','Mon, 30 Feb'),config).items[0].announcedFrom,null);
+});
 test('Forest uses full title, removes session identifiers and validates board',()=>{
   for(const [source,board] of [['forest-board','1032'],['forest-news','1031']]){
     const config=centralCollectors.find(x=>x.id===source)!;

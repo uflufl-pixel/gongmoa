@@ -8,6 +8,7 @@ export const centralCollectors=[
   {id:'kma-board',institutionId:'central-1360000',institution:'기상청',name:'기상청 공지사항 RSS',url:'https://www.kma.go.kr/servlet/NeoboardProcess?mode=rss&bid=gongzi&url=http%3A%2F%2Fwww.kma.go.kr%2Fnotify%2Fnotice%2Flist.jsp',origin:'https://www.kma.go.kr',format:'rss',category:'기상·기후'},
   {id:'forest-board',institutionId:'central-1400000',institution:'산림청',name:'산림청 공고',url:'https://www.forest.go.kr/kfsweb/cop/bbs/selectBoardList.do?bbsId=BBSMSTR_1032&mn=NKFS_04_01_02&pageIndex=1&pageUnit=10',origin:'https://www.forest.go.kr',format:'forest',category:'산림·임업'},
   {id:'forest-news',institutionId:'central-1400000',institution:'산림청',name:'산림청 알립니다',url:'https://www.forest.go.kr/kfsweb/cop/bbs/selectBoardList.do?bbsId=BBSMSTR_1031&mn=NKFS_04_01_01&pageIndex=1&pageUnit=10',origin:'https://www.forest.go.kr',format:'forest',category:'산림·임업'},
+  {id:'mfds-board',institutionId:'central-1471000',institution:'식품의약품안전처',name:'식품의약품안전처 공고 RSS',url:'https://www.mfds.go.kr/www/rss/brd.do?brdId=ntc0004',origin:'https://www.mfds.go.kr',format:'rss',category:'식품·의약품'},
 ] as const;
 type Config=typeof centralCollectors[number];
 export function centralGrantCandidate(title:string){
@@ -16,6 +17,11 @@ export function centralGrantCandidate(title:string){
 }
 function text(s:string){return s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1').replace(/<[^>]+>/g,' ').replace(/&#(x[\da-f]+|\d+);/gi,(_,v:string)=>{const n=v.startsWith('x')?parseInt(v.slice(1),16):Number(v);return n<=0x10ffff?String.fromCodePoint(n):'';}).replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();}
 function publicationDate(s:string){
+  if(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} [A-Z][a-z]{2} \d{4} \d{2}:\d{2}:\d{2} GMT$/.test(s)){
+    const timestamp=Date.parse(s);
+    if(Number.isFinite(timestamp)&&new Date(timestamp).toUTCString()===s)return new Date(timestamp+9*60*60*1000).toISOString().slice(0,10);
+    return null;
+  }
   const kst=/^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{2}) \d{2}:\d{2}:\d{2} KST (\d{4})$/.exec(s);
   if(kst)s=`${kst[3]}-${String(['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].indexOf(kst[1])+1).padStart(2,'0')}-${kst[2]}`;
   const m=/^(\d{4})-?(\d{2})-?(\d{2})/.exec(s);if(!m)return null;
@@ -24,6 +30,7 @@ function publicationDate(s:string){
 function identity(raw:string,c:Config){
   const u=new URL(raw,c.origin);if(!['https:','http:'].includes(u.protocol)||u.hostname!==new URL(c.origin).hostname||u.username||u.password)throw new Error('공식 공고 주소 확인 필요');
   let id:string|null=null;
+  if(c.id==='mfds-board'&&u.pathname==='/brd/m_76/view.do')id=u.searchParams.get('seq');
   if(c.format==='forest'){
     const path=u.pathname.replace(/;jsessionid=[A-Za-z0-9_.-]+$/,'');
     const board=c.id==='forest-board'?'BBSMSTR_1032':'BBSMSTR_1031';
@@ -76,7 +83,8 @@ export function parseCentralBoard(body:string,c:Config){
   const items=rows.flatMap(row=>{
     if(!row.title||!row.link)throw new Error('목록 제목·링크 누락');
     const ref=identity(row.link,c);if(seen.has(ref.id))return [];seen.add(ref.id);
-    if(!centralGrantCandidate(row.title))return [];
+    const candidateTitle=c.id==='mfds-board'&&/용역연구개발과제.*주관연구기관.*공모/.test(row.title)?row.title.replace('용역연구개발과제','연구개발과제'):row.title;
+    if(!centralGrantCandidate(candidateTitle))return [];
     return [{sourceId:c.id,externalId:ref.id,institution:c.institution,group:'중앙부처',title:row.title,category:c.category,audience:'원문 지원자격 확인',region:null,sourceName:c.name,sourceUrl:ref.url,
       announcedFrom:publicationDate(row.posted),opensAt:null,closesAt:null,applicationFrom:null,applicationTo:null,deadlineLabel:'접수기간 원문 확인',status:'open'}];
   });
