@@ -3,6 +3,17 @@ import assert from 'node:assert/strict';
 // @ts-expect-error Native Node TypeScript runner.
 import {centralCollectors,parseCentralBoard,centralGrantCandidate} from '../lib/central-collectors.ts';
 const c=centralCollectors[0];
+test('Forest uses full title, removes session identifiers and validates board',()=>{
+  for(const [source,board] of [['forest-board','1032'],['forest-news','1031']]){
+    const config=centralCollectors.find(x=>x.id===source)!;
+    const body='<table>'+['산림 지원사업 공모','입찰 공고','채용 모집'].map((t,i)=>`<tr><td class="left"><a href="/kfsweb/cop/bbs/selectBoardArticle.do;jsessionid=temporary.node?bbsId=BBSMSTR_${board}&amp;nttId=${i+1}&amp;pageIndex=1" title="${t}">잘린 제목...</a></td><td>2026-09-02<td>첨부</td></tr>`).join('')+'</table>';
+    const r=parseCentralBoard(body,config);assert.equal(r.parsedRows,3);assert.equal(r.items.length,1);
+    assert.equal(r.items[0].title,'산림 지원사업 공모');assert.equal(r.items[0].announcedFrom,'2026-09-02');
+    assert.equal(r.items[0].sourceUrl,`https://www.forest.go.kr/kfsweb/cop/bbs/selectBoardArticle.do?bbsId=BBSMSTR_${board}&nttId=1`);
+    assert.throws(()=>parseCentralBoard(body.replaceAll('BBSMSTR_'+board,'BBSMSTR_9999'),config));
+    assert.throws(()=>parseCentralBoard(body.replaceAll(' title=',' data-title='),config));
+  }
+});
 test('KMA decodes escaped titles and preserves KST publication date',()=>{
   const config=centralCollectors.find(x=>x.id==='kma-board')!;
   const body='<rss><channel>'+[1,2,3].map(i=>`<item><title>아이디업&amp;#40;UP&amp;#41; 공모전</title><link>http://www.kma.go.kr/notify/notice/list.jsp?mode=view&amp;bid=gongzi&amp;num=${i}</link><pubDate>Thu Aug 27 08:17:39 KST 2026</pubDate></item>`).join('')+'</channel></rss>';

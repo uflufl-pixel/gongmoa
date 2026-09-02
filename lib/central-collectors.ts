@@ -6,6 +6,8 @@ export const centralCollectors=[
   {id:'kdca-board',institutionId:'central-1790387',institution:'질병관리청',name:'질병관리청 공고·공시 RSS',url:'https://www.kdca.go.kr/bbs/kdca/51/rssList.do?row=50',origin:'https://www.kdca.go.kr',format:'rss',category:'보건·의료'},
   {id:'rda-board',institutionId:'central-1390000',institution:'농촌진흥청',name:'농촌진흥청 공지사항',url:'https://www.rda.go.kr/board/board.do?mode=list&prgId=nei_ancmttEntry',origin:'https://www.rda.go.kr',format:'rda',category:'농업·연구'},
   {id:'kma-board',institutionId:'central-1360000',institution:'기상청',name:'기상청 공지사항 RSS',url:'https://www.kma.go.kr/servlet/NeoboardProcess?mode=rss&bid=gongzi&url=http%3A%2F%2Fwww.kma.go.kr%2Fnotify%2Fnotice%2Flist.jsp',origin:'https://www.kma.go.kr',format:'rss',category:'기상·기후'},
+  {id:'forest-board',institutionId:'central-1400000',institution:'산림청',name:'산림청 공고',url:'https://www.forest.go.kr/kfsweb/cop/bbs/selectBoardList.do?bbsId=BBSMSTR_1032&mn=NKFS_04_01_02&pageIndex=1&pageUnit=10',origin:'https://www.forest.go.kr',format:'forest',category:'산림·임업'},
+  {id:'forest-news',institutionId:'central-1400000',institution:'산림청',name:'산림청 알립니다',url:'https://www.forest.go.kr/kfsweb/cop/bbs/selectBoardList.do?bbsId=BBSMSTR_1031&mn=NKFS_04_01_01&pageIndex=1&pageUnit=10',origin:'https://www.forest.go.kr',format:'forest',category:'산림·임업'},
 ] as const;
 type Config=typeof centralCollectors[number];
 export function centralGrantCandidate(title:string){
@@ -22,6 +24,14 @@ function publicationDate(s:string){
 function identity(raw:string,c:Config){
   const u=new URL(raw,c.origin);if(!['https:','http:'].includes(u.protocol)||u.hostname!==new URL(c.origin).hostname||u.username||u.password)throw new Error('공식 공고 주소 확인 필요');
   let id:string|null=null;
+  if(c.format==='forest'){
+    const path=u.pathname.replace(/;jsessionid=[A-Za-z0-9_.-]+$/,'');
+    const board=c.id==='forest-board'?'BBSMSTR_1032':'BBSMSTR_1031';
+    if(path==='/kfsweb/cop/bbs/selectBoardArticle.do'&&u.searchParams.get('bbsId')===board){
+      id=u.searchParams.get('nttId');u.pathname=path;
+      u.search='';u.searchParams.set('bbsId',board);u.searchParams.set('nttId',id||'');
+    }
+  }
   if(c.id==='kma-board'&&u.pathname==='/notify/notice/list.jsp'&&u.searchParams.get('bid')==='gongzi'&&u.searchParams.get('mode')==='view')id=u.searchParams.get('num');
   if(c.id==='rda-board'&&u.pathname==='/board/board.do'&&u.searchParams.get('boardId')==='ancmtt'&&u.searchParams.get('prgId')==='nei_ancmttEntry'&&u.searchParams.get('mode')==='updateCnt')id=u.searchParams.get('dataNo');
   if(c.id==='kdca-board')id=/^\/bbs\/kdca\/51\/(\d+)\/artclView.do$/.exec(u.pathname)?.[1]||null;
@@ -38,6 +48,13 @@ export function parseCentralBoard(body:string,c:Config){
     for(const match of body.matchAll(/<item>[\s\S]*?<\/item>/g)){
       const field=(tag:string)=>text(match[0].match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`))?.[1]||'');
       rows.push({title:c.id==='kma-board'?text(field('title')):field('title'),link:field('link'),posted:field('pubDate')});
+    }
+  }else if(c.format==='forest'){
+    for(const match of body.matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)){
+      if(!/<td class="left">/.test(match[0]))continue;
+      const a=match[0].match(/<a href="([^"]*selectBoardArticle\.do[^"]*)" title="([^"]*)">/);
+      if(!a)throw new Error('산림청 공고 링크·제목 구조 확인 필요');
+      rows.push({title:text(a[2]),link:text(a[1]),posted:match[0].match(/<td>\s*(\d{4}-\d{2}-\d{2})/)?.[1]||''});
     }
   }else if(c.format==='rda'){
     if(!/공지사항 리스트/.test(body))throw new Error('농촌진흥청 공지 목록 구조 확인 필요');
