@@ -1,6 +1,7 @@
 import { and, asc, desc, eq } from 'drizzle-orm';
 import { getDb } from './index';
 import { bookmarks, institutions, noticeReviews, notices, sourceChecks, sources } from './schema';
+import publicRegistry from '../data/public-institutions.json';
 
 const now = new Date('2026-09-01T14:00:00.000Z');
 const seedInstitutions = [
@@ -41,6 +42,14 @@ const seedSources = [
   { id:'chungbuk-board', institutionId:'chungbuk', name:'충청북도 고시·공고', url:'https://www.chungbuk.go.kr/www/selectGosiPblancList.do?key=422&pageIndex=1&pageUnit=20&searchCnd=all', method:'local-government-board', cadenceMinutes:180, status:'ready', lastSuccessAt:null, createdAt:now },
   { id:'jeju-board', institutionId:'jeju', name:'제주특별자치도 공고', url:'https://www.jeju.go.kr/tool/sido/api.jsp?act=index&page=1', method:'official-json-index', cadenceMinutes:180, status:'ready', lastSuccessAt:null, createdAt:now },
 ];
+const publicInstitutionSeeds = publicRegistry.items.map((item,index)=>({
+  id:`public-${String(index+1).padStart(3,'0')}`,
+  name:item.name,
+  group:'공사·공단',
+  officialDomain:null,
+  parentId:item.parent,
+  createdAt:now,
+}));
 const seedNotices = [
   ['govtech-2026','bizinfo','52','과학기술정보통신부','중앙부처','2026년 GovTech 창업 경진대회 모집 공고','창업','기업·예비창업자','기업마당','2026.09.21','2026-09-21T14:59:00+09:00'],
   ['export-logistics-2026','bizinfo','857','중소벤처기업부','중앙부처','2026년 2차 온라인수출 중소기업 물류 지원 사업','수출','중소기업','기업마당','2026.09.16','2026-09-16T18:00:00+09:00'],
@@ -53,6 +62,11 @@ export async function ensureSeeded() {
   const db = getDb();
   for(let offset=0;offset<seedInstitutions.length;offset+=8) {
     await db.insert(institutions).values(seedInstitutions.slice(offset,offset+8)).onConflictDoNothing();
+  }
+  const registrySentinel=publicInstitutionSeeds.at(-1)!;
+  const registryReady=(await db.select({id:institutions.id}).from(institutions).where(eq(institutions.id,registrySentinel.id)).limit(1)).length>0;
+  if(!registryReady) for(let offset=0;offset<publicInstitutionSeeds.length;offset+=8) {
+    await db.insert(institutions).values(publicInstitutionSeeds.slice(offset,offset+8)).onConflictDoNothing();
   }
   // D1 limits the number of bound parameters in one statement. Keep source
   // seeding below that ceiling as the registry grows.
