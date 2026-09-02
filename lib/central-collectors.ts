@@ -14,8 +14,10 @@ export const centralCollectors=[
   {id:'molit-board',institutionId:'central-1613000',institution:'국토교통부',name:'국토교통부 알림마당',url:'https://www.molit.go.kr/USR/BORD0201/m_69/LST.jsp?id=N01_B',origin:'https://www.molit.go.kr',format:'molit',category:'국토·교통'},
   {id:'mof-board',institutionId:'central-1192000',institution:'해양수산부',name:'해양수산부 공지사항',url:'https://www.mof.go.kr/doc/ko/selectDocList.do?menuSeq=375&bbsSeq=9',origin:'https://www.mof.go.kr',format:'mof',category:'해양·수산'},
   {id:'moj-board',institutionId:'central-1270000',institution:'법무부',name:'법무부 공지사항',url:'https://www.moj.go.kr/moj/116/subview.do',origin:'https://www.moj.go.kr',format:'moj',category:'법무·사회'},
-  {id:'khs-board',institutionId:'central-1833100',institution:'국가유산청',name:'국가유산청 공지사항',url:'https://khs.go.kr/multiBbz/selectMultiBbzList.do?bbzId=newpublic&mn=NS_01_01',origin:'https://khs.go.kr',format:'khs',category:'국가유산·문화'},
+  {id:'khs-board',institutionId:'central-1833100',institution:'국가유산청',name:'국가유산청 공지사항',url:'https://www.khs.go.kr/multiBbz/selectMultiBbzList.do?bbzId=newpublic&mn=NS_01_01',origin:'https://khs.go.kr',format:'khs',category:'국가유산·문화'},
 ] as const;
+// Registered rows retain history; audited collector definitions own fetch endpoints.
+export function centralCollectorUrl(id:string,fallback:string){return centralCollectors.find(c=>c.id===id)?.url||fallback;}
 type Config=typeof centralCollectors[number];
 export function centralGrantCandidate(title:string){
   if(/(수상작\s*발표|수상자\s*(공고|발표)|자문단|현장투어)/.test(title))return false;

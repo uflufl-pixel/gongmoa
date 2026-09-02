@@ -1,8 +1,13 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 // @ts-expect-error Native Node TypeScript runner.
-import {centralCollectors,parseCentralBoard,centralGrantCandidate} from '../lib/central-collectors.ts';
+import {centralCollectors,parseCentralBoard,centralGrantCandidate,centralCollectorUrl} from '../lib/central-collectors.ts';
 const c=centralCollectors[0];
+test('audited collector URL updates supersede stale registered URLs without changing other sources',()=>{
+  assert.equal(centralCollectorUrl('khs-board','https://khs.go.kr/old'),'https://www.khs.go.kr/multiBbz/selectMultiBbzList.do?bbzId=newpublic&mn=NS_01_01');
+  assert.equal(centralCollectorUrl('bizinfo','https://www.bizinfo.go.kr/existing'),'https://www.bizinfo.go.kr/existing');
+  for(const config of centralCollectors)assert.equal(centralCollectorUrl(config.id,'stale'),config.url);
+});
 test('KHS strips session IDs and rejects nonofficial boards and award notices',()=>{
   const config=centralCollectors.find(x=>x.id==='khs-board')!;
   const titles=['전승공예품 악기은행 대여자 모집 공고','지원사업 공모전 수상자 공고','평가위원 후보자 모집 공고'];
