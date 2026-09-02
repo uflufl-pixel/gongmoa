@@ -3,6 +3,15 @@ import assert from 'node:assert/strict';
 // @ts-expect-error Native Node TypeScript runner.
 import {centralCollectors,parseCentralBoard,centralGrantCandidate} from '../lib/central-collectors.ts';
 const c=centralCollectors[0];
+test('KDCA relative official links and non-grant exclusions',()=>{
+  const config=centralCollectors.find(x=>x.id==='kdca-board')!;
+  const body='<rss><channel>'+['민간위탁사업 수행기관 공모','국민체험단 모집','면허 실기시험 시행계획'].map((title,i)=>`<item><title>${title}</title><link>/bbs/kdca/51/${312483+i}/artclView.do?layout=unknown</link><pubDate>2026-09-02 16:08:14.0</pubDate></item>`).join('')+'</channel></rss>';
+  const result=parseCentralBoard(body,config);
+  assert.equal(result.items.length,1);assert.equal(result.items[0].announcedFrom,'2026-09-02');
+  assert.equal(result.items[0].sourceUrl,'https://www.kdca.go.kr/bbs/kdca/51/312483/artclView.do?layout=unknown');
+  assert.throws(()=>parseCentralBoard(body.replaceAll('/kdca/51/','/kdca/53/'),config));
+  assert.equal(centralGrantCandidate('박사 후 연수생 모집'),false);
+});
 const rss=(titles:string[],host='www.mss.go.kr')=>`<rss><channel>${titles.map((t,i)=>`<item><title><![CDATA[${t}]]></title><link><![CDATA[https://${host}/site/smba/ex/bbs/View.do?cbIdx=310&bcIdx=${i+100}]]></link><pubDate>20260901090226</pubDate></item>`).join('')}</channel></rss>`;
 test('RSS imports official grants and keeps publication separate from reception',()=>{
   const r=parseCentralBoard(rss(['기업 모집 공고','사업 선정결과 공고','채용 모집 공고']),c);
