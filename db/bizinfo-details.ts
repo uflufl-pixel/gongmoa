@@ -46,7 +46,7 @@ export async function enrichBizinfoBatch(){
 }
 
 export async function withBizinfoDetails<T extends {id:string;institution:string;audience:string;status:string;closesAt:Date|null;opensAt:Date|null}>(items:T[]){
-  const rows=await env.DB.prepare('SELECT notice_id,payload,checked_at FROM notice_details WHERE checked_at IS NOT NULL').all<{notice_id:string;payload:string;checked_at:number}>();
+  const rows=await env.DB.prepare("SELECT d.notice_id,d.payload,d.checked_at FROM notice_details d JOIN notices n ON n.id=d.notice_id WHERE n.source_id='bizinfo' AND d.checked_at IS NOT NULL").all<{notice_id:string;payload:string;checked_at:number}>();
   const byId=new Map(rows.results.map(r=>[r.notice_id,r]));
   return items.map(n=>{const row=byId.get(n.id);return row?mergeBizinfoDetail(n,JSON.parse(row.payload) as BizinfoDetail,row.checked_at):n;});
 }

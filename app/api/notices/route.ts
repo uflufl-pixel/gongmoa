@@ -1,5 +1,6 @@
 import { listNotices, listSources } from '@/db/queries';
 import {withBizinfoDetails} from '@/db/bizinfo-details';
+import {withKoccaDetails} from '@/db/kocca-details';
 import {isCollectedRecord} from '@/lib/data-quality';
 
 function relationKey(institution:string,title:string) {
@@ -15,7 +16,7 @@ const isObviousNonGrant=(title:string)=>/(채용|임원|상임이사|이사장|�
 export async function GET() {
   try {
     const [baseItems, sourceItems] = await Promise.all([listNotices(true), listSources()]);
-    const items=await withBizinfoDetails(baseItems);
+    const items=await withKoccaDetails(await withBizinfoDetails(baseItems));
     const visibleItems=items.filter(item=>isCollectedRecord(item)&&!isObviousNonGrant(item.title));
     const groups=new Map<string,typeof items>();
     for(const item of visibleItems) { const key=relationKey(item.institution,item.title); if(key) groups.set(key,[...(groups.get(key)||[]),item]); }
