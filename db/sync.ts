@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, lt } from 'drizzle-orm';
 import { env } from 'cloudflare:workers';
 import { getDb } from './index';
 import { ensureSeeded } from './queries';
@@ -97,7 +97,7 @@ async function collectBojoApi() {
 
 async function upsertCollected(items:IncomingNotice[]) {
   const db=getDb(); const now=new Date();
-  const summary={discovered:items.length,inserted:0,updated:0,unchanged:0,review:0};
+  const summary={discovered:items.length,inserted:0,updated:0,unchanged:0,review:0,closed:0};
   for(const item of items) {
     const contentHash=await sha256(JSON.stringify(item));
     const existing=(await db.select().from(notices).where(and(eq(notices.sourceId,item.sourceId),eq(notices.externalId,item.externalId))).limit(1))[0];
@@ -118,6 +118,8 @@ async function upsertCollected(items:IncomingNotice[]) {
 export async function syncOfficialSources() {
   await ensureSeeded();
   const db=getDb();
+  const expired=await db.select({id:notices.id}).from(notices).where(and(eq(notices.status,'open'),lt(notices.closesAt,new Date())));
+  if(expired.length) await db.update(notices).set({status:'closed',updatedAt:new Date()}).where(and(eq(notices.status,'open'),lt(notices.closesAt,new Date())));
   const sourceItems=await db.select({id:sources.id,url:sources.url,name:sources.name}).from(sources);
   const [inspected,bojoItems]=await Promise.all([Promise.all(sourceItems.map(inspectSource)),collectBojoApi()]);
   if(bojoItems) {
@@ -129,6 +131,7 @@ export async function syncOfficialSources() {
     await db.update(sources).set({status:result.check.outcome==='success'?'connected':'attention',lastSuccessAt:result.check.outcome==='success'?result.check.finishedAt:undefined}).where(eq(sources.id,result.check.sourceId));
   }
   const incoming=[...parseBizinfo(inspected.find(x=>x.check.sourceId==='bizinfo')?.body||''),...parseMoe(inspected.find(x=>x.check.sourceId==='moe-board')?.body||''),...(bojoItems||[])];
-  const collection=incoming.length>=2?await upsertCollected(incoming):{discovered:incoming.length,inserted:0,updated:0,unchanged:0,review:1};
+  const collection=incoming.length>=2?await upsertCollected(incoming):{discovered:incoming.length,inserted:0,updated:0,unchanged:0,review:1,closed:0};
+  collection.closed=expired.length;
   return {results:inspected.map(x=>x.check),collection};
 }
