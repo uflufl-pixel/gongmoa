@@ -64,7 +64,7 @@ function parseMoe(html:string):IncomingNotice[] {
   }).slice(0,20);
 }
 
-const isGrantCandidate=(title:string)=>/(공모|모집|지원대상|신규지원|선정 계획|참가신청)/.test(title)&&!/(채용|임원|후보자|공개검증|선정 결과|평가 결과|취소처분|입찰|의견수렴)/.test(title);
+const isGrantCandidate=(title:string)=>/(공모|모집|지원대상|신규지원|선정 계획|참가신청)/.test(title)&&!/(채용|임원|후보자|위원|참여단|공개검증|선정 결과|심의결과|평가 결과|접수 마감|취소처분|입찰|의견수렴|공시송달)/.test(title);
 
 function parseMcst(html:string):IncomingNotice[] {
   return (html.match(/<tr>[\s\S]*?<\/tr>/gi)||[]).flatMap(row=>{
@@ -90,6 +90,35 @@ function parseMe(html:string):IncomingNotice[] {
     const title=decoder(match[1]); if(!isGrantCandidate(title)) return [];
     const posted=row.match(/<td>\s*(\d{4}-\d{2}-\d{2})\s*<\/td>/)?.[1]||'';
     return [{sourceId:'me-board',externalId:match[2],institution:'기후에너지환경부',group:'중앙부처',title,category:'환경·에너지',audience:'기관·기업',region:null,sourceName:'기후에너지환경부 공지·공고',sourceUrl:`https://me.go.kr/home/web/board/read.do?boardMasterId=39&menuId=10524&boardId=${match[2]}`,opensAt:dateAtSeoul(posted),closesAt:null,deadlineLabel:'공고문 확인',status:'open'}];
+  });
+}
+
+function parseSeoul(html:string):IncomingNotice[] {
+  return (html.match(/<tr>[^]*?<\/tr>/gi)||[]).flatMap(row=>{
+    const match=row.match(/fnTbbsView\('([0-9]+)'\);"[^>]*>([^]*?)<\/a>/i); if(!match) return [];
+    const title=decoder(match[2]); if(!isGrantCandidate(title)) return [];
+    const cells=Array.from(row.matchAll(/<td[^>]*>([^]*?)<\/td>/gi),m=>decoder(m[1]));
+    const posted=cells.find(value=>/^\d{4}-\d{2}-\d{2}$/.test(value))||'';
+    const dates=cells.filter(value=>/^\d{4}-\d{2}-\d{2}$/.test(value)); const closes=dates[1]||'';
+    return [{sourceId:'seoul-board',externalId:match[1],institution:'서울특별시',group:'지방자치단체',title,category:'지역·생활',audience:'시민·기관·단체',region:'서울',sourceName:'서울특별시 고시·공고',sourceUrl:`https://www.seoul.go.kr/news/news_notice.do?nttNo=${match[1]}&selmenu=M00000107`,opensAt:dateAtSeoul(posted),closesAt:dateAtSeoul(closes,true),deadlineLabel:closes?closes.replaceAll('-','.'):'공고문 확인',status:'open'}];
+  });
+}
+
+function parseBusan(html:string):IncomingNotice[] {
+  return (html.match(/<tr>[^]*?<\/tr>/gi)||[]).flatMap(row=>{
+    const match=row.match(/\/nbgosi\/view\?sno=([0-9]+)&(?:amp;)?gosiGbn=([A-Z])[^>]*>([^]*?)<\/a>/i); if(!match) return [];
+    const title=decoder(match[3]); if(!isGrantCandidate(title)) return [];
+    const posted=(row.match(/\d{4}\.\d{2}\.\d{2}/)?.[0]||'').replaceAll('.','-');
+    return [{sourceId:'busan-board',externalId:match[1],institution:'부산광역시',group:'지방자치단체',title,category:'지역·생활',audience:'시민·기관·단체',region:'부산',sourceName:'부산광역시 고시공고',sourceUrl:`https://www.busan.go.kr/nbgosi/view?sno=${match[1]}&gosiGbn=${match[2]}`,opensAt:dateAtSeoul(posted),closesAt:null,deadlineLabel:'공고문 확인',status:'open'}];
+  });
+}
+
+function parseIncheon(html:string):IncomingNotice[] {
+  return (html.match(/<tr>[^]*?<\/tr>/gi)||[]).flatMap(row=>{
+    const match=row.match(/\/IC010307\/view\?sno=([0-9]+)&(?:amp;)?gosigbn=([A-Z])[^>]*>[^]*?<span class="subject">([^]*?)<\/span>/i); if(!match) return [];
+    const title=decoder(match[3]); if(!isGrantCandidate(title)) return [];
+    const posted=row.match(/\d{4}-\d{2}-\d{2}/)?.[0]||'';
+    return [{sourceId:'incheon-board',externalId:match[1],institution:'인천광역시',group:'지방자치단체',title,category:'지역·생활',audience:'시민·기관·단체',region:'인천',sourceName:'인천광역시 고시공고',sourceUrl:`https://www.incheon.go.kr/IC010307/view?sno=${match[1]}&gosigbn=${match[2]}`,opensAt:dateAtSeoul(posted),closesAt:null,deadlineLabel:'공고문 확인',status:'open'}];
   });
 }
 
@@ -160,6 +189,9 @@ export async function syncOfficialSources() {
   const mcstBody=inspected.find(x=>x.check.sourceId==='mcst-board')?.body||''; const mcstItems=parseMcst(mcstBody);
   const moisBody=inspected.find(x=>x.check.sourceId==='mois-board')?.body||''; const moisItems=parseMois(moisBody);
   const meBody=inspected.find(x=>x.check.sourceId==='me-board')?.body||''; const meItems=parseMe(meBody);
+  const seoulBody=inspected.find(x=>x.check.sourceId==='seoul-board')?.body||''; const seoulItems=parseSeoul(seoulBody);
+  const busanBody=inspected.find(x=>x.check.sourceId==='busan-board')?.body||''; const busanItems=parseBusan(busanBody);
+  const incheonBody=inspected.find(x=>x.check.sourceId==='incheon-board')?.body||''; const incheonItems=parseIncheon(incheonBody);
   for(const [sourceId,count,minimum] of [['bizinfo',bizItems.length,5],['moe-board',moeItems.length,1]] as const) {
     const parsed=inspected.find(x=>x.check.sourceId===sourceId);
     if(parsed?.check.outcome==='success'&&count<minimum) Object.assign(parsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: ${count}건 해석`,finishedAt:new Date()});
@@ -168,11 +200,15 @@ export async function syncOfficialSources() {
     const parsed=inspected.find(x=>x.check.sourceId===sourceId); const structuralCount=(body.match(pattern)||[]).length;
     if(parsed?.check.outcome==='success'&&structuralCount<5) Object.assign(parsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: 링크 ${structuralCount}건`,finishedAt:new Date()});
   }
+  for(const [sourceId,body,pattern] of [['seoul-board',seoulBody,/fnTbbsView\('[0-9]+'/g],['busan-board',busanBody,/\/nbgosi\/view\?sno=[0-9]+/g],['incheon-board',incheonBody,/\/IC010307\/view\?sno=[0-9]+/g]] as const) {
+    const parsed=inspected.find(x=>x.check.sourceId===sourceId); const structuralCount=(body.match(pattern)||[]).length;
+    if(parsed?.check.outcome==='success'&&structuralCount<5) Object.assign(parsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: 링크 ${structuralCount}건`,finishedAt:new Date()});
+  }
   for(const result of inspected) {
     await db.insert(sourceChecks).values(result.check);
     await db.update(sources).set({status:result.check.outcome==='success'?'connected':'attention',lastSuccessAt:result.check.outcome==='success'?result.check.finishedAt:undefined}).where(eq(sources.id,result.check.sourceId));
   }
-  const incoming=[...bizItems,...moeItems,...mcstItems,...moisItems,...meItems,...(bojoItems||[])];
+  const incoming=[...bizItems,...moeItems,...mcstItems,...moisItems,...meItems,...seoulItems,...busanItems,...incheonItems,...(bojoItems||[])];
   const collection=incoming.length>=2?await upsertCollected(incoming):{discovered:incoming.length,inserted:0,updated:0,unchanged:0,review:1,closed:0};
   collection.closed=expired.length;
   return {results:inspected.map(x=>x.check),collection};
