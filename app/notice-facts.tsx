@@ -8,6 +8,7 @@ export default function NoticeFacts({details={}}:{details?:SearchRecord}){
     {(details.announcedFrom||details.announcedTo)&&<div>공고기간 · {details.announcedFrom||'미확인'} ~ {details.announcedTo||'미확인'}</div>}
     {details.supportBudget!=null&&<div>공고 지원예산 · {details.supportBudget.toLocaleString('ko-KR')}원</div>}
     {details.applicationMethod&&<div>신청방법 · {details.applicationMethod}</div>}
+    {details.deadlineLabel&&/\d{2}:\d{2}/.test(details.deadlineLabel)&&<div>원문 접수 시각(KST) · {details.deadlineLabel}</div>}
     {details.detailVerifiedAt&&<div>상세 확인 · {new Date(details.detailVerifiedAt).toLocaleDateString('ko-KR',{timeZone:'Asia/Seoul'})}</div>}
     <footer><strong>{details.applicationPeriod||(details.applicationFrom||details.applicationTo?`${details.applicationFrom||'미확인'} ~ ${details.applicationTo||'미확인'}`:'원문 접수기간 확인')}</strong><span>{label}</span></footer>
   </div>;

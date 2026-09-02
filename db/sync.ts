@@ -4,6 +4,7 @@ import { getDb } from './index';
 import { ensureSeeded } from './queries';
 import { notices, revisions, sourceChecks, sources } from './schema';
 import { bojoDate, unpackBojoPage } from '../lib/bojo-page';
+import { applicationPeriod } from '../lib/application-period';
 
 export const SYNC_BATCHES = [
   ['bojo','bizinfo','moe-board','gov24-orgs'],
@@ -139,9 +140,9 @@ function parseDaejeon(html:string):IncomingNotice[] {
     const title=decoder(card.match(/<strong class="thum_tit">([^]*?)<\/strong>/i)?.[1]||'');
     if(!id||!title||!isGrantCandidate(title)) return [];
     const period=decoder(card.match(/<em>접수기간<\/em>\s*<span>([^]*?)<\/span>/i)?.[1]||'');
-    const dates=period.match(/\d{4}-\d{2}-\d{2}/g)||[]; const audience=decoder(card.match(/<em>참가대상<\/em>\s*<span>([^]*?)<\/span>/i)?.[1]||'시민·기관·단체');
-    const closed=/type_end|종료/.test(card)||Boolean(dates[1]&&dateAtSeoul(dates[1],true)!<new Date());
-    return [{sourceId:'daejeon-board',externalId:decodeURIComponent(id),institution:'대전광역시',group:'지방자치단체',title,category:'지역·생활',audience:audience.slice(0,100),region:'대전',sourceName:'대전광역시 공모·모집',sourceUrl:`https://www.daejeon.go.kr/online/recruitmentNoticeDetail.do?compSeq=${encodeURIComponent(decodeURIComponent(id))}`,opensAt:dates[0]?dateAtSeoul(dates[0]):null,closesAt:dates[1]?dateAtSeoul(dates[1],true):null,deadlineLabel:dates[1]?dates[1].replaceAll('-','.'):'공고문 확인',status:closed?'closed':'open'}];
+    const range=applicationPeriod(period); const audience=decoder(card.match(/<em>참가대상<\/em>\s*<span>([^]*?)<\/span>/i)?.[1]||'시민·기관·단체');
+    const closed=/type_end|종료/.test(card)||Boolean(range&&range.closesAt<new Date());
+    return [{sourceId:'daejeon-board',externalId:decodeURIComponent(id),institution:'대전광역시',group:'지방자치단체',title,category:'지역·생활',audience:audience.slice(0,100),region:'대전',sourceName:'대전광역시 공모·모집',sourceUrl:`https://www.daejeon.go.kr/online/recruitmentNoticeDetail.do?compSeq=${encodeURIComponent(decodeURIComponent(id))}`,opensAt:range?.opensAt||null,closesAt:range?.closesAt||null,applicationFrom:range?.applicationFrom||null,applicationTo:range?.applicationTo||null,deadlineLabel:range?period:'공고문 확인',status:closed?'closed':'open'}];
   });
 }
 
