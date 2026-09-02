@@ -1,0 +1,369 @@
+{
+  "source": "https://www.org.go.kr/cop/bbs/getInstiChartList.do",
+  "countSource": "https://www.org.go.kr/orgnzt/chart/viewEng.do",
+  "verifiedAt": "2026-09-02",
+  "items": [
+    {
+      "id": "central-1053000",
+      "code": "1053000",
+      "name": "재정경제부",
+      "type": "부",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1050050",
+      "code": "1050050",
+      "name": "기획예산처",
+      "type": "처",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "moe",
+      "code": "1342000",
+      "name": "교육부",
+      "type": "부",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "msit",
+      "code": "1721000",
+      "name": "과학기술정보통신부",
+      "type": "부",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1262000",
+      "code": "1262000",
+      "name": "외교부",
+      "type": "부",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1250000",
+      "code": "1250000",
+      "name": "통일부",
+      "type": "부",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1270000",
+      "code": "1270000",
+      "name": "법무부",
+      "type": "부",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1290000",
+      "code": "1290000",
+      "name": "국방부",
+      "type": "부",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "mois",
+      "code": "1741000",
+      "name": "행정안전부",
+      "type": "부",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1830000",
+      "code": "1830000",
+      "name": "국가보훈부",
+      "type": "부",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "mcst",
+      "code": "1371000",
+      "name": "문화체육관광부",
+      "type": "부",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1543000",
+      "code": "1543000",
+      "name": "농림축산식품부",
+      "type": "부",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1451000",
+      "code": "1451000",
+      "name": "산업통상부",
+      "type": "부",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1352000",
+      "code": "1352000",
+      "name": "보건복지부",
+      "type": "부",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "me",
+      "code": "1482000",
+      "name": "기후에너지환경부",
+      "type": "부",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1492000",
+      "code": "1492000",
+      "name": "고용노동부",
+      "type": "부",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1384000",
+      "code": "1384000",
+      "name": "성평등가족부",
+      "type": "부",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1613000",
+      "code": "1613000",
+      "name": "국토교통부",
+      "type": "부",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1192000",
+      "code": "1192000",
+      "name": "해양수산부",
+      "type": "부",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "mss",
+      "code": "1421000",
+      "name": "중소벤처기업부",
+      "type": "부",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1760000",
+      "code": "1760000",
+      "name": "인사혁신처",
+      "type": "처",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1170000",
+      "code": "1170000",
+      "name": "법제처",
+      "type": "처",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1471000",
+      "code": "1471000",
+      "name": "식품의약품안전처",
+      "type": "처",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1210000",
+      "code": "1210000",
+      "name": "국세청",
+      "type": "청",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1220000",
+      "code": "1220000",
+      "name": "관세청",
+      "type": "청",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1230000",
+      "code": "1230000",
+      "name": "조달청",
+      "type": "청",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1241000",
+      "code": "1241000",
+      "name": "국가데이터처",
+      "type": "처",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1834100",
+      "code": "1834100",
+      "name": "우주항공청",
+      "type": "청",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1832000",
+      "code": "1832000",
+      "name": "재외동포청",
+      "type": "청",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1280000",
+      "code": "1280000",
+      "name": "대검찰청",
+      "type": "청",
+      "scope": "중앙행정기관",
+      "aliases": [
+        "검찰청"
+      ]
+    },
+    {
+      "id": "central-1300000",
+      "code": "1300000",
+      "name": "병무청",
+      "type": "청",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1690000",
+      "code": "1690000",
+      "name": "방위사업청",
+      "type": "청",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1320000",
+      "code": "1320000",
+      "name": "경찰청",
+      "type": "청",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1661000",
+      "code": "1661000",
+      "name": "소방청",
+      "type": "청",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1833100",
+      "code": "1833100",
+      "name": "국가유산청",
+      "type": "청",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1390000",
+      "code": "1390000",
+      "name": "농촌진흥청",
+      "type": "청",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1400000",
+      "code": "1400000",
+      "name": "산림청",
+      "type": "청",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1431000",
+      "code": "1431000",
+      "name": "지식재산처",
+      "type": "처",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1790387",
+      "code": "1790387",
+      "name": "질병관리청",
+      "type": "청",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1360000",
+      "code": "1360000",
+      "name": "기상청",
+      "type": "청",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1670000",
+      "code": "1670000",
+      "name": "행정중심복합도시건설청",
+      "type": "청",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1730000",
+      "code": "1730000",
+      "name": "새만금개발청",
+      "type": "청",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1532000",
+      "code": "1532000",
+      "name": "해양경찰청",
+      "type": "청",
+      "scope": "중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1021100",
+      "code": "1021100",
+      "name": "대통령경호처",
+      "type": "처",
+      "scope": "준중앙행정기관",
+      "aliases": []
+    },
+    {
+      "id": "central-1790364",
+      "code": "1790364",
+      "name": "고위공직자범죄수사처",
+      "type": "처",
+      "scope": "준중앙행정기관",
+      "aliases": []
+    }
+  ]
+}
