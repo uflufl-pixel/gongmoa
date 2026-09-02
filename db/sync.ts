@@ -67,7 +67,7 @@ function parseMoe(html:string):IncomingNotice[] {
   }).slice(0,20);
 }
 
-const isGrantCandidate=(title:string)=>/(공모|모집|지원대상|신규지원|선정 계획|참가신청)/.test(title)&&!/(채용|임원|상임이사|이사장|기관장|원장|본부장|강사|매니저|후보자|위원|참여단|공개검증|선정 결과|심의결과|평가 결과|개찰결과|접수 마감|취소처분|입찰|의견수렴|공시송달)/.test(title);
+const isGrantCandidate=(title:string)=>/(공모|모집|지원사업|지원대상|신규지원|선정 계획|참가신청)/.test(title)&&!/(채용|임원|상임이사|이사장|기관장|원장|본부장|강사|매니저|후보자|위원|참여단|공개검증|선정 결과|선정결과|심의결과|평가 결과|개찰결과|접수 마감|취소처분|입찰|의견수렴|공시송달)/.test(title);
 
 function parseMcst(html:string):IncomingNotice[] {
   return (html.match(/<tr>[\s\S]*?<\/tr>/gi)||[]).flatMap(row=>{
@@ -183,6 +183,16 @@ function parseChungbuk(html:string):IncomingNotice[] {
   });
 }
 
+function parseJeju(body:string):IncomingNotice[] {
+  try {
+    const payload=JSON.parse(body) as {gosis?:Array<{no?:string;title?:string;dept?:string;date?:string}>};
+    return (payload.gosis||[]).flatMap(item=>{
+      const id=item.no||''; const title=decoder(item.title||''); if(!id||!title||!isGrantCandidate(title)) return [];
+      return [{sourceId:'jeju-board',externalId:id,institution:'제주특별자치도',group:'지방자치단체',title,category:'지역·생활',audience:'도민·기관·기업',region:'제주',sourceName:'제주특별자치도 공고',sourceUrl:`https://www.jeju.go.kr/news/news/law/jeju2.htm#A_${id}`,opensAt:dateAtSeoul(item.date||''),closesAt:null,deadlineLabel:'공고문 확인',status:'open'}];
+    });
+  } catch { return []; }
+}
+
 async function collectBojoApi() {
   const key=env.BOJO_API_KEY;
   if(!key) return null;
@@ -259,6 +269,7 @@ export async function syncOfficialSources() {
   const jeonbukBody=inspected.find(x=>x.check.sourceId==='jeonbuk-board')?.body||''; const jeonbukItems=parseJeonbuk(jeonbukBody);
   const gyeongnamBody=inspected.find(x=>x.check.sourceId==='gyeongnam-business')?.body||''; const gyeongnamItems=parseGyeongnamBusiness(gyeongnamBody);
   const chungbukBody=inspected.find(x=>x.check.sourceId==='chungbuk-board')?.body||''; const chungbukItems=parseChungbuk(chungbukBody);
+  const jejuBody=inspected.find(x=>x.check.sourceId==='jeju-board')?.body||''; const jejuItems=parseJeju(jejuBody);
   for(const [sourceId,count,minimum] of [['bizinfo',bizItems.length,5],['moe-board',moeItems.length,1]] as const) {
     const parsed=inspected.find(x=>x.check.sourceId===sourceId);
     if(parsed?.check.outcome==='success'&&count<minimum) Object.assign(parsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: ${count}건 해석`,finishedAt:new Date()});
@@ -287,11 +298,13 @@ export async function syncOfficialSources() {
     const parsed=inspected.find(x=>x.check.sourceId===sourceId); const structuralCount=(body.match(pattern)||[]).length;
     if(parsed?.check.outcome==='success'&&structuralCount<10) Object.assign(parsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: 링크 ${structuralCount}건`,finishedAt:new Date()});
   }
+  const jejuParsed=inspected.find(x=>x.check.sourceId==='jeju-board');
+  if(jejuParsed?.check.outcome==='success'&&(!jejuBody.includes('"gosis"')||jejuItems.length<1)) Object.assign(jejuParsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: ${jejuItems.length}건 해석`,finishedAt:new Date()});
   for(const result of inspected) {
     await db.insert(sourceChecks).values(result.check);
     await db.update(sources).set({status:result.check.outcome==='success'?'connected':'attention',lastSuccessAt:result.check.outcome==='success'?result.check.finishedAt:undefined}).where(eq(sources.id,result.check.sourceId));
   }
-  const incoming=[...bizItems,...moeItems,...mcstItems,...moisItems,...meItems,...seoulItems,...busanItems,...incheonItems,...daejeonItems,...daeguItems,...ulsanItems,...jeonbukItems,...gyeongnamItems,...chungbukItems,...(bojoItems||[])];
+  const incoming=[...bizItems,...moeItems,...mcstItems,...moisItems,...meItems,...seoulItems,...busanItems,...incheonItems,...daejeonItems,...daeguItems,...ulsanItems,...jeonbukItems,...gyeongnamItems,...chungbukItems,...jejuItems,...(bojoItems||[])];
   const collection=incoming.length>=2?await upsertCollected(incoming):{discovered:incoming.length,inserted:0,updated:0,unchanged:0,review:1,closed:0};
   collection.closed=expired.length;
   return {results:inspected.map(x=>x.check),collection};
