@@ -12,6 +12,8 @@ export async function detailStatus(){
 
 export async function enrichBizinfoBatch(){
   const now=Date.now();
+  // Recover only failures caused by the previous unsupported Worker redirect option.
+  await env.DB.prepare("UPDATE notice_details SET next_attempt_at=0,last_error='실행 환경 오류 수정 후 재시도 대기' WHERE last_error LIKE 'Invalid redirect value,%' AND lease_until<?").bind(now).run();
   const candidates=await env.DB.prepare(`SELECT n.id,n.external_id FROM notices n
     LEFT JOIN notice_details d ON d.notice_id=n.id
     WHERE n.source_id='bizinfo' AND n.external_id GLOB 'PBLN_[0-9]*'
@@ -26,7 +28,7 @@ export async function enrichBizinfoBatch(){
     if(!lock)continue;
     try{
       // Fixed origin and validated external ID: never fetch arbitrary stored URLs.
-      const response=await fetch('https://www.bizinfo.go.kr/sii/siia/selectSIIA200Detail.do?pblancId='+n.external_id,{signal:AbortSignal.timeout(10000),redirect:'error',headers:{accept:'text/html','user-agent':'GongmoaSourceMonitor/1.1 (+https://gongmoa.uflufl.chatgpt.site)'}});
+      const response=await fetch('https://www.bizinfo.go.kr/sii/siia/selectSIIA200Detail.do?pblancId='+n.external_id,{signal:AbortSignal.timeout(10000),redirect:'manual',headers:{accept:'text/html','user-agent':'GongmoaSourceMonitor/1.1 (+https://gongmoa.uflufl.chatgpt.site)'}});
       if(!response.ok)throw new Error('기업마당 상세 HTTP '+response.status);
       const html=await response.text();
       if(html.length>2_000_000)throw new Error('기업마당 상세 응답 크기 초과');
