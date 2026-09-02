@@ -3,6 +3,7 @@ import { env } from 'cloudflare:workers';
 import { getDb } from './index';
 import { ensureSeeded } from './queries';
 import { notices, revisions, sourceChecks, sources } from './schema';
+import { bojoDate, unpackBojoPage } from '../lib/bojo-page';
 
 export const SYNC_BATCHES = [
   ['bojo','bizinfo','moe-board','gov24-orgs'],
@@ -227,30 +228,38 @@ async function collectBojoApi() {
   // slow provider fan-out while still covering delayed updates around midnight.
   const dates=Array.from({length:2},(_,i)=>{const date=new Date(kstNow);date.setUTCDate(date.getUTCDate()-i);return date.toISOString().slice(0,10).replaceAll('-','')});
   const responses=await Promise.all(dates.map(async date=>{
-    const url=`https://apis.data.go.kr/1051000/MoefOpenAPI2025/T_OPD_ASBS_PBNS_UNITY?serviceKey=${key}&pageNo=1&numOfRows=100&resultType=json&bsnsyear=${kstNow.getUTCFullYear()}&pblanc_updt_dt=${date}`;
+    const rows:BojoItem[]=[];
+    for(let page=1;page<=20;page++) {
+    const url=`https://apis.data.go.kr/1051000/MoefOpenAPI2025/T_OPD_ASBS_PBNS_UNITY?serviceKey=${key}&pageNo=${page}&numOfRows=100&resultType=json&bsnsyear=${kstNow.getUTCFullYear()}&pblanc_updt_dt=${date}`;
     const response=await fetch(url,{headers:{accept:'application/json','user-agent':'GongmoaCollector/1.0'},signal:AbortSignal.timeout(15000)});
     if(!response.ok) throw new Error(`기획예산처 API HTTP ${response.status}`);
-    const payload=await response.json() as {response?:{header?:{resultCode?:string;resultMsg?:string};body?:{items?:{item?:BojoItem|BojoItem[]}}}};
-    if(payload.response?.header?.resultCode!=='00') throw new Error(payload.response?.header?.resultMsg||'기획예산처 API 오류');
-    const raw=payload.response?.body?.items?.item; return raw?(Array.isArray(raw)?raw:[raw]):[];
+    const result=unpackBojoPage(await response.json(),page,100);
+    rows.push(...result.rows);
+    if(result.nextPage===null) return rows;
+    }
+    throw new Error('보조금 변경분이 실행 한도를 초과했습니다. 전체 수집으로 보완이 필요합니다.');
   }));
+  return parseBojoItems(responses.flat());
+}
+
+export function parseBojoItems(rows:BojoItem[]) {
+  const today=new Date(Date.now()+9*60*60*1000).toISOString().slice(0,10);
   const seen=new Set<string>(); const items:IncomingNotice[]=[];
-  for(const item of responses.flat()) {
-    const title=cdata(item.PBLANC_NM); const closes=cdata(item.RCEPT_END_DE)||cdata(item.PBLANC_END_DE);
-    if(!title||(/^\d{8}$/.test(closes)&&closes<today)) continue;
+  for(const item of rows) {
+    const title=cdata(item.PBLANC_NM); const closes=bojoDate(cdata(item.RCEPT_END_DE)||cdata(item.PBLANC_END_DE));
+    if(!title||(closes&&closes<today)) continue;
     const popup=cdata(item.PBLANC_POPUP_URL)||cdata(item.BSNS_POPUP_URL)||'https://www.bojo.go.kr/bojo.do';
     const externalId=/nttId=([^&]+)/.exec(popup)?.[1]||`${cdata(item.DDTLBZ_ID)}-${cdata(item.PBLANC_BEGIN_DE)}`;
     if(!externalId||seen.has(externalId)) continue; seen.add(externalId);
     const institution=cdata(item.DLVPL_NM)||cdata(item.JRSD_NM)||'기획예산처'; const region=cdata(item.CTPRVN_NM)||null;
     const opens=cdata(item.RCEPT_BEGIN_DE)||cdata(item.PBLANC_BEGIN_DE);
-    const compactDate=(value:string)=>/^\d{8}$/.test(value)?`${value.slice(0,4)}-${value.slice(4,6)}-${value.slice(6,8)}`:'';
-    const openDate=compactDate(opens); const closeDate=compactDate(closes);
+    const openDate=bojoDate(opens); const closeDate=closes;
     items.push({sourceId:'bojo',externalId,institution,group:/(특별시|광역시|특별자치|[가-힣]+도|시|군|구)$/.test(institution)?'지방자치단체':'중앙부처',title,category:'보조금',audience:(cdata(item.SPORT_TRGET_CN)||cdata(item.SPORT_CN_DC)||'기관·단체').slice(0,100),region,sourceName:'보조금통합포털 API',sourceUrl:popup,opensAt:openDate?dateAtSeoul(openDate):null,closesAt:closeDate?dateAtSeoul(closeDate,true):null,deadlineLabel:closeDate?closeDate.replaceAll('-','.'):'공고문 확인',status:'open'});
   }
   return items;
 }
 
-async function upsertCollected(items:IncomingNotice[]) {
+export async function upsertCollected(items:IncomingNotice[]) {
   const db=getDb(); const now=new Date();
   const summary={discovered:items.length,inserted:0,updated:0,unchanged:0,review:0,closed:0};
   for(const item of items) {
@@ -336,7 +345,7 @@ export async function syncOfficialSources(requestedSourceIds?:readonly string[])
     await db.update(sources).set({status:result.check.outcome==='success'?'connected':'attention',lastSuccessAt:result.check.outcome==='success'?result.check.finishedAt:undefined}).where(eq(sources.id,result.check.sourceId));
   }
   const incoming=[...bizItems,...moeItems,...mcstItems,...moisItems,...meItems,...seoulItems,...busanItems,...incheonItems,...daejeonItems,...daeguItems,...ulsanItems,...jeonbukItems,...gyeongnamItems,...chungbukItems,...jejuItems,...koccaItems,...(bojoItems||[])];
-  const collection=incoming.length>=2?await upsertCollected(incoming):{discovered:incoming.length,inserted:0,updated:0,unchanged:0,review:1,closed:0};
+  const collection=await upsertCollected(incoming);
   collection.closed=expired.length;
   return {results:inspected.map(x=>x.check),collection,sourceIds:[...selected]};
 }

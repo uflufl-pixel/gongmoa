@@ -86,3 +86,14 @@ export const noticeReviews = sqliteTable('notice_reviews', {
   note: text('note'),
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
 }, (t) => [index('idx_notice_reviews_decision').on(t.decision)]);
+
+export const bojoBackfills = sqliteTable('bojo_backfills', {
+  year: integer('year').primaryKey(),
+  nextPage: integer('next_page').notNull().default(1),
+  totalRows: integer('total_rows'),
+  scannedRows: integer('scanned_rows').notNull().default(0),
+  completed: integer('completed').notNull().default(0),
+  leaseToken: text('lease_token'),
+  leaseUntil: integer('lease_until').notNull().default(0),
+  updatedAt: integer('updated_at').notNull().default(0),
+});
