@@ -3,6 +3,15 @@ import assert from 'node:assert/strict';
 // @ts-expect-error Native Node TypeScript runner.
 import {centralCollectors,parseCentralBoard,centralGrantCandidate} from '../lib/central-collectors.ts';
 const c=centralCollectors[0];
+test('KMA decodes escaped titles and preserves KST publication date',()=>{
+  const config=centralCollectors.find(x=>x.id==='kma-board')!;
+  const body='<rss><channel>'+[1,2,3].map(i=>`<item><title>아이디업&amp;#40;UP&amp;#41; 공모전</title><link>http://www.kma.go.kr/notify/notice/list.jsp?mode=view&amp;bid=gongzi&amp;num=${i}</link><pubDate>Thu Aug 27 08:17:39 KST 2026</pubDate></item>`).join('')+'</channel></rss>';
+  const result=parseCentralBoard(body,config);
+  assert.equal(result.items[0].title,'아이디업(UP) 공모전');assert.equal(result.items[0].announcedFrom,'2026-08-27');assert.equal(result.items[0].applicationFrom,null);
+  assert.ok(result.items[0].sourceUrl.startsWith('https://www.kma.go.kr/'));
+  assert.throws(()=>parseCentralBoard(body.replaceAll('bid=gongzi','bid=recruit'),config));
+  assert.equal(parseCentralBoard(body.replaceAll('Aug 27','Feb 30'),config).items[0].announcedFrom,null);
+});
 test('RDA extracts official notice rows and rejects unrelated board identities',()=>{
   const config=centralCollectors.find(x=>x.id==='rda-board')!;
   const body='<table><caption>공지사항 리스트</caption>'+['산업체협력연구 참여기업 공모','면허 실기시험 시행계획','참여기업 선정 결과'].map((title,i)=>`<tr><td aria-label="제목"><a href="/board/board.do?boardId=ancmtt&amp;prgId=nei_ancmttEntry&amp;dataNo=${100+i}&amp;mode=updateCnt"><span>${title}</span></a></td><td aria-label="작성일">2026-08-12</td></tr>`).join('')+'</table>';

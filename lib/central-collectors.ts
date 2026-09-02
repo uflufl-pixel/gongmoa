@@ -5,6 +5,7 @@ export const centralCollectors=[
   {id:'mohw-board',institutionId:'central-1352000',institution:'보건복지부',name:'보건복지부 공지사항',url:'https://www.mohw.go.kr/menu.es?mid=a10501010000',origin:'https://www.mohw.go.kr',format:'es',category:'보건·복지'},
   {id:'kdca-board',institutionId:'central-1790387',institution:'질병관리청',name:'질병관리청 공고·공시 RSS',url:'https://www.kdca.go.kr/bbs/kdca/51/rssList.do?row=50',origin:'https://www.kdca.go.kr',format:'rss',category:'보건·의료'},
   {id:'rda-board',institutionId:'central-1390000',institution:'농촌진흥청',name:'농촌진흥청 공지사항',url:'https://www.rda.go.kr/board/board.do?mode=list&prgId=nei_ancmttEntry',origin:'https://www.rda.go.kr',format:'rda',category:'농업·연구'},
+  {id:'kma-board',institutionId:'central-1360000',institution:'기상청',name:'기상청 공지사항 RSS',url:'https://www.kma.go.kr/servlet/NeoboardProcess?mode=rss&bid=gongzi&url=http%3A%2F%2Fwww.kma.go.kr%2Fnotify%2Fnotice%2Flist.jsp',origin:'https://www.kma.go.kr',format:'rss',category:'기상·기후'},
 ] as const;
 type Config=typeof centralCollectors[number];
 export function centralGrantCandidate(title:string){
@@ -13,12 +14,15 @@ export function centralGrantCandidate(title:string){
 }
 function text(s:string){return s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1').replace(/<[^>]+>/g,' ').replace(/&#(x[\da-f]+|\d+);/gi,(_,v:string)=>{const n=v.startsWith('x')?parseInt(v.slice(1),16):Number(v);return n<=0x10ffff?String.fromCodePoint(n):'';}).replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();}
 function publicationDate(s:string){
+  const kst=/^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{2}) \d{2}:\d{2}:\d{2} KST (\d{4})$/.exec(s);
+  if(kst)s=`${kst[3]}-${String(['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].indexOf(kst[1])+1).padStart(2,'0')}-${kst[2]}`;
   const m=/^(\d{4})-?(\d{2})-?(\d{2})/.exec(s);if(!m)return null;
   const d=`${m[1]}-${m[2]}-${m[3]}`,date=new Date(d+'T00:00:00Z');return Number.isFinite(date.getTime())&&date.toISOString().slice(0,10)===d?d:null;
 }
 function identity(raw:string,c:Config){
   const u=new URL(raw,c.origin);if(!['https:','http:'].includes(u.protocol)||u.hostname!==new URL(c.origin).hostname||u.username||u.password)throw new Error('공식 공고 주소 확인 필요');
   let id:string|null=null;
+  if(c.id==='kma-board'&&u.pathname==='/notify/notice/list.jsp'&&u.searchParams.get('bid')==='gongzi'&&u.searchParams.get('mode')==='view')id=u.searchParams.get('num');
   if(c.id==='rda-board'&&u.pathname==='/board/board.do'&&u.searchParams.get('boardId')==='ancmtt'&&u.searchParams.get('prgId')==='nei_ancmttEntry'&&u.searchParams.get('mode')==='updateCnt')id=u.searchParams.get('dataNo');
   if(c.id==='kdca-board')id=/^\/bbs\/kdca\/51\/(\d+)\/artclView.do$/.exec(u.pathname)?.[1]||null;
   if(c.id==='mss-board'&&u.pathname==='/site/smba/ex/bbs/View.do'&&u.searchParams.get('cbIdx')==='310')id=u.searchParams.get('bcIdx');
@@ -33,7 +37,7 @@ export function parseCentralBoard(body:string,c:Config){
     if(!/<rss\b/.test(body)||!/<channel>/.test(body))throw new Error('RSS 구조 확인 필요');
     for(const match of body.matchAll(/<item>[\s\S]*?<\/item>/g)){
       const field=(tag:string)=>text(match[0].match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`))?.[1]||'');
-      rows.push({title:field('title'),link:field('link'),posted:field('pubDate')});
+      rows.push({title:c.id==='kma-board'?text(field('title')):field('title'),link:field('link'),posted:field('pubDate')});
     }
   }else if(c.format==='rda'){
     if(!/공지사항 리스트/.test(body))throw new Error('농촌진흥청 공지 목록 구조 확인 필요');
