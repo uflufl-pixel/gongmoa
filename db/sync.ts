@@ -4,6 +4,13 @@ import { getDb } from './index';
 import { ensureSeeded } from './queries';
 import { notices, revisions, sourceChecks, sources } from './schema';
 
+export const SYNC_BATCHES = [
+  ['bojo','bizinfo','moe-board','gov24-orgs'],
+  ['mcst-board','mois-board','me-board','kocca-support'],
+  ['seoul-board','busan-board','incheon-board','daejeon-board','daegu-board'],
+  ['ulsan-board','jeonbuk-board','gyeongnam-business','chungbuk-board','jeju-board'],
+] as const;
+
 const decoder=(value:string)=>value.replace(/<[^>]+>/g,' ').replace(/&#(x?[0-9a-f]+);/gi,(_,n)=>String.fromCodePoint(n[0].toLowerCase()==='x'?parseInt(n.slice(1),16):parseInt(n,10))).replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&middot;/g,'·').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();
 
 async function sha256(value:string) {
@@ -255,13 +262,15 @@ async function upsertCollected(items:IncomingNotice[]) {
   return summary;
 }
 
-export async function syncOfficialSources() {
+export async function syncOfficialSources(requestedSourceIds?:readonly string[]) {
   await ensureSeeded();
   const db=getDb();
   const expired=await db.select({id:notices.id}).from(notices).where(and(eq(notices.status,'open'),lt(notices.closesAt,new Date())));
   if(expired.length) await db.update(notices).set({status:'closed',updatedAt:new Date()}).where(and(eq(notices.status,'open'),lt(notices.closesAt,new Date())));
-  const sourceItems=await db.select({id:sources.id,url:sources.url,name:sources.name}).from(sources);
-  const [inspected,bojoItems]=await Promise.all([Promise.all(sourceItems.map(inspectSource)),collectBojoApi()]);
+  const allSourceItems=await db.select({id:sources.id,url:sources.url,name:sources.name}).from(sources);
+  const selected=new Set(requestedSourceIds?.length?requestedSourceIds:SYNC_BATCHES[0]);
+  const sourceItems=allSourceItems.filter(source=>selected.has(source.id));
+  const [inspected,bojoItems]=await Promise.all([Promise.all(sourceItems.map(inspectSource)),selected.has('bojo')?collectBojoApi():Promise.resolve(null)]);
   if(bojoItems) {
     const apiCheck=inspected.find(x=>x.check.sourceId==='bojo');
     if(apiCheck) Object.assign(apiCheck.check,{outcome:'success',statusCode:200,keywordHits:bojoItems.length,pageTitle:'기획예산처 국고보조금 공모사업 API',message:null,finishedAt:new Date()});
@@ -321,5 +330,5 @@ export async function syncOfficialSources() {
   const incoming=[...bizItems,...moeItems,...mcstItems,...moisItems,...meItems,...seoulItems,...busanItems,...incheonItems,...daejeonItems,...daeguItems,...ulsanItems,...jeonbukItems,...gyeongnamItems,...chungbukItems,...jejuItems,...koccaItems,...(bojoItems||[])];
   const collection=incoming.length>=2?await upsertCollected(incoming):{discovered:incoming.length,inserted:0,updated:0,unchanged:0,review:1,closed:0};
   collection.closed=expired.length;
-  return {results:inspected.map(x=>x.check),collection};
+  return {results:inspected.map(x=>x.check),collection,sourceIds:[...selected]};
 }
