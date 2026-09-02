@@ -64,7 +64,7 @@ function parseMoe(html:string):IncomingNotice[] {
   }).slice(0,20);
 }
 
-const isGrantCandidate=(title:string)=>/(공모|모집|지원대상|신규지원|선정 계획|참가신청)/.test(title)&&!/(채용|임원|상임이사|본부장|후보자|위원|참여단|공개검증|선정 결과|심의결과|평가 결과|접수 마감|취소처분|입찰|의견수렴|공시송달)/.test(title);
+const isGrantCandidate=(title:string)=>/(공모|모집|지원대상|신규지원|선정 계획|참가신청)/.test(title)&&!/(채용|임원|상임이사|이사장|기관장|원장|본부장|강사|후보자|위원|참여단|공개검증|선정 결과|심의결과|평가 결과|접수 마감|취소처분|입찰|의견수렴|공시송달)/.test(title);
 
 function parseMcst(html:string):IncomingNotice[] {
   return (html.match(/<tr>[\s\S]*?<\/tr>/gi)||[]).flatMap(row=>{
