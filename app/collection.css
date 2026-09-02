@@ -2,6 +2,7 @@
 .collectionSummary span{background:#eef6f1;border:1px solid #d5e8dc;border-radius:999px;padding:8px 13px;color:#456257;font-size:13px}
 .collectionSummary b{color:#0e613d;margin-left:4px}
 .reviewBadge{display:inline-flex;margin:8px 0 0;padding:5px 9px;border-radius:7px;background:#fff4dd;color:#98610a;font-size:11px;font-weight:800}
+.reviewActions{display:flex;gap:6px;margin:8px 0 0}.reviewActions button{border:1px solid #d8ded9;border-radius:7px;background:#fff;padding:6px 9px;color:#526159;font-size:11px;font-weight:800}.reviewActions button:first-child{border-color:#a9d4bd;color:#12633f;background:#eff9f3}.reviewActions button:last-child{border-color:#e2c7c7;color:#8c3d3d;background:#fff6f6}
 .filters .reviewFilter{margin-left:auto;border-color:#e5bd73;color:#8b5b08;background:#fffaf0}
 .filters .reviewFilter.selected{background:#8b5b08;color:#fff;border-color:#8b5b08}
 @media(max-width:760px){.filters .reviewFilter{margin-left:0}}

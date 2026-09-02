@@ -79,3 +79,10 @@ export const sourceChecks = sqliteTable('source_checks', {
   index('idx_source_checks_source_finished').on(t.sourceId, t.finishedAt),
   index('idx_source_checks_outcome_finished').on(t.outcome, t.finishedAt),
 ]);
+
+export const noticeReviews = sqliteTable('notice_reviews', {
+  noticeId: text('notice_id').primaryKey().references(() => notices.id),
+  decision: text('decision').notNull(),
+  note: text('note'),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+}, (t) => [index('idx_notice_reviews_decision').on(t.decision)]);

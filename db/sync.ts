@@ -126,11 +126,17 @@ export async function syncOfficialSources() {
     const apiCheck=inspected.find(x=>x.check.sourceId==='bojo');
     if(apiCheck) Object.assign(apiCheck.check,{outcome:'success',statusCode:200,keywordHits:bojoItems.length,pageTitle:'기획예산처 국고보조금 공모사업 API',message:null,finishedAt:new Date()});
   }
+  const bizItems=parseBizinfo(inspected.find(x=>x.check.sourceId==='bizinfo')?.body||'');
+  const moeItems=parseMoe(inspected.find(x=>x.check.sourceId==='moe-board')?.body||'');
+  for(const [sourceId,count,minimum] of [['bizinfo',bizItems.length,5],['moe-board',moeItems.length,1]] as const) {
+    const parsed=inspected.find(x=>x.check.sourceId===sourceId);
+    if(parsed?.check.outcome==='success'&&count<minimum) Object.assign(parsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: ${count}건 해석`,finishedAt:new Date()});
+  }
   for(const result of inspected) {
     await db.insert(sourceChecks).values(result.check);
     await db.update(sources).set({status:result.check.outcome==='success'?'connected':'attention',lastSuccessAt:result.check.outcome==='success'?result.check.finishedAt:undefined}).where(eq(sources.id,result.check.sourceId));
   }
-  const incoming=[...parseBizinfo(inspected.find(x=>x.check.sourceId==='bizinfo')?.body||''),...parseMoe(inspected.find(x=>x.check.sourceId==='moe-board')?.body||''),...(bojoItems||[])];
+  const incoming=[...bizItems,...moeItems,...(bojoItems||[])];
   const collection=incoming.length>=2?await upsertCollected(incoming):{discovered:incoming.length,inserted:0,updated:0,unchanged:0,review:1,closed:0};
   collection.closed=expired.length;
   return {results:inspected.map(x=>x.check),collection};

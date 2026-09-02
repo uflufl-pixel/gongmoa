@@ -1,6 +1,6 @@
 import { and, asc, desc, eq } from 'drizzle-orm';
 import { getDb } from './index';
-import { bookmarks, institutions, notices, sourceChecks, sources } from './schema';
+import { bookmarks, institutions, noticeReviews, notices, sourceChecks, sources } from './schema';
 
 const now = new Date('2026-09-01T14:00:00.000Z');
 const seedInstitutions = [
@@ -62,4 +62,14 @@ export async function setBookmark(deviceKey:string, noticeId:string, saved:boole
 export async function listRecentChecks() {
   await ensureSeeded();
   return getDb().select().from(sourceChecks).orderBy(desc(sourceChecks.finishedAt)).limit(40);
+}
+
+export async function listNoticeReviews() {
+  await ensureSeeded();
+  return getDb().select().from(noticeReviews).orderBy(desc(noticeReviews.updatedAt));
+}
+
+export async function setNoticeReview(noticeId:string,decision:'approved'|'excluded',note:string|null) {
+  await ensureSeeded();
+  await getDb().insert(noticeReviews).values({noticeId,decision,note,updatedAt:new Date()}).onConflictDoUpdate({target:noticeReviews.noticeId,set:{decision,note,updatedAt:new Date()}});
 }
