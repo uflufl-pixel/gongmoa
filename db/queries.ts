@@ -8,12 +8,18 @@ const seedInstitutions = [
   { id: 'mss', name: '중소벤처기업부', group: '중앙부처', officialDomain: 'mss.go.kr', parentId: null, createdAt: now },
   { id: 'gb', name: '경상북도', group: '지방자치단체', officialDomain: 'gb.go.kr', parentId: null, createdAt: now },
   { id: 'moe', name: '교육부', group: '중앙부처', officialDomain: 'moe.go.kr', parentId: null, createdAt: now },
+  { id: 'mcst', name: '문화체육관광부', group: '중앙부처', officialDomain: 'mcst.go.kr', parentId: null, createdAt: now },
+  { id: 'mois', name: '행정안전부', group: '중앙부처', officialDomain: 'mois.go.kr', parentId: null, createdAt: now },
+  { id: 'me', name: '기후에너지환경부', group: '중앙부처', officialDomain: 'me.go.kr', parentId: null, createdAt: now },
 ];
 const seedSources = [
   { id:'bizinfo', institutionId:'mss', name:'기업마당', url:'https://www.bizinfo.go.kr/sii/siia/selectSIIA200View.do', method:'official-index', cadenceMinutes:60, status:'connected', lastSuccessAt:now, createdAt:now },
   { id:'bojo', institutionId:null, name:'보조금통합포털', url:'https://www.bojo.go.kr/retrieveSearchPubBiz.do', method:'official-index', cadenceMinutes:60, status:'connected', lastSuccessAt:now, createdAt:now },
   { id:'moe-board', institutionId:'moe', name:'교육부 사업공고', url:'https://www.moe.go.kr/boardCnts/listRenew.do?boardID=72761&m=020502&s=moe', method:'institution-board', cadenceMinutes:180, status:'connected', lastSuccessAt:now, createdAt:now },
   { id:'gov24-orgs', institutionId:null, name:'정부24 기관 누리집', url:'https://www.gov.kr/portal/orgSite', method:'registry', cadenceMinutes:1440, status:'connected', lastSuccessAt:now, createdAt:now },
+  { id:'mcst-board', institutionId:'mcst', name:'문화체육관광부 공지', url:'https://www.mcst.go.kr/site/s_notice/notice/noticeList.jsp?pCurrentPage=1', method:'institution-board', cadenceMinutes:180, status:'ready', lastSuccessAt:null, createdAt:now },
+  { id:'mois-board', institutionId:'mois', name:'행정안전부 알립니다', url:'https://www.mois.go.kr/frt/bbs/type013/commonSelectBoardList.do?bbsId=BBSMSTR_000000000006', method:'institution-board', cadenceMinutes:180, status:'ready', lastSuccessAt:null, createdAt:now },
+  { id:'me-board', institutionId:'me', name:'기후에너지환경부 공지·공고', url:'https://me.go.kr/home/web/board/list.do?boardMasterId=39&menuId=10524&maxPageItems=20&order=DCREATE_DATE', method:'institution-board', cadenceMinutes:180, status:'ready', lastSuccessAt:null, createdAt:now },
 ];
 const seedNotices = [
   ['govtech-2026','bizinfo','52','과학기술정보통신부','중앙부처','2026년 GovTech 창업 경진대회 모집 공고','창업','기업·예비창업자','기업마당','2026.09.21','2026-09-21T14:59:00+09:00'],

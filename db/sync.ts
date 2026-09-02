@@ -64,6 +64,35 @@ function parseMoe(html:string):IncomingNotice[] {
   }).slice(0,20);
 }
 
+const isGrantCandidate=(title:string)=>/(공모|모집|지원대상|신규지원|선정 계획|참가신청)/.test(title)&&!/(채용|임원|후보자|공개검증|선정 결과|평가 결과|취소처분|입찰|의견수렴)/.test(title);
+
+function parseMcst(html:string):IncomingNotice[] {
+  return (html.match(/<tr>[\s\S]*?<\/tr>/gi)||[]).flatMap(row=>{
+    const match=row.match(/noticeView\.jsp\?pSeq=([0-9]+)[^>]*title="([^"]+)"/i); if(!match) return [];
+    const title=decoder(match[2]); if(!isGrantCandidate(title)) return [];
+    const posted=row.match(/aria-label="게시일">(\d{4}\.\d{2}\.\d{2})/)?.[1]?.replaceAll('.','-')||'';
+    return [{sourceId:'mcst-board',externalId:match[1],institution:'문화체육관광부',group:'중앙부처',title,category:'문화·관광',audience:'기관·단체',region:null,sourceName:'문화체육관광부 공지',sourceUrl:`https://www.mcst.go.kr/site/s_notice/notice/noticeView.jsp?pSeq=${match[1]}`,opensAt:dateAtSeoul(posted),closesAt:null,deadlineLabel:'공고문 확인',status:'open'}];
+  });
+}
+
+function parseMois(html:string):IncomingNotice[] {
+  return (html.match(/<tr>[\s\S]*?<\/tr>/gi)||[]).flatMap(row=>{
+    const match=row.match(/nttId=([0-9]+)[^>]*>([\s\S]*?)<\/a>/i); if(!match) return [];
+    const title=decoder(match[2]); if(!isGrantCandidate(title)) return [];
+    const posted=(row.match(/<td>(\d{4}\.\d{2}\.\d{2})\.<\/td>/)?.[1]||'').replaceAll('.','-');
+    return [{sourceId:'mois-board',externalId:match[1],institution:'행정안전부',group:'중앙부처',title,category:'행정·안전',audience:'기관·단체',region:null,sourceName:'행정안전부 알립니다',sourceUrl:`https://www.mois.go.kr/frt/bbs/type013/commonSelectBoardArticle.do?bbsId=BBSMSTR_000000000006&nttId=${match[1]}`,opensAt:dateAtSeoul(posted),closesAt:null,deadlineLabel:'공고문 확인',status:'open'}];
+  });
+}
+
+function parseMe(html:string):IncomingNotice[] {
+  return (html.match(/<tr[^>]*>[\s\S]*?<\/tr>/gi)||[]).flatMap(row=>{
+    const match=row.match(/title="([^"]+)"[^>]+href="[^"]*boardId=([0-9]+)/i); if(!match) return [];
+    const title=decoder(match[1]); if(!isGrantCandidate(title)) return [];
+    const posted=row.match(/<td>\s*(\d{4}-\d{2}-\d{2})\s*<\/td>/)?.[1]||'';
+    return [{sourceId:'me-board',externalId:match[2],institution:'기후에너지환경부',group:'중앙부처',title,category:'환경·에너지',audience:'기관·기업',region:null,sourceName:'기후에너지환경부 공지·공고',sourceUrl:`https://me.go.kr/home/web/board/read.do?boardMasterId=39&menuId=10524&boardId=${match[2]}`,opensAt:dateAtSeoul(posted),closesAt:null,deadlineLabel:'공고문 확인',status:'open'}];
+  });
+}
+
 async function collectBojoApi() {
   const key=env.BOJO_API_KEY;
   if(!key) return null;
@@ -128,15 +157,22 @@ export async function syncOfficialSources() {
   }
   const bizItems=parseBizinfo(inspected.find(x=>x.check.sourceId==='bizinfo')?.body||'');
   const moeItems=parseMoe(inspected.find(x=>x.check.sourceId==='moe-board')?.body||'');
+  const mcstBody=inspected.find(x=>x.check.sourceId==='mcst-board')?.body||''; const mcstItems=parseMcst(mcstBody);
+  const moisBody=inspected.find(x=>x.check.sourceId==='mois-board')?.body||''; const moisItems=parseMois(moisBody);
+  const meBody=inspected.find(x=>x.check.sourceId==='me-board')?.body||''; const meItems=parseMe(meBody);
   for(const [sourceId,count,minimum] of [['bizinfo',bizItems.length,5],['moe-board',moeItems.length,1]] as const) {
     const parsed=inspected.find(x=>x.check.sourceId===sourceId);
     if(parsed?.check.outcome==='success'&&count<minimum) Object.assign(parsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: ${count}건 해석`,finishedAt:new Date()});
+  }
+  for(const [sourceId,body,pattern] of [['mcst-board',mcstBody,/noticeView\.jsp\?pSeq=/g],['mois-board',moisBody,/nttId=[0-9]+/g],['me-board',meBody,/boardId=[0-9]+/g]] as const) {
+    const parsed=inspected.find(x=>x.check.sourceId===sourceId); const structuralCount=(body.match(pattern)||[]).length;
+    if(parsed?.check.outcome==='success'&&structuralCount<5) Object.assign(parsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: 링크 ${structuralCount}건`,finishedAt:new Date()});
   }
   for(const result of inspected) {
     await db.insert(sourceChecks).values(result.check);
     await db.update(sources).set({status:result.check.outcome==='success'?'connected':'attention',lastSuccessAt:result.check.outcome==='success'?result.check.finishedAt:undefined}).where(eq(sources.id,result.check.sourceId));
   }
-  const incoming=[...bizItems,...moeItems,...(bojoItems||[])];
+  const incoming=[...bizItems,...moeItems,...mcstItems,...moisItems,...meItems,...(bojoItems||[])];
   const collection=incoming.length>=2?await upsertCollected(incoming):{discovered:incoming.length,inserted:0,updated:0,unchanged:0,review:1,closed:0};
   collection.closed=expired.length;
   return {results:inspected.map(x=>x.check),collection};
