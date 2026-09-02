@@ -105,3 +105,14 @@ export const bojoBackfills = sqliteTable('bojo_backfills', {
   leaseUntil: integer('lease_until').notNull().default(0),
   updatedAt: integer('updated_at').notNull().default(0),
 });
+
+export const noticeDetails = sqliteTable('notice_details', {
+  noticeId:text('notice_id').primaryKey().references(()=>notices.id),
+  payload:text('payload'),
+  checkedAt:integer('checked_at'),
+  nextAttemptAt:integer('next_attempt_at').notNull().default(0),
+  attempts:integer('attempts').notNull().default(0),
+  lastError:text('last_error'),
+  leaseToken:text('lease_token'),
+  leaseUntil:integer('lease_until').notNull().default(0),
+},t=>[index('idx_notice_details_next').on(t.nextAttemptAt)]);

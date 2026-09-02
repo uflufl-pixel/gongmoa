@@ -1,4 +1,5 @@
 import { listNotices, listSources } from '@/db/queries';
+import {withBizinfoDetails} from '@/db/bizinfo-details';
 
 function relationKey(institution:string,title:string) {
   const normalizedTitle=title.toLowerCase()
@@ -12,7 +13,8 @@ const isObviousNonGrant=(title:string)=>/(채용|임원|상임이사|이사장|�
 
 export async function GET() {
   try {
-    const [items, sourceItems] = await Promise.all([listNotices(true), listSources()]);
+    const [baseItems, sourceItems] = await Promise.all([listNotices(true), listSources()]);
+    const items=await withBizinfoDetails(baseItems);
     const visibleItems=items.filter(item=>!isObviousNonGrant(item.title));
     const groups=new Map<string,typeof items>();
     for(const item of visibleItems) { const key=relationKey(item.institution,item.title); if(key) groups.set(key,[...(groups.get(key)||[]),item]); }
