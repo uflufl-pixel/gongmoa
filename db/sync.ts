@@ -174,6 +174,15 @@ function parseGyeongnamBusiness(html:string):IncomingNotice[] {
   });
 }
 
+function parseChungbuk(html:string):IncomingNotice[] {
+  return (html.match(/<tr>[^]*?selectGosiPblancView\.do[^]*?<\/tr>/gi)||[]).flatMap(row=>{
+    const match=row.match(/selectGosiPblancView\.do\?key=422&amp;no=([0-9]+)[^>]*>([^]*?)<\/a>/i); if(!match) return [];
+    const title=decoder(match[2]); if(!isGrantCandidate(title)) return [];
+    const posted=row.match(/<time datetime="(\d{4}-\d{2}-\d{2})"/i)?.[1]||'';
+    return [{sourceId:'chungbuk-board',externalId:match[1],institution:'충청북도',group:'지방자치단체',title,category:'지역·생활',audience:'도민·기관·기업',region:'충북',sourceName:'충청북도 고시·공고',sourceUrl:`https://www.chungbuk.go.kr/www/selectGosiPblancView.do?key=422&no=${match[1]}`,opensAt:dateAtSeoul(posted),closesAt:null,deadlineLabel:'공고문 확인',status:'open'}];
+  });
+}
+
 async function collectBojoApi() {
   const key=env.BOJO_API_KEY;
   if(!key) return null;
@@ -249,6 +258,7 @@ export async function syncOfficialSources() {
   const ulsanBody=inspected.find(x=>x.check.sourceId==='ulsan-board')?.body||''; const ulsanItems=parseUlsan(ulsanBody);
   const jeonbukBody=inspected.find(x=>x.check.sourceId==='jeonbuk-board')?.body||''; const jeonbukItems=parseJeonbuk(jeonbukBody);
   const gyeongnamBody=inspected.find(x=>x.check.sourceId==='gyeongnam-business')?.body||''; const gyeongnamItems=parseGyeongnamBusiness(gyeongnamBody);
+  const chungbukBody=inspected.find(x=>x.check.sourceId==='chungbuk-board')?.body||''; const chungbukItems=parseChungbuk(chungbukBody);
   for(const [sourceId,count,minimum] of [['bizinfo',bizItems.length,5],['moe-board',moeItems.length,1]] as const) {
     const parsed=inspected.find(x=>x.check.sourceId===sourceId);
     if(parsed?.check.outcome==='success'&&count<minimum) Object.assign(parsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: ${count}건 해석`,finishedAt:new Date()});
@@ -273,11 +283,15 @@ export async function syncOfficialSources() {
     const parsed=inspected.find(x=>x.check.sourceId===sourceId); const structuralCount=(body.match(pattern)||[]).length;
     if(parsed?.check.outcome==='success'&&structuralCount<5) Object.assign(parsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: 링크 ${structuralCount}건`,finishedAt:new Date()});
   }
+  for(const [sourceId,body,pattern] of [['chungbuk-board',chungbukBody,/selectGosiPblancView\.do\?key=422&amp;no=[0-9]+/g]] as const) {
+    const parsed=inspected.find(x=>x.check.sourceId===sourceId); const structuralCount=(body.match(pattern)||[]).length;
+    if(parsed?.check.outcome==='success'&&structuralCount<10) Object.assign(parsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: 링크 ${structuralCount}건`,finishedAt:new Date()});
+  }
   for(const result of inspected) {
     await db.insert(sourceChecks).values(result.check);
     await db.update(sources).set({status:result.check.outcome==='success'?'connected':'attention',lastSuccessAt:result.check.outcome==='success'?result.check.finishedAt:undefined}).where(eq(sources.id,result.check.sourceId));
   }
-  const incoming=[...bizItems,...moeItems,...mcstItems,...moisItems,...meItems,...seoulItems,...busanItems,...incheonItems,...daejeonItems,...daeguItems,...ulsanItems,...jeonbukItems,...gyeongnamItems,...(bojoItems||[])];
+  const incoming=[...bizItems,...moeItems,...mcstItems,...moisItems,...meItems,...seoulItems,...busanItems,...incheonItems,...daejeonItems,...daeguItems,...ulsanItems,...jeonbukItems,...gyeongnamItems,...chungbukItems,...(bojoItems||[])];
   const collection=incoming.length>=2?await upsertCollected(incoming):{discovered:incoming.length,inserted:0,updated:0,unchanged:0,review:1,closed:0};
   collection.closed=expired.length;
   return {results:inspected.map(x=>x.check),collection};

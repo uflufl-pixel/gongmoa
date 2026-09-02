@@ -19,6 +19,7 @@ const seedInstitutions = [
   { id: 'ulsan', name: '울산광역시', group: '지방자치단체', officialDomain: 'ulsan.go.kr', parentId: null, createdAt: now },
   { id: 'jeonbuk', name: '전북특별자치도', group: '지방자치단체', officialDomain: 'jeonbuk.go.kr', parentId: null, createdAt: now },
   { id: 'gyeongnam', name: '경상남도', group: '지방자치단체', officialDomain: 'gyeongnam.go.kr', parentId: null, createdAt: now },
+  { id: 'chungbuk', name: '충청북도', group: '지방자치단체', officialDomain: 'chungbuk.go.kr', parentId: null, createdAt: now },
 ];
 const seedSources = [
   { id:'bizinfo', institutionId:'mss', name:'기업마당', url:'https://www.bizinfo.go.kr/sii/siia/selectSIIA200View.do', method:'official-index', cadenceMinutes:60, status:'connected', lastSuccessAt:now, createdAt:now },
@@ -36,6 +37,7 @@ const seedSources = [
   { id:'ulsan-board', institutionId:'ulsan', name:'울산광역시 고시공고', url:'https://www.ulsan.go.kr/u/rep/transfer/notice/list.ulsan?mId=001004002000000000', method:'local-government-board', cadenceMinutes:180, status:'ready', lastSuccessAt:null, createdAt:now },
   { id:'jeonbuk-board', institutionId:'jeonbuk', name:'전북특별자치도 공고·고시', url:'https://www.jeonbuk.go.kr/board/list.jeonbuk?boardId=BBS_0000129&menuCd=DOM_000000102002005000&orderBy=REGISTER_DATE%3ADESC%2CTMP_FIELD1%3ADESC&paging=ok&startPage=1', method:'local-government-board', cadenceMinutes:180, status:'ready', lastSuccessAt:null, createdAt:now },
   { id:'gyeongnam-business', institutionId:'gyeongnam', name:'경남기업119 지원사업', url:'https://www.gyeongnam.go.kr/giup/index.gyeong', method:'local-government-support-portal', cadenceMinutes:180, status:'ready', lastSuccessAt:null, createdAt:now },
+  { id:'chungbuk-board', institutionId:'chungbuk', name:'충청북도 고시·공고', url:'https://www.chungbuk.go.kr/www/selectGosiPblancList.do?key=422&pageIndex=1&pageUnit=20&searchCnd=all', method:'local-government-board', cadenceMinutes:180, status:'ready', lastSuccessAt:null, createdAt:now },
 ];
 const seedNotices = [
   ['govtech-2026','bizinfo','52','과학기술정보통신부','중앙부처','2026년 GovTech 창업 경진대회 모집 공고','창업','기업·예비창업자','기업마당','2026.09.21','2026-09-21T14:59:00+09:00'],
