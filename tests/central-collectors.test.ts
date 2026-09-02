@@ -3,6 +3,16 @@ import assert from 'node:assert/strict';
 // @ts-expect-error Native Node TypeScript runner.
 import {centralCollectors,parseCentralBoard,centralGrantCandidate} from '../lib/central-collectors.ts';
 const c=centralCollectors[0];
+test('MOJ uses official board identity and excludes award announcements and advisory recruitment',()=>{
+  const config=centralCollectors.find(x=>x.id==='moj-board')!;
+  const titles=['광역형 비자 사업 공모 안내','공모전 수상작 발표','난민참여자문단 모집 공고','출입국 현장투어 모집 안내'];
+  const body=titles.map((t,i)=>`<tr><td class="_artclTdTitle" aria-label="제목" title="${t}"><a href="/bbs/moj/184/${100+i}/artclView.do">${t}<span>새글작성</span></a></td><td aria-label="작성일">2026.08.24</td></tr>`).join('');
+  const r=parseCentralBoard(body,config);assert.equal(r.parsedRows,4);assert.equal(r.items.length,1);
+  assert.equal(r.items[0].title,titles[0]);assert.equal(r.items[0].announcedFrom,'2026-08-24');assert.equal(r.items[0].applicationTo,null);
+  assert.throws(()=>parseCentralBoard(body.replaceAll('/moj/184/','/moj/185/'),config));
+  assert.throws(()=>parseCentralBoard(body.replaceAll('href="/bbs/','href="https://example.com/bbs/'),config));
+  assert.throws(()=>parseCentralBoard(body.replaceAll(' title="',' data-label="'),config));
+});
 test('MOF distinguishes project plans from selection results and personnel notices',()=>{
   const config=centralCollectors.find(x=>x.id==='mof-board')!;
   const titles=['사업 신규과제 선정계획 재공고','사업대상지 추가 선정 연장 공고','지원사업 선정결과','설치준비위원회 모집','고객만족도 조사 사업자 선정 공고','채용 모집 공고'];
