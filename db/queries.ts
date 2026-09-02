@@ -84,9 +84,9 @@ export async function ensureSeeded() {
   }
 }
 
-export async function listNotices() {
+export async function listNotices(includeClosed=false) {
   await ensureSeeded();
-  return getDb().select().from(notices).where(eq(notices.status, 'open')).orderBy(asc(notices.closesAt));
+  return getDb().select().from(notices).where(includeClosed?undefined:eq(notices.status, 'open')).orderBy(asc(notices.closesAt));
 }
 
 export async function listSources() {

@@ -38,7 +38,7 @@ async function inspectSource(source:{id:string;url:string;name:string}) {
   }
 }
 
-type IncomingNotice={sourceId:string;externalId:string;institution:string;group:string;title:string;category:string;audience:string;region:string|null;sourceName:string;sourceUrl:string;opensAt:Date|null;closesAt:Date|null;deadlineLabel:string;status:string};
+type IncomingNotice={sourceId:string;externalId:string;institution:string;group:string;title:string;category:string;audience:string;region:string|null;sourceName:string;sourceUrl:string;opensAt:Date|null;closesAt:Date|null;deadlineLabel:string;status:string;ministry?:string|null;businessYear?:number|null;announcedFrom?:string|null;announcedTo?:string|null;applicationFrom?:string|null;applicationTo?:string|null;supportBudget?:number|null;applicationMethod?:string|null};
 
 type BojoItem=Record<string,string|undefined>;
 const cdata=(value?:string)=>decoder((value||'').replace(/^<!\[CDATA\[/,'').replace(/\]\]>$/,''));
@@ -254,7 +254,9 @@ export function parseBojoItems(rows:BojoItem[]) {
     const institution=cdata(item.DLVPL_NM)||cdata(item.JRSD_NM)||'기획예산처'; const region=cdata(item.CTPRVN_NM)||null;
     const opens=cdata(item.RCEPT_BEGIN_DE)||cdata(item.PBLANC_BEGIN_DE);
     const openDate=bojoDate(opens); const closeDate=closes;
-    items.push({sourceId:'bojo',externalId,institution,group:/(특별시|광역시|특별자치|[가-힣]+도|시|군|구)$/.test(institution)?'지방자치단체':'중앙부처',title,category:'보조금',audience:(cdata(item.SPORT_TRGET_CN)||cdata(item.SPORT_CN_DC)||'기관·단체').slice(0,100),region,sourceName:'보조금통합포털 API',sourceUrl:popup,opensAt:openDate?dateAtSeoul(openDate):null,closesAt:closeDate?dateAtSeoul(closeDate,true):null,deadlineLabel:closeDate?closeDate.replaceAll('-','.'):'공고문 확인',status:'open'});
+    const amount=cdata(item.SPORT_BGAMT).replaceAll(',','');
+    const year=Number(cdata(item.BSNSYEAR));
+    items.push({sourceId:'bojo',externalId,institution,group:/(특별시|광역시|특별자치|[가-힣]+도|시|군|구)$/.test(institution)?'지방자치단체':'중앙부처',title,category:'보조금',audience:(cdata(item.SPORT_TRGET_CN)||cdata(item.SPORT_CN_DC)||'기관·단체').slice(0,100),region,sourceName:'보조금통합포털 API',sourceUrl:popup,opensAt:openDate?dateAtSeoul(openDate):null,closesAt:closeDate?dateAtSeoul(closeDate,true):null,deadlineLabel:closeDate?closeDate.replaceAll('-','.'):'공고문 확인',status:'open',ministry:cdata(item.JRSD_NM)||null,businessYear:Number.isInteger(year)&&year>=1900&&year<=2200?year:null,announcedFrom:bojoDate(cdata(item.PBLANC_BEGIN_DE))||null,announcedTo:bojoDate(cdata(item.PBLANC_END_DE))||null,applicationFrom:bojoDate(cdata(item.RCEPT_BEGIN_DE))||null,applicationTo:bojoDate(cdata(item.RCEPT_END_DE))||null,supportBudget:/^\d+$/.test(amount)&&Number.isSafeInteger(Number(amount))?Number(amount):null,applicationMethod:cdata(item.REQST_RCEPT_MTH_CN)||null});
   }
   return items;
 }
@@ -273,6 +275,7 @@ export async function upsertCollected(items:IncomingNotice[]) {
     const changedFields=['institution','group','title','category','audience','region','sourceUrl','deadlineLabel','status'].filter(key=>existing[key as keyof typeof existing]!==item[key as keyof IncomingNotice]);
     if(existing.opensAt?.getTime()!==item.opensAt?.getTime()) changedFields.push('opensAt');
     if(existing.closesAt?.getTime()!==item.closesAt?.getTime()) changedFields.push('closesAt');
+    for(const key of ['ministry','businessYear','announcedFrom','announcedTo','applicationFrom','applicationTo','supportBudget','applicationMethod'] as const) if(item[key]!==undefined&&existing[key]!==item[key]) changedFields.push(key);
     await db.insert(revisions).values({noticeId:existing.id,contentHash,changedFields:JSON.stringify(changedFields),discoveredAt:now});
     await db.update(notices).set({...item,contentHash,verifiedAt:now,updatedAt:now}).where(eq(notices.id,existing.id)); summary.updated++;
   }
