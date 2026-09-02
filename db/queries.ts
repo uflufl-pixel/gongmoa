@@ -41,6 +41,7 @@ const seedSources = [
   { id:'gyeongnam-business', institutionId:'gyeongnam', name:'경남기업119 지원사업', url:'https://www.gyeongnam.go.kr/giup/index.gyeong', method:'local-government-support-portal', cadenceMinutes:180, status:'ready', lastSuccessAt:null, createdAt:now },
   { id:'chungbuk-board', institutionId:'chungbuk', name:'충청북도 고시·공고', url:'https://www.chungbuk.go.kr/www/selectGosiPblancList.do?key=422&pageIndex=1&pageUnit=20&searchCnd=all', method:'local-government-board', cadenceMinutes:180, status:'ready', lastSuccessAt:null, createdAt:now },
   { id:'jeju-board', institutionId:'jeju', name:'제주특별자치도 공고', url:'https://www.jeju.go.kr/tool/sido/api.jsp?act=index&page=1', method:'official-json-index', cadenceMinutes:180, status:'ready', lastSuccessAt:null, createdAt:now },
+  { id:'kocca-support', institutionId:'public-198', name:'한국콘텐츠진흥원 지원공고', url:'https://www.kocca.kr/kocca/pims/list.do?menuNo=204104', method:'public-institution-support-board', cadenceMinutes:180, status:'ready', lastSuccessAt:null, createdAt:now },
 ];
 const publicInstitutionSeeds = publicRegistry.items.map((item,index)=>({
   id:`public-${String(index+1).padStart(3,'0')}`,

@@ -193,6 +193,17 @@ function parseJeju(body:string):IncomingNotice[] {
   } catch { return []; }
 }
 
+function parseKocca(html:string):IncomingNotice[] {
+  return (html.match(/<tr>[^]*?intcNo=[A-Z0-9]+[^]*?<\/tr>/gi)||[]).flatMap(row=>{
+    const match=row.match(/intcNo=([A-Z0-9]+)[^>]*>([^]*?)<\/a>/i); if(!match) return [];
+    const title=decoder(match[2]); if(!isGrantCandidate(title)) return [];
+    const period=decoder(row.match(/data-label="접수기간">([^]*?)<\/td>/i)?.[1]||'');
+    const dates=(period.match(/\d{2}\.\d{2}\.\d{2}/g)||[]).map(value=>`20${value.replaceAll('.','-')}`);
+    const closes=dates[1]||''; const closed=Boolean(closes&&dateAtSeoul(closes,true)!<new Date());
+    return [{sourceId:'kocca-support',externalId:match[1],institution:'한국콘텐츠진흥원',group:'공사·공단',title,category:'문화·콘텐츠',audience:'콘텐츠기업·창작자',region:null,sourceName:'한국콘텐츠진흥원 지원공고',sourceUrl:`https://www.kocca.kr/kocca/pims/view.do?intcNo=${match[1]}&menuNo=204104`,opensAt:dates[0]?dateAtSeoul(dates[0]):null,closesAt:closes?dateAtSeoul(closes,true):null,deadlineLabel:closes?closes.replaceAll('-','.'):'공고문 확인',status:closed?'closed':'open'}];
+  });
+}
+
 async function collectBojoApi() {
   const key=env.BOJO_API_KEY;
   if(!key) return null;
@@ -270,6 +281,7 @@ export async function syncOfficialSources() {
   const gyeongnamBody=inspected.find(x=>x.check.sourceId==='gyeongnam-business')?.body||''; const gyeongnamItems=parseGyeongnamBusiness(gyeongnamBody);
   const chungbukBody=inspected.find(x=>x.check.sourceId==='chungbuk-board')?.body||''; const chungbukItems=parseChungbuk(chungbukBody);
   const jejuBody=inspected.find(x=>x.check.sourceId==='jeju-board')?.body||''; const jejuItems=parseJeju(jejuBody);
+  const koccaBody=inspected.find(x=>x.check.sourceId==='kocca-support')?.body||''; const koccaItems=parseKocca(koccaBody);
   for(const [sourceId,count,minimum] of [['bizinfo',bizItems.length,5],['moe-board',moeItems.length,1]] as const) {
     const parsed=inspected.find(x=>x.check.sourceId===sourceId);
     if(parsed?.check.outcome==='success'&&count<minimum) Object.assign(parsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: ${count}건 해석`,finishedAt:new Date()});
@@ -300,11 +312,13 @@ export async function syncOfficialSources() {
   }
   const jejuParsed=inspected.find(x=>x.check.sourceId==='jeju-board');
   if(jejuParsed?.check.outcome==='success'&&(!jejuBody.includes('"gosis"')||jejuItems.length<1)) Object.assign(jejuParsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: ${jejuItems.length}건 해석`,finishedAt:new Date()});
+  const koccaParsed=inspected.find(x=>x.check.sourceId==='kocca-support'); const koccaLinks=(koccaBody.match(/intcNo=[A-Z0-9]+/g)||[]).length;
+  if(koccaParsed?.check.outcome==='success'&&koccaLinks<5) Object.assign(koccaParsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: 링크 ${koccaLinks}건`,finishedAt:new Date()});
   for(const result of inspected) {
     await db.insert(sourceChecks).values(result.check);
     await db.update(sources).set({status:result.check.outcome==='success'?'connected':'attention',lastSuccessAt:result.check.outcome==='success'?result.check.finishedAt:undefined}).where(eq(sources.id,result.check.sourceId));
   }
-  const incoming=[...bizItems,...moeItems,...mcstItems,...moisItems,...meItems,...seoulItems,...busanItems,...incheonItems,...daejeonItems,...daeguItems,...ulsanItems,...jeonbukItems,...gyeongnamItems,...chungbukItems,...jejuItems,...(bojoItems||[])];
+  const incoming=[...bizItems,...moeItems,...mcstItems,...moisItems,...meItems,...seoulItems,...busanItems,...incheonItems,...daejeonItems,...daeguItems,...ulsanItems,...jeonbukItems,...gyeongnamItems,...chungbukItems,...jejuItems,...koccaItems,...(bojoItems||[])];
   const collection=incoming.length>=2?await upsertCollected(incoming):{discovered:incoming.length,inserted:0,updated:0,unchanged:0,review:1,closed:0};
   collection.closed=expired.length;
   return {results:inspected.map(x=>x.check),collection};
