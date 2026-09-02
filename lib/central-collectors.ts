@@ -11,6 +11,7 @@ export const centralCollectors=[
   {id:'mfds-board',institutionId:'central-1471000',institution:'식품의약품안전처',name:'식품의약품안전처 공고 RSS',url:'https://www.mfds.go.kr/www/rss/brd.do?brdId=ntc0004',origin:'https://www.mfds.go.kr',format:'rss',category:'식품·의약품'},
   {id:'moel-board',institutionId:'central-1492000',institution:'고용노동부',name:'고용노동부 공지사항',url:'https://www.moel.go.kr/news/notice/noticeList.do',origin:'https://www.moel.go.kr',format:'moel',category:'고용·노동'},
   {id:'moel-support',institutionId:'central-1492000',institution:'고용노동부',name:'고용노동부 국고보조사업',url:'https://www.moel.go.kr/info/govsupport/govsupportcon/govSupportSubList.do?pageIndex=1',origin:'https://www.moel.go.kr',format:'moel',category:'고용·노동'},
+  {id:'molit-board',institutionId:'central-1613000',institution:'국토교통부',name:'국토교통부 알림마당',url:'https://www.molit.go.kr/USR/BORD0201/m_69/LST.jsp?id=N01_B',origin:'https://www.molit.go.kr',format:'molit',category:'국토·교통'},
 ] as const;
 type Config=typeof centralCollectors[number];
 export function centralGrantCandidate(title:string){
@@ -33,6 +34,7 @@ function publicationDate(s:string){
 function identity(raw:string,c:Config){
   const u=new URL(raw,c.origin);if(!['https:','http:'].includes(u.protocol)||u.hostname!==new URL(c.origin).hostname||u.username||u.password)throw new Error('공식 공고 주소 확인 필요');
   let id:string|null=null;
+  if(c.id==='molit-board'&&u.pathname==='/USR/BORD0201/m_69/DTL.jsp'&&u.searchParams.get('id')==='N01_B'&&u.searchParams.get('mode')==='view')id=u.searchParams.get('idx');
   if(c.format==='moel'&&u.pathname===(c.id==='moel-board'?'/news/notice/noticeView.do':'/info/govsupport/govsupportcon/govSupportSubView.do'))id=u.searchParams.get('bbs_seq');
   if(c.id==='mfds-board'&&u.pathname==='/brd/m_76/view.do')id=u.searchParams.get('seq');
   if(c.format==='forest'){
@@ -59,6 +61,12 @@ export function parseCentralBoard(body:string,c:Config){
     for(const match of body.matchAll(/<item>[\s\S]*?<\/item>/g)){
       const field=(tag:string)=>text(match[0].match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`))?.[1]||'');
       rows.push({title:c.id==='kma-board'?text(field('title')):field('title'),link:field('link'),posted:field('pubDate')});
+    }
+  }else if(c.format==='molit'){
+    for(const match of body.matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)){
+      const cell=match[0].match(/<td class="bd_title">([\s\S]*?)<\/td>/);if(!cell)continue;
+      const a=cell[1].match(/<a href="([^"]+)">([\s\S]*?)<\/a>/);if(!a)throw new Error('국토교통부 제목·링크 확인 필요');
+      rows.push({title:text(a[2]),link:new URL(text(a[1]),c.url).href,posted:text(match[0].match(/<td class=['"]bd_date['"]>([\s\S]*?)<\/td>/)?.[1]||'').replaceAll('.','-')});
     }
   }else if(c.format==='moel'){
     for(const match of body.matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)){

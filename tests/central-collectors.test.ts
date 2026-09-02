@@ -3,6 +3,12 @@ import assert from 'node:assert/strict';
 // @ts-expect-error Native Node TypeScript runner.
 import {centralCollectors,parseCentralBoard,centralGrantCandidate} from '../lib/central-collectors.ts';
 const c=centralCollectors[0];
+test('MOLIT resolves relative links and decodes numeric Korean entities',()=>{
+  const config=centralCollectors.find(x=>x.id==='molit-board')!;
+  const body='<table>'+['수탁기관 &#44277;&#47784;','채용 모집','지원사업 선정 결과'].map((t,i)=>`<tr><td class="bd_title"><a href="./DTL.jsp?id=N01_B&amp;mode=view&amp;idx=${i+1}">${t}</a></td><td class='bd_date'>2026-09-01</td></tr>`).join('')+'</table>';
+  const r=parseCentralBoard(body,config);assert.equal(r.items.length,1);assert.equal(r.items[0].title,'수탁기관 공모');assert.equal(r.items[0].announcedFrom,'2026-09-01');
+  assert.throws(()=>parseCentralBoard(body.replaceAll('N01_B','other'),config));
+});
 test('MOEL reads two official board formats and excludes award decisions',()=>{
   for(const id of ['moel-board','moel-support']){
     const config=centralCollectors.find(x=>x.id===id)!;
