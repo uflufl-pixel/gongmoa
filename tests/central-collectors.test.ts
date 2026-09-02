@@ -3,6 +3,15 @@ import assert from 'node:assert/strict';
 // @ts-expect-error Native Node TypeScript runner.
 import {centralCollectors,parseCentralBoard,centralGrantCandidate} from '../lib/central-collectors.ts';
 const c=centralCollectors[0];
+test('MOEL reads two official board formats and excludes award decisions',()=>{
+  for(const id of ['moel-board','moel-support']){
+    const config=centralCollectors.find(x=>x.id===id)!;
+    const path=id==='moel-board'?'/news/notice/noticeView.do':'/info/govsupport/govsupportcon/govSupportSubView.do';
+    const body='<table>'+['[공고] 청년지원 사업 참여 지자체 공모','[공고] 해소사업 추가 공모 우선협상 대상자 선정 공고','[인사] 공모 직위 공개모집'].map((t,i)=>`<tr><td class="txt_left" aria-label="제목"><strong><a href="${path}?bbs_seq=${20260100001+i}">${t}</a></strong></td><td aria-label="등록일">2026.01.15</td></tr>`).join('')+'</table>';
+    const r=parseCentralBoard(body,config);assert.equal(r.items.length,1);assert.equal(r.items[0].title,'청년지원 사업 참여 지자체 공모');assert.equal(r.items[0].announcedFrom,'2026-01-15');assert.equal(r.items[0].applicationFrom,null);
+    assert.throws(()=>parseCentralBoard(body.replaceAll(path,'/wrong.do'),config));
+  }
+});
 test('MFDS research-call exception stays narrow and GMT publication becomes Korean date',()=>{
   const config=centralCollectors.find(x=>x.id==='mfds-board')!;
   const body='<rss><channel>'+['용역연구개발과제 주관연구기관 공모','용역연구개발과제 주관연구기관 공모 결과','연구 용역 입찰 모집','원장 후보자 모집'].map((t,i)=>`<item><title>${t}</title><link>https://www.mfds.go.kr/brd/m_76/view.do?seq=${i+1}</link><pubDate>Mon, 31 Aug 2026 18:00:00 GMT</pubDate></item>`).join('')+'</channel></rss>';
