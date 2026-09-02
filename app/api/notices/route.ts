@@ -1,5 +1,6 @@
 import { listNotices, listSources } from '@/db/queries';
 import {withBizinfoDetails} from '@/db/bizinfo-details';
+import {isCollectedRecord} from '@/lib/data-quality';
 
 function relationKey(institution:string,title:string) {
   const normalizedTitle=title.toLowerCase()
@@ -15,7 +16,7 @@ export async function GET() {
   try {
     const [baseItems, sourceItems] = await Promise.all([listNotices(true), listSources()]);
     const items=await withBizinfoDetails(baseItems);
-    const visibleItems=items.filter(item=>!isObviousNonGrant(item.title));
+    const visibleItems=items.filter(item=>isCollectedRecord(item)&&!isObviousNonGrant(item.title));
     const groups=new Map<string,typeof items>();
     for(const item of visibleItems) { const key=relationKey(item.institution,item.title); if(key) groups.set(key,[...(groups.get(key)||[]),item]); }
     const enriched=visibleItems.map(item=>{const related=groups.get(relationKey(item.institution,item.title))||[];return {...item,relatedCount:Math.max(0,related.length-1),relatedSources:[...new Set(related.map(x=>x.sourceName))]};});
