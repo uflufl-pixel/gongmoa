@@ -64,7 +64,7 @@ function parseMoe(html:string):IncomingNotice[] {
   }).slice(0,20);
 }
 
-const isGrantCandidate=(title:string)=>/(공모|모집|지원대상|신규지원|선정 계획|참가신청)/.test(title)&&!/(채용|임원|후보자|위원|참여단|공개검증|선정 결과|심의결과|평가 결과|접수 마감|취소처분|입찰|의견수렴|공시송달)/.test(title);
+const isGrantCandidate=(title:string)=>/(공모|모집|지원대상|신규지원|선정 계획|참가신청)/.test(title)&&!/(채용|임원|상임이사|본부장|후보자|위원|참여단|공개검증|선정 결과|심의결과|평가 결과|접수 마감|취소처분|입찰|의견수렴|공시송달)/.test(title);
 
 function parseMcst(html:string):IncomingNotice[] {
   return (html.match(/<tr>[\s\S]*?<\/tr>/gi)||[]).flatMap(row=>{
@@ -119,6 +119,27 @@ function parseIncheon(html:string):IncomingNotice[] {
     const title=decoder(match[3]); if(!isGrantCandidate(title)) return [];
     const posted=row.match(/\d{4}-\d{2}-\d{2}/)?.[0]||'';
     return [{sourceId:'incheon-board',externalId:match[1],institution:'인천광역시',group:'지방자치단체',title,category:'지역·생활',audience:'시민·기관·단체',region:'인천',sourceName:'인천광역시 고시공고',sourceUrl:`https://www.incheon.go.kr/IC010307/view?sno=${match[1]}&gosigbn=${match[2]}`,opensAt:dateAtSeoul(posted),closesAt:null,deadlineLabel:'공고문 확인',status:'open'}];
+  });
+}
+
+function parseDaejeon(html:string):IncomingNotice[] {
+  return (html.match(/<span class="thum">[^]*?<a href="\/online\/recruitmentNoticeDetail\.do\?compSeq=[^"]+"[^>]*>[^]*?<\/a>/gi)||[]).flatMap(card=>{
+    const id=card.match(/recruitmentNoticeDetail\.do\?compSeq=([^"&]+)/i)?.[1];
+    const title=decoder(card.match(/<strong class="thum_tit">([^]*?)<\/strong>/i)?.[1]||'');
+    if(!id||!title||!isGrantCandidate(title)) return [];
+    const period=decoder(card.match(/<em>접수기간<\/em>\s*<span>([^]*?)<\/span>/i)?.[1]||'');
+    const dates=period.match(/\d{4}-\d{2}-\d{2}/g)||[]; const audience=decoder(card.match(/<em>참가대상<\/em>\s*<span>([^]*?)<\/span>/i)?.[1]||'시민·기관·단체');
+    const closed=/type_end|종료/.test(card)||Boolean(dates[1]&&dateAtSeoul(dates[1],true)!<new Date());
+    return [{sourceId:'daejeon-board',externalId:decodeURIComponent(id),institution:'대전광역시',group:'지방자치단체',title,category:'지역·생활',audience:audience.slice(0,100),region:'대전',sourceName:'대전광역시 공모·모집',sourceUrl:`https://www.daejeon.go.kr/online/recruitmentNoticeDetail.do?compSeq=${encodeURIComponent(decodeURIComponent(id))}`,opensAt:dates[0]?dateAtSeoul(dates[0]):null,closesAt:dates[1]?dateAtSeoul(dates[1],true):null,deadlineLabel:dates[1]?dates[1].replaceAll('-','.'):'공고문 확인',status:closed?'closed':'open'}];
+  });
+}
+
+function parseDaegu(html:string):IncomingNotice[] {
+  return (html.match(/<tr>[^]*?<\/tr>/gi)||[]).flatMap(row=>{
+    const match=row.match(/gn_goRead\('([0-9]+)'\)[^>]*>([^]*?)<\/a>/i); if(!match) return [];
+    const title=decoder(match[2]); if(!isGrantCandidate(title)) return [];
+    const posted=row.match(/\d{4}-\d{2}-\d{2}/)?.[0]||''; const open=/접수중|접수전|공모등록/.test(decoder(row));
+    return [{sourceId:'daegu-board',externalId:match[1],institution:'대구광역시',group:'지방자치단체',title,category:'지역·생활',audience:'시민·기관·단체',region:'대구',sourceName:'대구광역시 공모·모집',sourceUrl:`https://minwon.daegu.go.kr/pssrp/${match[1]}/view`,opensAt:dateAtSeoul(posted),closesAt:null,deadlineLabel:'공고문 확인',status:open?'open':'closed'}];
   });
 }
 
@@ -192,6 +213,8 @@ export async function syncOfficialSources() {
   const seoulBody=inspected.find(x=>x.check.sourceId==='seoul-board')?.body||''; const seoulItems=parseSeoul(seoulBody);
   const busanBody=inspected.find(x=>x.check.sourceId==='busan-board')?.body||''; const busanItems=parseBusan(busanBody);
   const incheonBody=inspected.find(x=>x.check.sourceId==='incheon-board')?.body||''; const incheonItems=parseIncheon(incheonBody);
+  const daejeonBody=inspected.find(x=>x.check.sourceId==='daejeon-board')?.body||''; const daejeonItems=parseDaejeon(daejeonBody);
+  const daeguBody=inspected.find(x=>x.check.sourceId==='daegu-board')?.body||''; const daeguItems=parseDaegu(daeguBody);
   for(const [sourceId,count,minimum] of [['bizinfo',bizItems.length,5],['moe-board',moeItems.length,1]] as const) {
     const parsed=inspected.find(x=>x.check.sourceId===sourceId);
     if(parsed?.check.outcome==='success'&&count<minimum) Object.assign(parsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: ${count}건 해석`,finishedAt:new Date()});
@@ -204,11 +227,15 @@ export async function syncOfficialSources() {
     const parsed=inspected.find(x=>x.check.sourceId===sourceId); const structuralCount=(body.match(pattern)||[]).length;
     if(parsed?.check.outcome==='success'&&structuralCount<5) Object.assign(parsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: 링크 ${structuralCount}건`,finishedAt:new Date()});
   }
+  for(const [sourceId,body,pattern] of [['daejeon-board',daejeonBody,/recruitmentNoticeDetail\.do\?compSeq=/g],['daegu-board',daeguBody,/gn_goRead\('[0-9]+'\)/g]] as const) {
+    const parsed=inspected.find(x=>x.check.sourceId===sourceId); const structuralCount=(body.match(pattern)||[]).length;
+    if(parsed?.check.outcome==='success'&&structuralCount<3) Object.assign(parsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: 링크 ${structuralCount}건`,finishedAt:new Date()});
+  }
   for(const result of inspected) {
     await db.insert(sourceChecks).values(result.check);
     await db.update(sources).set({status:result.check.outcome==='success'?'connected':'attention',lastSuccessAt:result.check.outcome==='success'?result.check.finishedAt:undefined}).where(eq(sources.id,result.check.sourceId));
   }
-  const incoming=[...bizItems,...moeItems,...mcstItems,...moisItems,...meItems,...seoulItems,...busanItems,...incheonItems,...(bojoItems||[])];
+  const incoming=[...bizItems,...moeItems,...mcstItems,...moisItems,...meItems,...seoulItems,...busanItems,...incheonItems,...daejeonItems,...daeguItems,...(bojoItems||[])];
   const collection=incoming.length>=2?await upsertCollected(incoming):{discovered:incoming.length,inserted:0,updated:0,unchanged:0,review:1,closed:0};
   collection.closed=expired.length;
   return {results:inspected.map(x=>x.check),collection};

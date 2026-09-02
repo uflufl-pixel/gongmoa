@@ -14,6 +14,8 @@ const seedInstitutions = [
   { id: 'seoul', name: '서울특별시', group: '지방자치단체', officialDomain: 'seoul.go.kr', parentId: null, createdAt: now },
   { id: 'busan', name: '부산광역시', group: '지방자치단체', officialDomain: 'busan.go.kr', parentId: null, createdAt: now },
   { id: 'incheon', name: '인천광역시', group: '지방자치단체', officialDomain: 'incheon.go.kr', parentId: null, createdAt: now },
+  { id: 'daejeon', name: '대전광역시', group: '지방자치단체', officialDomain: 'daejeon.go.kr', parentId: null, createdAt: now },
+  { id: 'daegu', name: '대구광역시', group: '지방자치단체', officialDomain: 'daegu.go.kr', parentId: null, createdAt: now },
 ];
 const seedSources = [
   { id:'bizinfo', institutionId:'mss', name:'기업마당', url:'https://www.bizinfo.go.kr/sii/siia/selectSIIA200View.do', method:'official-index', cadenceMinutes:60, status:'connected', lastSuccessAt:now, createdAt:now },
@@ -26,6 +28,8 @@ const seedSources = [
   { id:'seoul-board', institutionId:'seoul', name:'서울특별시 고시·공고', url:'https://www.seoul.go.kr/news/news_notice.do?selmenu=M00000107', method:'local-government-board', cadenceMinutes:180, status:'ready', lastSuccessAt:null, createdAt:now },
   { id:'busan-board', institutionId:'busan', name:'부산광역시 고시공고', url:'https://www.busan.go.kr/nbgosi', method:'local-government-board', cadenceMinutes:180, status:'ready', lastSuccessAt:null, createdAt:now },
   { id:'incheon-board', institutionId:'incheon', name:'인천광역시 고시공고', url:'https://www.incheon.go.kr/IC010307/list?curPage=1', method:'local-government-board', cadenceMinutes:180, status:'ready', lastSuccessAt:null, createdAt:now },
+  { id:'daejeon-board', institutionId:'daejeon', name:'대전광역시 공모·모집', url:'https://www.daejeon.go.kr/online/recruitmentNoticeList.do', method:'local-government-board', cadenceMinutes:180, status:'ready', lastSuccessAt:null, createdAt:now },
+  { id:'daegu-board', institutionId:'daegu', name:'대구광역시 공모·모집', url:'https://minwon.daegu.go.kr/pssrp/list', method:'local-government-board', cadenceMinutes:180, status:'ready', lastSuccessAt:null, createdAt:now },
 ];
 const seedNotices = [
   ['govtech-2026','bizinfo','52','과학기술정보통신부','중앙부처','2026년 GovTech 창업 경진대회 모집 공고','창업','기업·예비창업자','기업마당','2026.09.21','2026-09-21T14:59:00+09:00'],
