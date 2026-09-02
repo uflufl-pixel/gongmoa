@@ -21,7 +21,7 @@ async function sha256(value:string) {
 async function inspectSource(source:{id:string;url:string;name:string}) {
   const startedAt=new Date();
   try {
-    const fetchUrl=source.id==='bojo'?'https://www.bojo.go.kr/':source.url;
+    const fetchUrl=source.id==='bojo'?'https://www.bojo.go.kr/':source.id==='kocca-support'?'https://www.kocca.kr/xml/rss/rss_pims.xml':source.url;
     const request=()=>fetch(fetchUrl,{headers:{accept:'text/html,application/xhtml+xml,application/json','user-agent':'GongmoaSourceMonitor/1.1 (+https://gongmoa.uflufl.chatgpt.site)'},signal:AbortSignal.timeout(10000),redirect:'follow'});
     let response:Response;
     try { response=await request(); } catch { response=await request(); }
@@ -201,6 +201,14 @@ function parseJeju(body:string):IncomingNotice[] {
 }
 
 function parseKocca(html:string):IncomingNotice[] {
+  if(/<rss[\s>]/i.test(html)) return (html.match(/<item>[\s\S]*?<\/item>/gi)||[]).flatMap(item=>{
+    const title=decoder(item.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i)?.[1]||'');
+    const link=decoder(item.match(/<link><!\[CDATA\[([\s\S]*?)\]\]><\/link>/i)?.[1]||'');
+    const externalId=/intcNo=([A-Z0-9]+)/i.exec(link)?.[1];
+    if(!externalId||!title||!isGrantCandidate(title)) return [];
+    const posted=item.match(/<pupDate><!\[CDATA\[(\d{4}-\d{2}-\d{2})/i)?.[1]||'';
+    return [{sourceId:'kocca-support',externalId,institution:'한국콘텐츠진흥원',group:'공사·공단',title,category:'문화·콘텐츠',audience:'콘텐츠기업·창작자',region:null,sourceName:'한국콘텐츠진흥원 지원공고',sourceUrl:link.replace('http://','https://'),opensAt:dateAtSeoul(posted),closesAt:null,deadlineLabel:'공고문 확인',status:'open'}];
+  });
   return (html.match(/<tr>[^]*?intcNo=[A-Z0-9]+[^]*?<\/tr>/gi)||[]).flatMap(row=>{
     const match=row.match(/intcNo=([A-Z0-9]+)[^>]*>([^]*?)<\/a>/i); if(!match) return [];
     const title=decoder(match[2]); if(!isGrantCandidate(title)) return [];
