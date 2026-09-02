@@ -1,0 +1,2 @@
+.regionFilter{display:flex;align-items:center;gap:7px;white-space:nowrap;border:1px solid var(--line);border-radius:99px;background:#fff;padding:4px 10px 4px 14px;color:#627069;font-size:12px;font-weight:700}
+.regionFilter select{border:0;background:transparent;color:var(--ink);font:inherit;outline:none;cursor:pointer}
