@@ -8,7 +8,7 @@ function relationKey(institution:string,title:string) {
   return normalizedTitle.length>=8?`${institution.replace(/\s/g,'')}:${normalizedTitle}`:'';
 }
 
-const isObviousNonGrant=(title:string)=>/(채용|임원|상임이사|이사장|기관장|원장|본부장|강사|후보자|위원|참여단|입찰|공시송달)/.test(title);
+const isObviousNonGrant=(title:string)=>/(채용|임원|상임이사|이사장|기관장|원장|본부장|강사|매니저|후보자|위원|참여단|입찰|공시송달)/.test(title);
 
 export async function GET() {
   try {

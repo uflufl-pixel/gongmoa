@@ -64,7 +64,7 @@ function parseMoe(html:string):IncomingNotice[] {
   }).slice(0,20);
 }
 
-const isGrantCandidate=(title:string)=>/(공모|모집|지원대상|신규지원|선정 계획|참가신청)/.test(title)&&!/(채용|임원|상임이사|이사장|기관장|원장|본부장|강사|후보자|위원|참여단|공개검증|선정 결과|심의결과|평가 결과|접수 마감|취소처분|입찰|의견수렴|공시송달)/.test(title);
+const isGrantCandidate=(title:string)=>/(공모|모집|지원대상|신규지원|선정 계획|참가신청)/.test(title)&&!/(채용|임원|상임이사|이사장|기관장|원장|본부장|강사|매니저|후보자|위원|참여단|공개검증|선정 결과|심의결과|평가 결과|접수 마감|취소처분|입찰|의견수렴|공시송달)/.test(title);
 
 function parseMcst(html:string):IncomingNotice[] {
   return (html.match(/<tr>[\s\S]*?<\/tr>/gi)||[]).flatMap(row=>{
@@ -143,6 +143,24 @@ function parseDaegu(html:string):IncomingNotice[] {
   });
 }
 
+function parseUlsan(html:string):IncomingNotice[] {
+  return (html.match(/<tr>[^]*?<\/tr>/gi)||[]).flatMap(row=>{
+    const match=row.match(/href="\.\/([0-9]+)\.ulsan\?[^\"]*gosiGbn=([A-Z])"[^>]*>([^]*?)<\/a>/i); if(!match) return [];
+    const title=decoder(match[3]); if(!isGrantCandidate(title)) return [];
+    const posted=row.match(/\d{4}-\d{2}-\d{2}/)?.[0]||'';
+    return [{sourceId:'ulsan-board',externalId:match[1],institution:'울산광역시',group:'지방자치단체',title,category:'지역·생활',audience:'시민·기관·단체',region:'울산',sourceName:'울산광역시 고시공고',sourceUrl:`https://www.ulsan.go.kr/u/rep/transfer/notice/${match[1]}.ulsan?gosiGbn=${match[2]}&mId=001004002000000000`,opensAt:dateAtSeoul(posted),closesAt:null,deadlineLabel:'공고문 확인',status:'open'}];
+  });
+}
+
+function parseJeonbuk(html:string):IncomingNotice[] {
+  return (html.match(/<tr[^>]*>[^]*?<\/tr>/gi)||[]).flatMap(row=>{
+    const match=row.match(/dataSid=([0-9]+)"[^>]+title="([^"]+)"/i); if(!match) return [];
+    const title=decoder(match[2]); if(!isGrantCandidate(title)) return [];
+    const posted=row.match(/data-cell-header="작성일 :">\s*(\d{4}-\d{2}-\d{2})/i)?.[1]||'';
+    return [{sourceId:'jeonbuk-board',externalId:match[1],institution:'전북특별자치도',group:'지방자치단체',title,category:'지역·생활',audience:'도민·기관·기업',region:'전북',sourceName:'전북특별자치도 공고·고시',sourceUrl:`https://www.jeonbuk.go.kr/board/view.jeonbuk?boardId=BBS_0000129&dataSid=${match[1]}&menuCd=DOM_000000102002005000`,opensAt:dateAtSeoul(posted),closesAt:null,deadlineLabel:'공고문 확인',status:'open'}];
+  });
+}
+
 async function collectBojoApi() {
   const key=env.BOJO_API_KEY;
   if(!key) return null;
@@ -215,6 +233,8 @@ export async function syncOfficialSources() {
   const incheonBody=inspected.find(x=>x.check.sourceId==='incheon-board')?.body||''; const incheonItems=parseIncheon(incheonBody);
   const daejeonBody=inspected.find(x=>x.check.sourceId==='daejeon-board')?.body||''; const daejeonItems=parseDaejeon(daejeonBody);
   const daeguBody=inspected.find(x=>x.check.sourceId==='daegu-board')?.body||''; const daeguItems=parseDaegu(daeguBody);
+  const ulsanBody=inspected.find(x=>x.check.sourceId==='ulsan-board')?.body||''; const ulsanItems=parseUlsan(ulsanBody);
+  const jeonbukBody=inspected.find(x=>x.check.sourceId==='jeonbuk-board')?.body||''; const jeonbukItems=parseJeonbuk(jeonbukBody);
   for(const [sourceId,count,minimum] of [['bizinfo',bizItems.length,5],['moe-board',moeItems.length,1]] as const) {
     const parsed=inspected.find(x=>x.check.sourceId===sourceId);
     if(parsed?.check.outcome==='success'&&count<minimum) Object.assign(parsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: ${count}건 해석`,finishedAt:new Date()});
@@ -231,11 +251,15 @@ export async function syncOfficialSources() {
     const parsed=inspected.find(x=>x.check.sourceId===sourceId); const structuralCount=(body.match(pattern)||[]).length;
     if(parsed?.check.outcome==='success'&&structuralCount<3) Object.assign(parsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: 링크 ${structuralCount}건`,finishedAt:new Date()});
   }
+  for(const [sourceId,body,pattern] of [['ulsan-board',ulsanBody,/\/[0-9]+\.ulsan\?/g],['jeonbuk-board',jeonbukBody,/dataSid=[0-9]+/g]] as const) {
+    const parsed=inspected.find(x=>x.check.sourceId===sourceId); const structuralCount=(body.match(pattern)||[]).length;
+    if(parsed?.check.outcome==='success'&&structuralCount<5) Object.assign(parsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: 링크 ${structuralCount}건`,finishedAt:new Date()});
+  }
   for(const result of inspected) {
     await db.insert(sourceChecks).values(result.check);
     await db.update(sources).set({status:result.check.outcome==='success'?'connected':'attention',lastSuccessAt:result.check.outcome==='success'?result.check.finishedAt:undefined}).where(eq(sources.id,result.check.sourceId));
   }
-  const incoming=[...bizItems,...moeItems,...mcstItems,...moisItems,...meItems,...seoulItems,...busanItems,...incheonItems,...daejeonItems,...daeguItems,...(bojoItems||[])];
+  const incoming=[...bizItems,...moeItems,...mcstItems,...moisItems,...meItems,...seoulItems,...busanItems,...incheonItems,...daejeonItems,...daeguItems,...ulsanItems,...jeonbukItems,...(bojoItems||[])];
   const collection=incoming.length>=2?await upsertCollected(incoming):{discovered:incoming.length,inserted:0,updated:0,unchanged:0,review:1,closed:0};
   collection.closed=expired.length;
   return {results:inspected.map(x=>x.check),collection};
