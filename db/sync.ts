@@ -15,7 +15,10 @@ async function inspectSource(source:{id:string;url:string;name:string}) {
   const startedAt=new Date();
   try {
     const fetchUrl=source.id==='bojo'?'https://www.bojo.go.kr/':source.url;
-    const response=await fetch(fetchUrl,{headers:{accept:'text/html,application/xhtml+xml,application/json','user-agent':'GongmoaSourceMonitor/1.1 (+https://gongmoa.uflufl.chatgpt.site)'},signal:AbortSignal.timeout(20000),redirect:'follow'});
+    const request=()=>fetch(fetchUrl,{headers:{accept:'text/html,application/xhtml+xml,application/json','user-agent':'GongmoaSourceMonitor/1.1 (+https://gongmoa.uflufl.chatgpt.site)'},signal:AbortSignal.timeout(10000),redirect:'follow'});
+    let response:Response;
+    try { response=await request(); } catch { response=await request(); }
+    if(response.status===408||response.status===429||response.status>=500) response=await request();
     const body=await response.text();
     const sample=body.slice(0,1_000_000);
     const titleMatch=sample.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
