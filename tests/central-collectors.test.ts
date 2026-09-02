@@ -3,6 +3,17 @@ import assert from 'node:assert/strict';
 // @ts-expect-error Native Node TypeScript runner.
 import {centralCollectors,parseCentralBoard,centralGrantCandidate} from '../lib/central-collectors.ts';
 const c=centralCollectors[0];
+test('KHS strips session IDs and rejects nonofficial boards and award notices',()=>{
+  const config=centralCollectors.find(x=>x.id==='khs-board')!;
+  const titles=['전승공예품 악기은행 대여자 모집 공고','지원사업 공모전 수상자 공고','평가위원 후보자 모집 공고'];
+  const body=titles.map((t,i)=>`<tr><td data-column="제목"><a href="/multiBbz/selectMultiBbzView.do;jsessionid=temporary.node1?id=${100+i}&amp;no=${200+i}&amp;bbzId=newpublic" class="b_tit" title="${t}">${t}</a></td><td data-column="등록일">2026-08-28</td></tr>`).join('');
+  const r=parseCentralBoard(body,config);assert.equal(r.parsedRows,3);assert.equal(r.items.length,1);
+  assert.equal(r.items[0].sourceUrl,'https://khs.go.kr/multiBbz/selectMultiBbzView.do?bbzId=newpublic&id=100&no=200&mn=NS_01_01');
+  assert.equal(r.items[0].announcedFrom,'2026-08-28');assert.equal(r.items[0].applicationTo,null);
+  assert.throws(()=>parseCentralBoard(body.replaceAll('newpublic','newexam'),config));
+  assert.throws(()=>parseCentralBoard(body.replaceAll('href="/multiBbz','href="https://example.com/multiBbz'),config));
+  assert.throws(()=>parseCentralBoard(body.replaceAll('no=','missing='),config));
+});
 test('MOJ uses official board identity and excludes award announcements and advisory recruitment',()=>{
   const config=centralCollectors.find(x=>x.id==='moj-board')!;
   const titles=['광역형 비자 사업 공모 안내','공모전 수상작 발표','난민참여자문단 모집 공고','출입국 현장투어 모집 안내'];

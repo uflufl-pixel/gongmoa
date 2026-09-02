@@ -10,7 +10,7 @@ import {fetchMolitList} from '../lib/molit-fetch';
 
 export const SYNC_BATCHES = [
   ['bojo','bizinfo','moe-board','gov24-orgs','mss-board','kdca-board','mfds-board','moj-board'],
-  ['mcst-board','mois-board','me-board','kocca-support','mafra-board','rda-board','moel-board','moel-support'],
+  ['mcst-board','mois-board','me-board','kocca-support','mafra-board','rda-board','moel-board','moel-support','khs-board'],
   ['seoul-board','busan-board','incheon-board','daejeon-board','daegu-board','moleg-board','kma-board','molit-board'],
   ['ulsan-board','jeonbuk-board','gyeongnam-business','chungbuk-board','jeju-board','mohw-board','forest-board','forest-news','mof-board'],
 ] as const;
