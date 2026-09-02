@@ -2,6 +2,9 @@ import {env} from 'cloudflare:workers';
 import registry from '../data/central-institutions.json';
 
 export async function registerCentralInstitutions(){
+  const existing=await env.DB.prepare('SELECT id FROM institutions').all<{id:string}>();
+  const ids=new Set(existing.results.map(x=>x.id));
+  if(registry.items.every(x=>ids.has(x.id)))return;
   // Idempotent, bounded inserts into the existing durable registry. Existing IDs
   // and domain/source links stay intact; registering does not enable a collector.
   for(let offset=0;offset<registry.items.length;offset+=8){

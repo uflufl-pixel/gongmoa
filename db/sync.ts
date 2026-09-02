@@ -5,12 +5,13 @@ import { ensureSeeded } from './queries';
 import { notices, revisions, sourceChecks, sources } from './schema';
 import { bojoDate, unpackBojoPage } from '../lib/bojo-page';
 import { applicationPeriod } from '../lib/application-period';
+import {centralCollectors,parseCentralBoard} from '../lib/central-collectors';
 
 export const SYNC_BATCHES = [
-  ['bojo','bizinfo','moe-board','gov24-orgs'],
-  ['mcst-board','mois-board','me-board','kocca-support'],
-  ['seoul-board','busan-board','incheon-board','daejeon-board','daegu-board'],
-  ['ulsan-board','jeonbuk-board','gyeongnam-business','chungbuk-board','jeju-board'],
+  ['bojo','bizinfo','moe-board','gov24-orgs','mss-board'],
+  ['mcst-board','mois-board','me-board','kocca-support','mafra-board'],
+  ['seoul-board','busan-board','incheon-board','daejeon-board','daegu-board','moleg-board'],
+  ['ulsan-board','jeonbuk-board','gyeongnam-business','chungbuk-board','jeju-board','mohw-board'],
 ] as const;
 
 const decoder=(value:string)=>value.replace(/<[^>]+>/g,' ').replace(/&#(x?[0-9a-f]+);/gi,(_,n)=>String.fromCodePoint(n[0].toLowerCase()==='x'?parseInt(n.slice(1),16):parseInt(n,10))).replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&middot;/g,'·').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();
@@ -344,12 +345,18 @@ export async function syncOfficialSources(requestedSourceIds?:readonly string[])
   if(jejuParsed?.check.outcome==='success'&&(!jejuBody.includes('"gosis"')||jejuItems.length<1)) Object.assign(jejuParsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: ${jejuItems.length}건 해석`,finishedAt:new Date()});
   const koccaParsed=inspected.find(x=>x.check.sourceId==='kocca-support'); const koccaLinks=(koccaBody.match(/intcNo=[A-Z0-9]+/g)||[]).length;
   if(koccaParsed?.check.outcome==='success'&&koccaLinks<5) Object.assign(koccaParsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: 링크 ${koccaLinks}건`,finishedAt:new Date()});
+  const centralItems:IncomingNotice[]=[];
+  for(const config of centralCollectors){
+    const result=inspected.find(x=>x.check.sourceId===config.id);if(!result?.body||result.check.outcome!=='success')continue;
+    try{const parsed=parseCentralBoard(result.body,config);centralItems.push(...parsed.items);result.check.message=`목록 ${parsed.parsedRows}건 확인 · 공모 후보 ${parsed.items.length}건`;}
+    catch(error){result.check.outcome='parser_error';result.check.message=error instanceof Error?error.message:'공고 구조 확인 필요';}
+  }
   for(const result of inspected) {
     await db.insert(sourceChecks).values(result.check);
     await db.update(sources).set({status:result.check.outcome==='success'?'connected':'attention',lastSuccessAt:result.check.outcome==='success'?result.check.finishedAt:undefined}).where(eq(sources.id,result.check.sourceId));
   }
   const incoming=[...bizItems,...moeItems,...mcstItems,...moisItems,...meItems,...seoulItems,...busanItems,...incheonItems,...daejeonItems,...daeguItems,...ulsanItems,...jeonbukItems,...gyeongnamItems,...chungbukItems,...jejuItems,...koccaItems,...(bojoItems||[])];
-  const collection=await upsertCollected(incoming);
+  const collection=await upsertCollected([...incoming,...centralItems]);
   collection.closed=expired.length;
   return {results:inspected.map(x=>x.check),collection,sourceIds:[...selected]};
 }
