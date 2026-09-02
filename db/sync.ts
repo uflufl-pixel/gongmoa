@@ -161,6 +161,16 @@ function parseJeonbuk(html:string):IncomingNotice[] {
   });
 }
 
+function parseGyeongnamBusiness(html:string):IncomingNotice[] {
+  return (html.match(/<li>[^]*?boardId=BBS_0000057[^]*?<\/li>/gi)||[]).flatMap(card=>{
+    const id=card.match(/dataSid=([0-9]+)/i)?.[1];
+    const title=decoder(card.match(/<h4[^>]*class="[^"]*ellipsis[^"]*"[^>]*>([^]*?)<\/h4>/i)?.[1]||'');
+    if(!id||!title||!isGrantCandidate(title)) return [];
+    const posted=card.match(/<p class="date">\s*(\d{4}-\d{2}-\d{2})\s*<\/p>/i)?.[1]||'';
+    return [{sourceId:'gyeongnam-business',externalId:id,institution:'경상남도',group:'지방자치단체',title,category:'기업지원',audience:'중소기업·창업기업',region:'경남',sourceName:'경남기업119 지원사업',sourceUrl:`https://www.gyeongnam.go.kr/giup/board/view.gyeong?boardId=BBS_0000057&menuCd=DOM_000004604001000000&dataSid=${id}`,opensAt:dateAtSeoul(posted),closesAt:null,deadlineLabel:'공고문 확인',status:'open'}];
+  });
+}
+
 async function collectBojoApi() {
   const key=env.BOJO_API_KEY;
   if(!key) return null;
@@ -235,6 +245,7 @@ export async function syncOfficialSources() {
   const daeguBody=inspected.find(x=>x.check.sourceId==='daegu-board')?.body||''; const daeguItems=parseDaegu(daeguBody);
   const ulsanBody=inspected.find(x=>x.check.sourceId==='ulsan-board')?.body||''; const ulsanItems=parseUlsan(ulsanBody);
   const jeonbukBody=inspected.find(x=>x.check.sourceId==='jeonbuk-board')?.body||''; const jeonbukItems=parseJeonbuk(jeonbukBody);
+  const gyeongnamBody=inspected.find(x=>x.check.sourceId==='gyeongnam-business')?.body||''; const gyeongnamItems=parseGyeongnamBusiness(gyeongnamBody);
   for(const [sourceId,count,minimum] of [['bizinfo',bizItems.length,5],['moe-board',moeItems.length,1]] as const) {
     const parsed=inspected.find(x=>x.check.sourceId===sourceId);
     if(parsed?.check.outcome==='success'&&count<minimum) Object.assign(parsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: ${count}건 해석`,finishedAt:new Date()});
@@ -255,11 +266,15 @@ export async function syncOfficialSources() {
     const parsed=inspected.find(x=>x.check.sourceId===sourceId); const structuralCount=(body.match(pattern)||[]).length;
     if(parsed?.check.outcome==='success'&&structuralCount<5) Object.assign(parsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: 링크 ${structuralCount}건`,finishedAt:new Date()});
   }
+  for(const [sourceId,body,pattern] of [['gyeongnam-business',gyeongnamBody,/boardId=BBS_0000057[^"']*dataSid=[0-9]+/g]] as const) {
+    const parsed=inspected.find(x=>x.check.sourceId===sourceId); const structuralCount=(body.match(pattern)||[]).length;
+    if(parsed?.check.outcome==='success'&&structuralCount<5) Object.assign(parsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: 링크 ${structuralCount}건`,finishedAt:new Date()});
+  }
   for(const result of inspected) {
     await db.insert(sourceChecks).values(result.check);
     await db.update(sources).set({status:result.check.outcome==='success'?'connected':'attention',lastSuccessAt:result.check.outcome==='success'?result.check.finishedAt:undefined}).where(eq(sources.id,result.check.sourceId));
   }
-  const incoming=[...bizItems,...moeItems,...mcstItems,...moisItems,...meItems,...seoulItems,...busanItems,...incheonItems,...daejeonItems,...daeguItems,...ulsanItems,...jeonbukItems,...(bojoItems||[])];
+  const incoming=[...bizItems,...moeItems,...mcstItems,...moisItems,...meItems,...seoulItems,...busanItems,...incheonItems,...daejeonItems,...daeguItems,...ulsanItems,...jeonbukItems,...gyeongnamItems,...(bojoItems||[])];
   const collection=incoming.length>=2?await upsertCollected(incoming):{discovered:incoming.length,inserted:0,updated:0,unchanged:0,review:1,closed:0};
   collection.closed=expired.length;
   return {results:inspected.map(x=>x.check),collection};
