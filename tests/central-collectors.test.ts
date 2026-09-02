@@ -1,8 +1,18 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 // @ts-expect-error Native Node TypeScript runner.
-import {centralCollectors,parseCentralBoard,centralGrantCandidate,centralCollectorUrl} from '../lib/central-collectors.ts';
+import {centralCollectors,parseCentralBoard,centralGrantCandidate,centralCollectorUrl,modsReception} from '../lib/central-collectors.ts';
 const c=centralCollectors[0];
+test('MODS official RSS retains explicit reception cutoff and excludes monitoring recruitment',()=>{
+  const config=centralCollectors.find(x=>x.id==='mods-board')!;
+  const period='접수 기간2026.7.20.(월) ~ 8.9.(일) 23:59까지';
+  const body=`<rss><channel>${['데이터송 공모전','정보공개 모니터단 모집','서포터즈 모집'].map((t,i)=>`<item><title>${t}</title><link>https://mods.go.kr/board.es?act=view&amp;bid=108&amp;list_no=${i+100}</link><pubDate>202607201230</pubDate><description><![CDATA[${period}]]></description></item>`).join('')}</channel></rss>`;
+  const r=parseCentralBoard(body,config);assert.equal(r.items.length,1);assert.equal(r.items[0].applicationFrom,'2026-07-20');assert.equal(r.items[0].applicationTo,'2026-08-09');assert.equal(r.items[0].closesAt?.toISOString(),'2026-08-09T14:59:00.000Z');
+  assert.throws(()=>parseCentralBoard(body.replaceAll('bid=108','bid=109'),config));
+  assert.throws(()=>parseCentralBoard(body.replaceAll('https://mods.go.kr','https://example.com'),config));
+  for(const bad of [period.replace('접수 기간','행사 기간'),period.replace('8.9.','2.30.'),period.replace('23:59','25:00'),period+period])assert.equal(modsReception(bad),null);
+  assert.equal(modsReception('접수기간 미정'),null);
+});
 test('audited collector URL updates supersede stale registered URLs without changing other sources',()=>{
   assert.equal(centralCollectorUrl('khs-board','https://khs.go.kr/old'),'https://www.khs.go.kr/multiBbz/selectMultiBbzList.do?bbzId=newpublic&mn=NS_01_01');
   assert.equal(centralCollectorUrl('bizinfo','https://www.bizinfo.go.kr/existing'),'https://www.bizinfo.go.kr/existing');

@@ -15,12 +15,13 @@ export const centralCollectors=[
   {id:'mof-board',institutionId:'central-1192000',institution:'해양수산부',name:'해양수산부 공지사항',url:'https://www.mof.go.kr/doc/ko/selectDocList.do?menuSeq=375&bbsSeq=9',origin:'https://www.mof.go.kr',format:'mof',category:'해양·수산'},
   {id:'moj-board',institutionId:'central-1270000',institution:'법무부',name:'법무부 공지사항',url:'https://www.moj.go.kr/moj/116/subview.do',origin:'https://www.moj.go.kr',format:'moj',category:'법무·사회'},
   {id:'khs-board',institutionId:'central-1833100',institution:'국가유산청',name:'국가유산청 공지사항',url:'https://www.khs.go.kr/multiBbz/selectMultiBbzList.do?bbzId=newpublic&mn=NS_01_01',origin:'https://khs.go.kr',format:'khs',category:'국가유산·문화'},
+  {id:'mods-board',institutionId:'central-1241000',institution:'국가데이터처',name:'국가데이터처 공지사항 RSS',url:'https://mods.go.kr/board.es?mid=a10306020000&bid=a103060100&act=rss',origin:'https://mods.go.kr',format:'rss',category:'통계·데이터'},
 ] as const;
 // Registered rows retain history; audited collector definitions own fetch endpoints.
 export function centralCollectorUrl(id:string,fallback:string){return centralCollectors.find(c=>c.id===id)?.url||fallback;}
 type Config=typeof centralCollectors[number];
 export function centralGrantCandidate(title:string){
-  if(/(수상작\s*발표|수상자\s*(공고|발표)|자문단|현장투어)/.test(title))return false;
+  if(/(수상작\s*발표|수상자\s*(공고|발표)|자문단|현장투어|모니터단|서포터즈)/.test(title))return false;
   if(/(선정\s*공고|우선협상.*선정)/.test(title))return false;
   if(/(체험단|연수생|면허.*시험|자격시험)/.test(title))return false;
   return /(공모|모집|지원사업|신규지원|시행계획|지원계획)/.test(title)&&!/(채용|임원|이사장|기관장|원장|본부장|강사|매니저|후보자|위원|참여단|직위|임용|근로자|공무직|공무원|전입희망|입찰|용역|개찰|결과|합격|공개검증|의견수렴|공시송달|취소|포상|서훈)/.test(title);
@@ -40,6 +41,7 @@ function publicationDate(s:string){
 function identity(raw:string,c:Config){
   const u=new URL(raw,c.origin);if(!['https:','http:'].includes(u.protocol)||u.hostname!==new URL(c.origin).hostname||u.username||u.password)throw new Error('공식 공고 주소 확인 필요');
   let id:string|null=null;
+  if(c.id==='mods-board'&&u.pathname==='/board.es'&&u.searchParams.get('bid')==='108'&&u.searchParams.get('act')==='view')id=u.searchParams.get('list_no');
   if(c.id==='khs-board'){
     const path=u.pathname.replace(/;jsessionid=[A-Za-z0-9_.-]+$/,'');
     const no=u.searchParams.get('no');
@@ -71,12 +73,12 @@ function identity(raw:string,c:Config){
   u.protocol='https:';return {id,url:u.href};
 }
 export function parseCentralBoard(body:string,c:Config){
-  const rows:Array<{title:string;link:string;posted:string}>=[];
+  const rows:Array<{title:string;link:string;posted:string;description?:string}>=[];
   if(c.format==='rss'){
     if(!/<rss\b/.test(body)||!/<channel>/.test(body))throw new Error('RSS 구조 확인 필요');
     for(const match of body.matchAll(/<item>[\s\S]*?<\/item>/g)){
       const field=(tag:string)=>text(match[0].match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`))?.[1]||'');
-      rows.push({title:c.id==='kma-board'?text(field('title')):field('title'),link:field('link'),posted:field('pubDate')});
+      rows.push({title:c.id==='kma-board'?text(field('title')):field('title'),link:field('link'),posted:field('pubDate'),description:c.id==='mods-board'?field('description'):undefined});
     }
   }else if(c.format==='khs'){
     for(const match of body.matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)){
@@ -144,8 +146,19 @@ export function parseCentralBoard(body:string,c:Config){
     let candidateTitle=c.id==='mfds-board'&&/용역연구개발과제.*주관연구기관.*공모/.test(row.title)?row.title.replace('용역연구개발과제','연구개발과제'):row.title;
     if(c.id==='mof-board'&&/(신규과제 선정계획|사업대상지.*선정 연장 공고)/.test(row.title))candidateTitle='지원사업 '+candidateTitle;
     if(!centralGrantCandidate(candidateTitle))return [];
+    const period=c.id==='mods-board'?modsReception(row.description||''):null;
     return [{sourceId:c.id,externalId:ref.id,institution:c.institution,group:'중앙부처',title:row.title,category:c.category,audience:'원문 지원자격 확인',region:null,sourceName:c.name,sourceUrl:ref.url,
-      announcedFrom:publicationDate(row.posted),opensAt:null,closesAt:null,applicationFrom:null,applicationTo:null,deadlineLabel:'접수기간 원문 확인',status:'open'}];
+      announcedFrom:publicationDate(row.posted),opensAt:period?.opensAt||null,closesAt:period?.closesAt||null,applicationFrom:period?.applicationFrom||null,applicationTo:period?.applicationTo||null,deadlineLabel:period?.applicationTo||'접수기간 원문 확인',status:period&&period.closesAt<new Date()?'closed':'open'}];
   });
   return {items,parsedRows:rows.length};
+}
+
+// Only the explicitly labeled RSS reception field with a stated cutoff is accepted.
+export function modsReception(value:string){
+  const matches=[...value.matchAll(/접수\s*기간\s*(\d{4})\.(\d{1,2})\.(\d{1,2})\.\([월화수목금토일]\)\s*~\s*(?:(\d{4})\.)?(\d{1,2})\.(\d{1,2})\.\([월화수목금토일]\)\s*(\d{2}):(\d{2})까지/g)];
+  if(matches.length!==1)return null;
+  const m=matches[0],date=(y:string,mo:string,d:string)=>`${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`;
+  const from=date(m[1],m[2],m[3]),to=date(m[4]||m[1],m[5],m[6]);
+  if(publicationDate(from)!==from||publicationDate(to)!==to||from>to||Number(m[7])>23||Number(m[8])>59)return null;
+  return {applicationFrom:from,applicationTo:to,opensAt:new Date(`${from}T00:00:00+09:00`),closesAt:new Date(`${to}T${m[7]}:${m[8]}:00+09:00`)};
 }
