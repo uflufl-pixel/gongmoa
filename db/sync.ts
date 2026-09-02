@@ -1,4 +1,5 @@
 import { and, eq } from 'drizzle-orm';
+import { env } from 'cloudflare:workers';
 import { getDb } from './index';
 import { ensureSeeded } from './queries';
 import { notices, revisions, sourceChecks, sources } from './schema';
@@ -27,6 +28,9 @@ async function inspectSource(source:{id:string;url:string;name:string}) {
 }
 
 type IncomingNotice={sourceId:string;externalId:string;institution:string;group:string;title:string;category:string;audience:string;region:string|null;sourceName:string;sourceUrl:string;opensAt:Date|null;closesAt:Date|null;deadlineLabel:string;status:string};
+
+type BojoItem=Record<string,string|undefined>;
+const cdata=(value?:string)=>decoder((value||'').replace(/^<!\[CDATA\[/,'').replace(/\]\]>$/,''));
 
 function dateAtSeoul(value:string,end=false) {
   if(!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
@@ -60,6 +64,35 @@ function parseMoe(html:string):IncomingNotice[] {
   }).slice(0,20);
 }
 
+async function collectBojoApi() {
+  const key=env.BOJO_API_KEY;
+  if(!key) return null;
+  const kstNow=new Date(Date.now()+9*60*60*1000); const today=kstNow.toISOString().slice(0,10).replaceAll('-','');
+  const dates=Array.from({length:7},(_,i)=>{const date=new Date(kstNow);date.setUTCDate(date.getUTCDate()-i);return date.toISOString().slice(0,10).replaceAll('-','')});
+  const responses=await Promise.all(dates.map(async date=>{
+    const url=`https://apis.data.go.kr/1051000/MoefOpenAPI2025/T_OPD_ASBS_PBNS_UNITY?serviceKey=${key}&pageNo=1&numOfRows=100&resultType=json&bsnsyear=${kstNow.getUTCFullYear()}&pblanc_updt_dt=${date}`;
+    const response=await fetch(url,{headers:{accept:'application/json','user-agent':'GongmoaCollector/1.0'},signal:AbortSignal.timeout(15000)});
+    if(!response.ok) throw new Error(`기획예산처 API HTTP ${response.status}`);
+    const payload=await response.json() as {response?:{header?:{resultCode?:string;resultMsg?:string};body?:{items?:{item?:BojoItem|BojoItem[]}}}};
+    if(payload.response?.header?.resultCode!=='00') throw new Error(payload.response?.header?.resultMsg||'기획예산처 API 오류');
+    const raw=payload.response?.body?.items?.item; return raw?(Array.isArray(raw)?raw:[raw]):[];
+  }));
+  const seen=new Set<string>(); const items:IncomingNotice[]=[];
+  for(const item of responses.flat()) {
+    const title=cdata(item.PBLANC_NM); const closes=cdata(item.RCEPT_END_DE)||cdata(item.PBLANC_END_DE);
+    if(!title||(/^\d{8}$/.test(closes)&&closes<today)) continue;
+    const popup=cdata(item.PBLANC_POPUP_URL)||cdata(item.BSNS_POPUP_URL)||'https://www.bojo.go.kr/bojo.do';
+    const externalId=/nttId=([^&]+)/.exec(popup)?.[1]||`${cdata(item.DDTLBZ_ID)}-${cdata(item.PBLANC_BEGIN_DE)}`;
+    if(!externalId||seen.has(externalId)) continue; seen.add(externalId);
+    const institution=cdata(item.DLVPL_NM)||cdata(item.JRSD_NM)||'기획예산처'; const region=cdata(item.CTPRVN_NM)||null;
+    const opens=cdata(item.RCEPT_BEGIN_DE)||cdata(item.PBLANC_BEGIN_DE);
+    const compactDate=(value:string)=>/^\d{8}$/.test(value)?`${value.slice(0,4)}-${value.slice(4,6)}-${value.slice(6,8)}`:'';
+    const openDate=compactDate(opens); const closeDate=compactDate(closes);
+    items.push({sourceId:'bojo',externalId,institution,group:/(특별시|광역시|특별자치|[가-힣]+도|시|군|구)$/.test(institution)?'지방자치단체':'중앙부처',title,category:'보조금',audience:(cdata(item.SPORT_TRGET_CN)||cdata(item.SPORT_CN_DC)||'기관·단체').slice(0,100),region,sourceName:'보조금통합포털 API',sourceUrl:popup,opensAt:openDate?dateAtSeoul(openDate):null,closesAt:closeDate?dateAtSeoul(closeDate,true):null,deadlineLabel:closeDate?closeDate.replaceAll('-','.'):'공고문 확인',status:'open'});
+  }
+  return items;
+}
+
 async function upsertCollected(items:IncomingNotice[]) {
   const db=getDb(); const now=new Date();
   const summary={discovered:items.length,inserted:0,updated:0,unchanged:0,review:0};
@@ -84,12 +117,16 @@ export async function syncOfficialSources() {
   await ensureSeeded();
   const db=getDb();
   const sourceItems=await db.select({id:sources.id,url:sources.url,name:sources.name}).from(sources);
-  const inspected=await Promise.all(sourceItems.map(inspectSource));
+  const [inspected,bojoItems]=await Promise.all([Promise.all(sourceItems.map(inspectSource)),collectBojoApi()]);
+  if(bojoItems) {
+    const apiCheck=inspected.find(x=>x.check.sourceId==='bojo');
+    if(apiCheck) Object.assign(apiCheck.check,{outcome:'success',statusCode:200,keywordHits:bojoItems.length,pageTitle:'기획예산처 국고보조금 공모사업 API',message:null,finishedAt:new Date()});
+  }
   for(const result of inspected) {
     await db.insert(sourceChecks).values(result.check);
     await db.update(sources).set({status:result.check.outcome==='success'?'connected':'attention',lastSuccessAt:result.check.outcome==='success'?result.check.finishedAt:undefined}).where(eq(sources.id,result.check.sourceId));
   }
-  const incoming=[...parseBizinfo(inspected.find(x=>x.check.sourceId==='bizinfo')?.body||''),...parseMoe(inspected.find(x=>x.check.sourceId==='moe-board')?.body||'')];
+  const incoming=[...parseBizinfo(inspected.find(x=>x.check.sourceId==='bizinfo')?.body||''),...parseMoe(inspected.find(x=>x.check.sourceId==='moe-board')?.body||''),...(bojoItems||[])];
   const collection=incoming.length>=2?await upsertCollected(incoming):{discovered:incoming.length,inserted:0,updated:0,unchanged:0,review:1};
   return {results:inspected.map(x=>x.check),collection};
 }
