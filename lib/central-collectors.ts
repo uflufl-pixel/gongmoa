@@ -25,6 +25,7 @@ export const centralCollectors=[
   {id:'saemangeum-board',institutionId:'central-1730000',institution:'새만금개발청',name:'새만금개발청 공지사항 RSS',url:'https://www.saemangeum.go.kr/sda/brd/rssFeed.do?bbsSn=2',origin:'https://www.saemangeum.go.kr',format:'rss',category:'지역개발·문화'},
   {id:'oka-board',institutionId:'central-1832000',institution:'재외동포청',name:'재외동포청 공지사항',url:'https://www.oka.go.kr/web/board/ajax/list.do?menu_cd=000017&currentPage=1&searchData=contdata&searchText=',origin:'https://www.oka.go.kr',format:'oka',category:'재외동포·정착지원'},
   {id:'nts-board',institutionId:'central-1210000',institution:'국세청',name:'국세청 공지사항',url:'https://www.nts.go.kr/nts/na/ntt/selectNttList.do?bbsId=1011&mi=2207',origin:'https://www.nts.go.kr',format:'nts',category:'세정·기업지원'},
+  {id:'kcg-board',institutionId:'central-1532000',institution:'해양경찰청',name:'해양경찰청 고시공고',url:'https://www.kcg.go.kr/kcg/na/ntt/selectNttList.do?bbsId=312&mi=2798',origin:'https://www.kcg.go.kr',format:'kcg',category:'해양·안전'},
 ] as const;
 // Registered rows retain history; audited collector definitions own fetch endpoints.
 export function centralCollectorUrl(id:string,fallback:string){return centralCollectors.find(c=>c.id===id)?.url||fallback;}
@@ -57,6 +58,7 @@ function publicationDate(s:string){
 function identity(raw:string,c:Config){
   const u=new URL(raw,c.origin);if(!['https:','http:'].includes(u.protocol)||u.hostname!==new URL(c.origin).hostname||u.username||u.password)throw new Error('공식 공고 주소 확인 필요');
   let id:string|null=null;
+  if(c.id==='kcg-board'&&u.pathname==='/kcg/na/ntt/selectNttInfo.do')id=u.searchParams.get('nttSn');
   if(c.id==='nts-board'&&u.pathname==='/nts/na/ntt/selectNttInfo.do'&&u.searchParams.get('bbsId')==='1011'&&u.searchParams.get('mi')==='2207')id=u.searchParams.get('nttSn');
   if(c.id==='oka-board'&&u.pathname==='/web/board/brdDetail.do'&&u.searchParams.get('menu_cd')==='000017')id=u.searchParams.get('num');
   if(c.id==='saemangeum-board'&&u.pathname==='/sda/brd/view.do'&&u.searchParams.get('key')==='2009075579016')id=u.searchParams.get('nttSn');
@@ -103,7 +105,12 @@ function identity(raw:string,c:Config){
 }
 export function parseCentralBoard(body:string,c:Config){
   const rows:Array<{title:string;link:string;posted:string;description?:string}>=[];
-  if(c.format==='nts'){
+  if(c.format==='kcg'){
+    for(const match of body.replace(/<!--[\s\S]*?-->/g,'').matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)){
+      const a=match[0].match(/<td\s+class="ta_l">\s*<a\s+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/);if(!a)continue;
+      rows.push({title:text(a[2]),link:a[1],posted:match[0].match(/<td>(\d{4})\.(\d{2})\.(\d{2})<\/td>/)?.slice(1).join('-')||''});
+    }
+  }else if(c.format==='nts'){
     for(const match of body.replace(/<!--[\s\S]*?-->/g,'').matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)){
       const anchor=match[0].match(/<a\b[^>]*class="nttInfoBtn"[^>]*>/)?.[0];if(!anchor)continue;
       const id=anchor.match(/data-id="(\d+)"/)?.[1],title=anchor.match(/title="([^"]+)"/)?.[1];
@@ -203,6 +210,7 @@ export function parseCentralBoard(body:string,c:Config){
     if(!row.title||!row.link)throw new Error('목록 제목·링크 누락');
     const ref=identity(row.link,c);if(seen.has(ref.id))return [];seen.add(ref.id);
     if(c.id==='pps-board'&&/(성과관리\s*시행계획|국가표준시행계획)/.test(row.title))return [];
+    if(c.id==='kcg-board'&&/연안안전지킴이.*참여자\s*모집/.test(row.title))return [];
     let candidateTitle=c.id==='mfds-board'&&/용역연구개발과제.*주관연구기관.*공모/.test(row.title)?row.title.replace('용역연구개발과제','연구개발과제'):row.title;
     if(c.id==='nts-board'&&/^｢20\d{2} K-SUUL AWARDS｣ 참가신청 안내$/.test(row.title))candidateTitle='공모 '+row.title;
     if(c.id==='mpm-board'&&/^20\d{2}년 공무원\s*미술전 작품 공모 안내$/.test(row.title))candidateTitle=row.title.replace('공무원','');

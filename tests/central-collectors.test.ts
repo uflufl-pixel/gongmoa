@@ -3,6 +3,13 @@ import assert from 'node:assert/strict';
 // @ts-expect-error Native Node TypeScript runner.
 import {centralCollectors,parseCentralBoard,centralGrantCandidate,centralCollectorUrl,centralCollectorAccept,modsReception,mpmReception,saemangeumReception,okaReception} from '../lib/central-collectors.ts';
 const c=centralCollectors[0];
+test('KCG retains institutional subsidy calls, not individual coastal patrol recruitment',()=>{
+  const c=centralCollectors.find(x=>x.id==='kcg-board')!;
+  const b=['연안안전지킴이 운영지원 민간경상보조사업 수행기관 모집 공고','연안안전지킴이 참여자 모집 공고','혁신제품 심의 예정 공고','평가위원 모집'].map((title,i)=>`<tr><td class="ta_l"><a href="/kcg/na/ntt/selectNttInfo.do?nttSn=${68001+i}"><!-- 주석 -->${title}</a></td><td>2026.03.23</td></tr>`).join('');
+  const r=parseCentralBoard(b,c);assert.equal(r.parsedRows,4);assert.equal(r.items.length,1);assert.equal(r.items[0].externalId,'68001');assert.equal(r.items[0].announcedFrom,'2026-03-23');assert.equal(r.items[0].applicationTo,null);
+  assert.throws(()=>parseCentralBoard(b.replaceAll('/kcg/na/ntt/selectNttInfo.do','https://example.com/view'),c));
+  assert.throws(()=>parseCentralBoard(b.replace('nttSn=68001','nttSn=bad'),c));
+});
 test('OKA JSON validates board metadata, deduplicates pinned calls and ignores placeholder periods',()=>{
   const c=centralCollectors.find(x=>x.id==='oka-board')!;
   const call={num:4744,title:'국내동포 단체 지원사업 공모',cont:'신청 기간: 2026. 8. 31.(월) ~ 9. 14.(월) 18:00',disp_write_dt:'2026-08-26',start_dt:'1900-01-01',end_dt:'2900-01-01'};
