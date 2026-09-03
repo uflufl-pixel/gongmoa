@@ -3,6 +3,14 @@ import assert from 'node:assert/strict';
 // @ts-expect-error Native Node TypeScript runner.
 import {centralCollectors,parseCentralBoard,centralGrantCandidate,centralCollectorUrl,centralCollectorAccept,modsReception,mpmReception,saemangeumReception,okaReception,parseMmaDetail,enrichMmaItems} from '../lib/central-collectors.ts';
 const c=centralCollectors[0];
+test('SPO extracts numeric view calls without executing scripts and excludes non-grant recruitment',()=>{
+  const c=centralCollectors.find(x=>x.id==='spo-board')!;
+  const row=(id:string,t:string)=>`<li><dl class="title w45"><a href="javascript:doBbsContentView('${id}');" title="${t}">${t}</a></dl><dl class="date w10"><dt>작성일</dt><dd>2026.06.08.</dd></dl></li>`;
+  const b='<input name="cbIdx" value="1401"/>'+row('1105161','2026 이준 Justice 캠프 참가자 모집 안내')+row('1105778','국가연구개발사업 기술수요조사 안내')+row('1110556','뉴스레터')+row('9999','범죄예방 사업 공모');
+  const r=parseCentralBoard(b,c);assert.equal(r.parsedRows,4);assert.equal(r.items.length,1);assert.equal(r.items[0].sourceUrl,'https://www.spo.go.kr/site/spo/ex/board/View.do?cbIdx=1401&bcIdx=9999');assert.equal(r.items[0].announcedFrom,'2026-06-08');assert.equal(r.items[0].applicationTo,null);
+  assert.equal(parseCentralBoard(b.replace('범죄예방 사업 공모','경력직 채용 공고'),c).items.length,0);
+  for(const invalid of [b.replace('value="1401"','value="1402"'),b.replace("('1105161')","('invalid')"),b.replace("('9999');","('9999');alert(1);"),'<html>오류</html>'])assert.throws(()=>parseCentralBoard(invalid,c));
+});
 test('PSS handles official malformed closing tag, rejects other boards and personnel',()=>{
   const c=centralCollectors.find(x=>x.id==='pss-board')!;
   const row=(id:string,t:string)=>`<li><a href="/sites/ko/boards/2/posts/${id}"><span class="tag">공지</span><p class="p1 title fw_semibold file">${t}<span class=a11y-hidden>첨부파일 아이콘</span></><div class="group"><p class="p2 date">2026.08.19</p></div></a></li>`;

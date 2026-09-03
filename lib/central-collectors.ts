@@ -32,6 +32,7 @@ export const centralCollectors=[
   {id:'mofe-board',institutionId:'central-1053000',institution:'재정경제부',name:'재정경제부 공지 RSS',url:'https://mofe.go.kr/com/detailRssTagService.do?bbsId=MOSFBBS_000000000030',origin:'https://mofe.go.kr',format:'rss',category:'경제·기업지원'},
   {id:'cio-board',institutionId:'central-1790364',institution:'고위공직자범죄수사처',name:'공수처 공지사항',url:'https://www.cio.go.kr/board/list/120',origin:'https://www.cio.go.kr',format:'cio',category:'행정·사회'},
   {id:'pss-board',institutionId:'central-1021100',institution:'대통령경호처',name:'대통령경호처 공지사항',url:'https://www.pss.go.kr/sites/ko/boards/2',origin:'https://www.pss.go.kr',format:'pss',category:'행정·안전'},
+  {id:'spo-board',institutionId:'central-1280000',institution:'대검찰청',name:'대검찰청 공지사항',url:'https://www.spo.go.kr/site/spo/ex/board/List.do?cbIdx=1401',origin:'https://www.spo.go.kr',format:'spo',category:'법무·사회'},
 ] as const;
 // Registered rows retain history; audited collector definitions own fetch endpoints.
 export function centralCollectorUrl(id:string,fallback:string){return centralCollectors.find(c=>c.id===id)?.url||fallback;}
@@ -64,6 +65,9 @@ function publicationDate(s:string){
 function identity(raw:string,c:Config){
   const u=new URL(raw,c.origin);if(!['https:','http:'].includes(u.protocol)||u.hostname!==new URL(c.origin).hostname||u.username||u.password)throw new Error('공식 공고 주소 확인 필요');
   let id:string|null=null;
+  if(c.id==='spo-board'&&u.pathname==='/site/spo/ex/board/View.do'&&u.searchParams.get('cbIdx')==='1401'){
+    id=u.searchParams.get('bcIdx');u.search=`?cbIdx=1401&bcIdx=${id||''}`;
+  }
   if(c.id==='pss-board'){
     id=/^\/sites\/ko\/boards\/2\/posts\/(\d+)$/.exec(u.pathname)?.[1]||null;u.search='';u.hash='';
   }
@@ -128,7 +132,16 @@ function identity(raw:string,c:Config){
 }
 export function parseCentralBoard(body:string,c:Config){
   const rows:Array<{title:string;link:string;posted:string;description?:string}>=[];
-  if(c.format==='pss'){
+  if(c.format==='spo'){
+    if(!/<input[^>]+name="cbIdx"[^>]+value="1401"/.test(body))throw new Error('대검찰청 공지 게시판 확인 필요');
+    for(const match of body.replace(/<!--[\s\S]*?-->/g,'').matchAll(/<li\b[^>]*>[\s\S]*?<\/li>/g)){
+      if(!match[0].includes('doBbsContentView'))continue;
+      const a=match[0].match(/<a href="javascript:doBbsContentView\('(\d+)'\);" title="([^"]+)"/);
+      if(!a)throw new Error('대검찰청 공고 식별자·제목 확인 필요');
+      const date=match[0].match(/<dl class="date[^\"]*">[\s\S]*?<dd>([\s\S]*?)<\/dd>/)?.[1]||'';
+      rows.push({title:text(a[2]),link:`${c.origin}/site/spo/ex/board/View.do?cbIdx=1401&bcIdx=${a[1]}`,posted:text(date).replace(/\.$/,'').replaceAll('.','-')});
+    }
+  }else if(c.format==='pss'){
     for(const match of body.replace(/<!--[\s\S]*?-->/g,'').matchAll(/<li\b[^>]*>[\s\S]*?<\/li>/g)){
       const title=match[0].match(/<p class="p1 title[^\"]*">([\s\S]*?)(?:<\/p>|<\/>)/);if(!title)continue;
       const a=match[0].match(/<a href="([^"]+)"/);if(!a)throw new Error('대통령경호처 공고 링크 확인 필요');
@@ -258,6 +271,7 @@ export function parseCentralBoard(body:string,c:Config){
     if(!row.title||!row.link)throw new Error('목록 제목·링크 누락');
     const ref=identity(row.link,c);if(seen.has(ref.id))return [];seen.add(ref.id);
     if(c.id==='pps-board'&&/(성과관리\s*시행계획|국가표준시행계획)/.test(row.title))return [];
+    if(c.id==='spo-board'&&/(캠프.*참가자\s*모집|기술수요조사)/.test(row.title))return [];
     if(c.id==='kcg-board'&&/연안안전지킴이.*참여자\s*모집/.test(row.title))return [];
     if(c.id==='naacc-board'&&/질의|답변|설명회|심사|당선/.test(row.title))return [];
     if(c.id==='mofe-board'&&/모니터링단|(?:상임|운영)이사|상임감사|초빙|제안요청/.test(row.title))return [];
