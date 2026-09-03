@@ -3,6 +3,16 @@ import assert from 'node:assert/strict';
 // @ts-expect-error Native Node TypeScript runner.
 import {centralCollectors,parseCentralBoard,centralGrantCandidate,centralCollectorUrl,centralCollectorAccept,modsReception,mpmReception,saemangeumReception,okaReception,parseMmaDetail,enrichMmaItems} from '../lib/central-collectors.ts';
 const c=centralCollectors[0];
+test('MOFE validates notice identity, excludes personnel and preserves unknown reception',()=>{
+  const c=centralCollectors.find(x=>x.id==='mofe-board')!;
+  const titles=['지역경제교육센터 공모','2026년도 공급망안정화 선도사업자 제1차 선정계획 공고','공공데이터 모니터링단 모집','비상임이사 공개모집','지역경제교육센터 선정 공고','물가안정 유공 포상 후보자 공모'];
+  const b='<rss><channel>'+titles.map((t,i)=>`<item><title><![CDATA[${t}]]></title><link><![CDATA[http://mofe.go.kr/nw/nes/detailNesDtaView.do;jsessionid=example.node?searchBbsId=MOSFBBS_000000000030&menuNo=4050100&searchNttId=MOSF_00000000007876${i}&tracking=test]]></link><pubDate>2026-07-30 08:38:50.12562</pubDate></item>`).join('')+'</channel></rss>';
+  const r=parseCentralBoard(b,c);assert.equal(r.parsedRows,6);assert.equal(r.items.length,2);
+  assert.equal(r.items[0].externalId,'000000000078760');assert.equal(r.items[0].announcedFrom,'2026-07-30');assert.equal(r.items[0].applicationTo,null);
+  assert.match(r.items[0].sourceUrl,/^https:/);assert.ok(!/jsessionid|tracking/.test(r.items[0].sourceUrl));
+  for(const invalid of [b.replaceAll('mofe.go.kr','example.com'),b.replaceAll('MOSFBBS_000000000030','MOSFBBS_000000000033'),b.replaceAll('MOSF_00000000007876','INVALID_00000000007876'),b.replaceAll('4050100','4050400')])assert.throws(()=>parseCentralBoard(invalid,c));
+  assert.equal(parseCentralBoard(b.replaceAll('2026-07-30','2026-02-30'),c).items[0].announcedFrom,null);
+});
 test('MMA deduplicates pinned calls, excludes public positions and enriches verified detail',async()=>{
   const c=centralCollectors.find(x=>x.id==='mma-board')!;
   const title='2026년 사회복무요원 체험수기·사진 공모';

@@ -29,6 +29,7 @@ export const centralCollectors=[
   {id:'naacc-board',institutionId:'central-1670000',institution:'행정중심복합도시건설청',name:'행복청 설계공모',url:'https://naacc.go.kr/WEB/contents/N3030100000.do',origin:'https://naacc.go.kr',format:'naacc',category:'건축·도시'},
   {id:'mogef-board',institutionId:'central-1384000',institution:'성평등가족부',name:'성평등가족부 공고 RSS',url:'https://www.mogef.go.kr/rss/rssnews.do?mid=news400&div=16',origin:'https://www.mogef.go.kr',format:'rss',category:'성평등·가족·청소년'},
   {id:'mma-board',institutionId:'central-1300000',institution:'병무청',name:'병무청 공모 검색',url:'https://www.mma.go.kr/board/boardList.do?mc=usr0000379&gesipan_id=2&searchCondition=gsgjemok_nm&searchKeyword=%EA%B3%B5%EB%AA%A8',origin:'https://www.mma.go.kr',format:'mma',category:'병무·문화'},
+  {id:'mofe-board',institutionId:'central-1053000',institution:'재정경제부',name:'재정경제부 공지 RSS',url:'https://mofe.go.kr/com/detailRssTagService.do?bbsId=MOSFBBS_000000000030',origin:'https://mofe.go.kr',format:'rss',category:'경제·기업지원'},
 ] as const;
 // Registered rows retain history; audited collector definitions own fetch endpoints.
 export function centralCollectorUrl(id:string,fallback:string){return centralCollectors.find(c=>c.id===id)?.url||fallback;}
@@ -61,6 +62,10 @@ function publicationDate(s:string){
 function identity(raw:string,c:Config){
   const u=new URL(raw,c.origin);if(!['https:','http:'].includes(u.protocol)||u.hostname!==new URL(c.origin).hostname||u.username||u.password)throw new Error('공식 공고 주소 확인 필요');
   let id:string|null=null;
+  if(c.id==='mofe-board'&&u.pathname.replace(/;jsessionid=[A-Za-z0-9+_.-]+$/,'')==='/nw/nes/detailNesDtaView.do'&&u.searchParams.get('searchBbsId')==='MOSFBBS_000000000030'&&u.searchParams.get('menuNo')==='4050100'){
+    const ref=u.searchParams.get('searchNttId')||'';id=/^MOSF_(\d{15})$/.exec(ref)?.[1]||null;
+    u.pathname='/nw/nes/detailNesDtaView.do';u.search=`?searchBbsId=MOSFBBS_000000000030&menuNo=4050100&searchNttId=${ref}`;
+  }
   if(c.id==='mma-board'&&u.pathname==='/board/boardView.do'&&u.searchParams.get('gesipan_id')==='2'&&u.searchParams.get('mc')==='usr0000379'){
     id=u.searchParams.get('gsgeul_no');u.search=`?mc=usr0000379&gesipan_id=2&gsgeul_no=${id||''}`;
   }
@@ -234,8 +239,10 @@ export function parseCentralBoard(body:string,c:Config){
     if(c.id==='pps-board'&&/(성과관리\s*시행계획|국가표준시행계획)/.test(row.title))return [];
     if(c.id==='kcg-board'&&/연안안전지킴이.*참여자\s*모집/.test(row.title))return [];
     if(c.id==='naacc-board'&&/질의|답변|설명회|심사|당선/.test(row.title))return [];
+    if(c.id==='mofe-board'&&/모니터링단|(?:상임|운영)이사|상임감사|초빙|제안요청/.test(row.title))return [];
     let candidateTitle=c.id==='mfds-board'&&/용역연구개발과제.*주관연구기관.*공모/.test(row.title)?row.title.replace('용역연구개발과제','연구개발과제'):row.title;
     if(c.id==='nts-board'&&/^｢20\d{2} K-SUUL AWARDS｣ 참가신청 안내$/.test(row.title))candidateTitle='공모 '+row.title;
+    if(c.id==='mofe-board'&&/^20\d{2}년도 공급망안정화 선도사업자 제\d+차 선정계획 공고$/.test(row.title))candidateTitle='지원사업 '+row.title;
     if(c.id==='mpm-board'&&/^20\d{2}년 공무원\s*미술전 작품 공모 안내$/.test(row.title))candidateTitle=row.title.replace('공무원','');
     if(c.id==='mof-board'&&/(신규과제 선정계획|사업대상지.*선정 연장 공고)/.test(row.title))candidateTitle='지원사업 '+candidateTitle;
     if(c.id==='motir-board'){
