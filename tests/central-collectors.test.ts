@@ -3,6 +3,14 @@ import assert from 'node:assert/strict';
 // @ts-expect-error Native Node TypeScript runner.
 import {centralCollectors,parseCentralBoard,centralGrantCandidate,centralCollectorUrl,centralCollectorAccept,modsReception,mpmReception,saemangeumReception,okaReception,parseMmaDetail,enrichMmaItems} from '../lib/central-collectors.ts';
 const c=centralCollectors[0];
+test('PSS handles official malformed closing tag, rejects other boards and personnel',()=>{
+  const c=centralCollectors.find(x=>x.id==='pss-board')!;
+  const row=(id:string,t:string)=>`<li><a href="/sites/ko/boards/2/posts/${id}"><span class="tag">공지</span><p class="p1 title fw_semibold file">${t}<span class=a11y-hidden>첨부파일 아이콘</span></><div class="group"><p class="p2 date">2026.08.19</p></div></a></li>`;
+  const noise=row('1652','경호공무원 공채 합격자 공고')+row('1651','인재채용사이트 운영 중단')+row('1647','공개경쟁채용 시험 공고');assert.equal(parseCentralBoard(noise,c).items.length,0);
+  const b=noise+row('9999','안전문화 공모전');const r=parseCentralBoard(b,c);assert.equal(r.items.length,1);assert.equal(r.items[0].title,'안전문화 공모전');assert.equal(r.items[0].announcedFrom,'2026-08-19');assert.equal(r.items[0].applicationTo,null);
+  assert.equal(parseCentralBoard(b.replaceAll('</>','</p>'),c).items.length,1);
+  for(const invalid of [b.replaceAll('/boards/2/','/boards/3/'),b.replaceAll('/posts/1652','/posts/invalid'),b.replace('href="/sites','href="https://example.com/sites'),'<html>오류</html>'])assert.throws(()=>parseCentralBoard(invalid,c));
+});
 test('CIO distinguishes zero candidates from broken list and validates the notice board',()=>{
   const c=centralCollectors.find(x=>x.id==='cio-board')!;
   const row=(id:string,title:string)=>`<tr><td class="textLeft"><a href="/board/view/120?page=&amp;cid=${id}">${title}</a></td><td class="dateTh">2026.08.12</td></tr>`;

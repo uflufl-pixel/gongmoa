@@ -31,6 +31,7 @@ export const centralCollectors=[
   {id:'mma-board',institutionId:'central-1300000',institution:'병무청',name:'병무청 공모 검색',url:'https://www.mma.go.kr/board/boardList.do?mc=usr0000379&gesipan_id=2&searchCondition=gsgjemok_nm&searchKeyword=%EA%B3%B5%EB%AA%A8',origin:'https://www.mma.go.kr',format:'mma',category:'병무·문화'},
   {id:'mofe-board',institutionId:'central-1053000',institution:'재정경제부',name:'재정경제부 공지 RSS',url:'https://mofe.go.kr/com/detailRssTagService.do?bbsId=MOSFBBS_000000000030',origin:'https://mofe.go.kr',format:'rss',category:'경제·기업지원'},
   {id:'cio-board',institutionId:'central-1790364',institution:'고위공직자범죄수사처',name:'공수처 공지사항',url:'https://www.cio.go.kr/board/list/120',origin:'https://www.cio.go.kr',format:'cio',category:'행정·사회'},
+  {id:'pss-board',institutionId:'central-1021100',institution:'대통령경호처',name:'대통령경호처 공지사항',url:'https://www.pss.go.kr/sites/ko/boards/2',origin:'https://www.pss.go.kr',format:'pss',category:'행정·안전'},
 ] as const;
 // Registered rows retain history; audited collector definitions own fetch endpoints.
 export function centralCollectorUrl(id:string,fallback:string){return centralCollectors.find(c=>c.id===id)?.url||fallback;}
@@ -63,6 +64,9 @@ function publicationDate(s:string){
 function identity(raw:string,c:Config){
   const u=new URL(raw,c.origin);if(!['https:','http:'].includes(u.protocol)||u.hostname!==new URL(c.origin).hostname||u.username||u.password)throw new Error('공식 공고 주소 확인 필요');
   let id:string|null=null;
+  if(c.id==='pss-board'){
+    id=/^\/sites\/ko\/boards\/2\/posts\/(\d+)$/.exec(u.pathname)?.[1]||null;u.search='';u.hash='';
+  }
   if(c.id==='cio-board'&&u.pathname==='/board/view/120'){
     id=u.searchParams.get('cid');u.search=`?cid=${id||''}`;
   }
@@ -124,7 +128,13 @@ function identity(raw:string,c:Config){
 }
 export function parseCentralBoard(body:string,c:Config){
   const rows:Array<{title:string;link:string;posted:string;description?:string}>=[];
-  if(c.format==='cio'){
+  if(c.format==='pss'){
+    for(const match of body.replace(/<!--[\s\S]*?-->/g,'').matchAll(/<li\b[^>]*>[\s\S]*?<\/li>/g)){
+      const title=match[0].match(/<p class="p1 title[^\"]*">([\s\S]*?)(?:<\/p>|<\/>)/);if(!title)continue;
+      const a=match[0].match(/<a href="([^"]+)"/);if(!a)throw new Error('대통령경호처 공고 링크 확인 필요');
+      rows.push({title:text(title[1].replace(/<span class=a11y-hidden>[\s\S]*?<\/span>/g,'')),link:text(a[1]),posted:text(match[0].match(/<p class="p2 date">([\s\S]*?)<\/p>/)?.[1]||'').replaceAll('.','-')});
+    }
+  }else if(c.format==='cio'){
     for(const match of body.replace(/<!--[\s\S]*?-->/g,'').matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)){
       const cell=match[0].match(/<td class="textLeft">([\s\S]*?)<\/td>/);if(!cell)continue;
       const a=cell[1].match(/<a href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/);
