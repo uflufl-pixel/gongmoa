@@ -33,6 +33,7 @@ export const centralCollectors=[
   {id:'cio-board',institutionId:'central-1790364',institution:'고위공직자범죄수사처',name:'공수처 공지사항',url:'https://www.cio.go.kr/board/list/120',origin:'https://www.cio.go.kr',format:'cio',category:'행정·사회'},
   {id:'pss-board',institutionId:'central-1021100',institution:'대통령경호처',name:'대통령경호처 공지사항',url:'https://www.pss.go.kr/sites/ko/boards/2',origin:'https://www.pss.go.kr',format:'pss',category:'행정·안전'},
   {id:'spo-board',institutionId:'central-1280000',institution:'대검찰청',name:'대검찰청 공지사항',url:'https://www.spo.go.kr/site/spo/ex/board/List.do?cbIdx=1401',origin:'https://www.spo.go.kr',format:'spo',category:'법무·사회'},
+  {id:'police-board',institutionId:'central-1320000',institution:'경찰청',name:'경찰청 공지사항',url:'https://www.police.go.kr/user/bbs/BD_selectBbsList.do?q_bbsCode=1001',origin:'https://www.police.go.kr',format:'police',category:'치안·안전'},
 ] as const;
 // Registered rows retain history; audited collector definitions own fetch endpoints.
 export function centralCollectorUrl(id:string,fallback:string){return centralCollectors.find(c=>c.id===id)?.url||fallback;}
@@ -65,6 +66,10 @@ function publicationDate(s:string){
 function identity(raw:string,c:Config){
   const u=new URL(raw,c.origin);if(!['https:','http:'].includes(u.protocol)||u.hostname!==new URL(c.origin).hostname||u.username||u.password)throw new Error('공식 공고 주소 확인 필요');
   let id:string|null=null;
+  if(c.id==='police-board'&&u.pathname==='/user/bbs/BD_selectBbs.do'&&u.searchParams.get('q_bbsCode')==='1001'){
+    id=/^\d{17}$/.test(u.searchParams.get('q_bbscttSn')||'')?u.searchParams.get('q_bbscttSn'):null;
+    u.search=`?q_bbsCode=1001&q_bbscttSn=${id||''}`;u.hash='';
+  }
   if(c.id==='spo-board'&&u.pathname==='/site/spo/ex/board/View.do'&&u.searchParams.get('cbIdx')==='1401'){
     id=u.searchParams.get('bcIdx');u.search=`?cbIdx=1401&bcIdx=${id||''}`;
   }
@@ -132,7 +137,14 @@ function identity(raw:string,c:Config){
 }
 export function parseCentralBoard(body:string,c:Config){
   const rows:Array<{title:string;link:string;posted:string;description?:string}>=[];
-  if(c.format==='spo'){
+  if(c.format==='police'){
+    for(const match of body.replace(/<!--[\s\S]*?-->/g,'').matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)){
+      const cell=match[0].match(/<td class="subject">([\s\S]*?)<\/td>/);if(!cell)continue;
+      const a=cell[1].match(/<a\s+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/);
+      if(!a)throw new Error('경찰청 공고 제목·링크 확인 필요');
+      rows.push({title:text(a[2]),link:new URL(text(a[1]),c.url).href,posted:match[0].match(/<td[^>]*>\s*(\d{4}-\d{2}-\d{2})\s*<\/td>/)?.[1]||''});
+    }
+  }else if(c.format==='spo'){
     if(!/<input[^>]+name="cbIdx"[^>]+value="1401"/.test(body))throw new Error('대검찰청 공지 게시판 확인 필요');
     for(const match of body.replace(/<!--[\s\S]*?-->/g,'').matchAll(/<li\b[^>]*>[\s\S]*?<\/li>/g)){
       if(!match[0].includes('doBbsContentView'))continue;
@@ -270,6 +282,7 @@ export function parseCentralBoard(body:string,c:Config){
   const items=rows.flatMap(row=>{
     if(!row.title||!row.link)throw new Error('목록 제목·링크 누락');
     const ref=identity(row.link,c);if(seen.has(ref.id))return [];seen.add(ref.id);
+    if(c.id==='police-board'&&/논문\s*모집/.test(row.title))return [];
     if(c.id==='pps-board'&&/(성과관리\s*시행계획|국가표준시행계획)/.test(row.title))return [];
     if(c.id==='spo-board'&&/(캠프.*참가자\s*모집|기술수요조사)/.test(row.title))return [];
     if(c.id==='kcg-board'&&/연안안전지킴이.*참여자\s*모집/.test(row.title))return [];

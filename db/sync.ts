@@ -7,10 +7,11 @@ import { bojoDate } from '../lib/bojo-page';
 import { applicationPeriod } from '../lib/application-period';
 import {centralCollectors,parseCentralBoard,centralCollectorUrl,centralCollectorAccept,enrichMmaItems} from '../lib/central-collectors';
 import {fetchMolitList} from '../lib/molit-fetch';
+import {fetchPoliceList} from '../lib/police-fetch';
 import {fetchBojoChanges} from '../lib/bojo-changes';
 
 export const SYNC_BATCHES = [
-  ['bojo','bizinfo','moe-board','gov24-orgs','mss-board','kdca-board','mfds-board','moj-board','motir-board','pps-board','mogef-board','mofe-board'],
+  ['bojo','bizinfo','moe-board','gov24-orgs','mss-board','kdca-board','mfds-board','moj-board','motir-board','pps-board','mogef-board','mofe-board','police-board'],
   ['mcst-board','mois-board','me-board','kocca-support','mafra-board','rda-board','moel-board','moel-support','khs-board','mpm-board','oka-board','naacc-board','cio-board'],
   ['seoul-board','busan-board','incheon-board','daejeon-board','daegu-board','moleg-board','kma-board','molit-board','mods-board','mpva-board','saemangeum-board','kcg-board','pss-board'],
   ['ulsan-board','jeonbuk-board','gyeongnam-business','chungbuk-board','jeju-board','mohw-board','forest-board','forest-news','mof-board','unikorea-board','nfa-board','nts-board','mma-board','spo-board'],
@@ -27,7 +28,7 @@ async function inspectSource(source:{id:string;url:string;name:string}) {
   const startedAt=new Date();
   try {
     const fetchUrl=source.id==='bojo'?'https://www.bojo.go.kr/':source.id==='kocca-support'?'https://www.kocca.kr/xml/rss/rss_pims.xml':centralCollectorUrl(source.id,source.url);
-    const request=()=>source.id==='molit-board'?fetchMolitList():fetch(fetchUrl,{headers:{accept:centralCollectorAccept(source.id),'user-agent':'GongmoaSourceMonitor/1.1 (+https://gongmoa.uflufl.chatgpt.site)'},signal:AbortSignal.timeout(10000),redirect:'follow'});
+    const request=()=>source.id==='police-board'?fetchPoliceList():source.id==='molit-board'?fetchMolitList():fetch(fetchUrl,{headers:{accept:centralCollectorAccept(source.id),'user-agent':'GongmoaSourceMonitor/1.1 (+https://gongmoa.uflufl.chatgpt.site)'},signal:AbortSignal.timeout(10000),redirect:'follow'});
     let response:Response;
     try { response=await request(); } catch { response=await request(); }
     if(response.status===408||response.status===429||response.status>=500) response=await request();
