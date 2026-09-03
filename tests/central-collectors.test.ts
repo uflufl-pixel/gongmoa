@@ -3,6 +3,12 @@ import assert from 'node:assert/strict';
 // @ts-expect-error Native Node TypeScript runner.
 import {centralCollectors,parseCentralBoard,centralGrantCandidate,centralCollectorUrl,centralCollectorAccept,modsReception,mpmReception,saemangeumReception,okaReception} from '../lib/central-collectors.ts';
 const c=centralCollectors[0];
+test('NAACC extracts design calls without executing handlers or importing follow-up notices',()=>{
+  const c=centralCollectors.find(x=>x.id==='naacc-board')!;
+  const b=['세종지방법원 설계공모 공고','대통령 집무실 설계공모 공고(수정)','설계공모 질의답변','설계공모 심사위원 공개','설계공모 결과 공고'].map((title,i)=>`<tr><td><div class="wrap boardTitle"><a href="#none" onclick="fn_goView('${79673+i}')"><span class="tit ">${title}</span></a></div><li class="date">2026-06-09</li></td></tr>`).join('');
+  const r=parseCentralBoard(b,c);assert.equal(r.parsedRows,5);assert.equal(r.items.length,2);assert.equal(r.items[0].externalId,'79673');assert.equal(r.items[0].announcedFrom,'2026-06-09');assert.equal(r.items[0].applicationTo,null);assert.match(r.items[0].sourceUrl,/N3030100000.do\?schM=view&id=79673$/);
+  assert.throws(()=>parseCentralBoard(b.replace("fn_goView('79673')","fn_goView('bad')"),c));assert.throws(()=>parseCentralBoard('<html>error</html>',c));
+});
 test('KCG retains institutional subsidy calls, not individual coastal patrol recruitment',()=>{
   const c=centralCollectors.find(x=>x.id==='kcg-board')!;
   const b=['연안안전지킴이 운영지원 민간경상보조사업 수행기관 모집 공고','연안안전지킴이 참여자 모집 공고','혁신제품 심의 예정 공고','평가위원 모집'].map((title,i)=>`<tr><td class="ta_l"><a href="/kcg/na/ntt/selectNttInfo.do?nttSn=${68001+i}"><!-- 주석 -->${title}</a></td><td>2026.03.23</td></tr>`).join('');

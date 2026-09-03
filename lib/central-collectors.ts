@@ -26,6 +26,7 @@ export const centralCollectors=[
   {id:'oka-board',institutionId:'central-1832000',institution:'재외동포청',name:'재외동포청 공지사항',url:'https://www.oka.go.kr/web/board/ajax/list.do?menu_cd=000017&currentPage=1&searchData=contdata&searchText=',origin:'https://www.oka.go.kr',format:'oka',category:'재외동포·정착지원'},
   {id:'nts-board',institutionId:'central-1210000',institution:'국세청',name:'국세청 공지사항',url:'https://www.nts.go.kr/nts/na/ntt/selectNttList.do?bbsId=1011&mi=2207',origin:'https://www.nts.go.kr',format:'nts',category:'세정·기업지원'},
   {id:'kcg-board',institutionId:'central-1532000',institution:'해양경찰청',name:'해양경찰청 고시공고',url:'https://www.kcg.go.kr/kcg/na/ntt/selectNttList.do?bbsId=312&mi=2798',origin:'https://www.kcg.go.kr',format:'kcg',category:'해양·안전'},
+  {id:'naacc-board',institutionId:'central-1670000',institution:'행정중심복합도시건설청',name:'행복청 설계공모',url:'https://naacc.go.kr/WEB/contents/N3030100000.do',origin:'https://naacc.go.kr',format:'naacc',category:'건축·도시'},
 ] as const;
 // Registered rows retain history; audited collector definitions own fetch endpoints.
 export function centralCollectorUrl(id:string,fallback:string){return centralCollectors.find(c=>c.id===id)?.url||fallback;}
@@ -58,6 +59,7 @@ function publicationDate(s:string){
 function identity(raw:string,c:Config){
   const u=new URL(raw,c.origin);if(!['https:','http:'].includes(u.protocol)||u.hostname!==new URL(c.origin).hostname||u.username||u.password)throw new Error('공식 공고 주소 확인 필요');
   let id:string|null=null;
+  if(c.id==='naacc-board'&&u.pathname==='/WEB/contents/N3030100000.do'&&u.searchParams.get('schM')==='view')id=u.searchParams.get('id');
   if(c.id==='kcg-board'&&u.pathname==='/kcg/na/ntt/selectNttInfo.do')id=u.searchParams.get('nttSn');
   if(c.id==='nts-board'&&u.pathname==='/nts/na/ntt/selectNttInfo.do'&&u.searchParams.get('bbsId')==='1011'&&u.searchParams.get('mi')==='2207')id=u.searchParams.get('nttSn');
   if(c.id==='oka-board'&&u.pathname==='/web/board/brdDetail.do'&&u.searchParams.get('menu_cd')==='000017')id=u.searchParams.get('num');
@@ -105,7 +107,14 @@ function identity(raw:string,c:Config){
 }
 export function parseCentralBoard(body:string,c:Config){
   const rows:Array<{title:string;link:string;posted:string;description?:string}>=[];
-  if(c.format==='kcg'){
+  if(c.format==='naacc'){
+    for(const match of body.replace(/<!--[\s\S]*?-->/g,'').matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)){
+      if(!match[0].includes('boardTitle'))continue;
+      const id=match[0].match(/onclick="fn_goView\('(\d+)'\)"/)?.[1],title=match[0].match(/<span class="tit\s*">([\s\S]*?)<\/span>/)?.[1];
+      if(!id||!title)throw new Error('행복청 공고 식별자·제목 확인 필요');
+      rows.push({title:text(title),link:`${c.url}?schM=view&id=${id}`,posted:match[0].match(/<li class="date">(\d{4}-\d{2}-\d{2})<\/li>/)?.[1]||''});
+    }
+  }else if(c.format==='kcg'){
     for(const match of body.replace(/<!--[\s\S]*?-->/g,'').matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)){
       const a=match[0].match(/<td\s+class="ta_l">\s*<a\s+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/);if(!a)continue;
       rows.push({title:text(a[2]),link:a[1],posted:match[0].match(/<td>(\d{4})\.(\d{2})\.(\d{2})<\/td>/)?.slice(1).join('-')||''});
@@ -211,6 +220,7 @@ export function parseCentralBoard(body:string,c:Config){
     const ref=identity(row.link,c);if(seen.has(ref.id))return [];seen.add(ref.id);
     if(c.id==='pps-board'&&/(성과관리\s*시행계획|국가표준시행계획)/.test(row.title))return [];
     if(c.id==='kcg-board'&&/연안안전지킴이.*참여자\s*모집/.test(row.title))return [];
+    if(c.id==='naacc-board'&&/질의|답변|설명회|심사|당선/.test(row.title))return [];
     let candidateTitle=c.id==='mfds-board'&&/용역연구개발과제.*주관연구기관.*공모/.test(row.title)?row.title.replace('용역연구개발과제','연구개발과제'):row.title;
     if(c.id==='nts-board'&&/^｢20\d{2} K-SUUL AWARDS｣ 참가신청 안내$/.test(row.title))candidateTitle='공모 '+row.title;
     if(c.id==='mpm-board'&&/^20\d{2}년 공무원\s*미술전 작품 공모 안내$/.test(row.title))candidateTitle=row.title.replace('공무원','');
