@@ -88,3 +88,10 @@
 - 공식 hostname, `/sda/brd/view.do`, 게시판 key, 숫자 nttSn 검증 후 저장한다.
 - RSS 본문의 접수 기간 2026-05-18~06-07을 결과 발표일 06-26과 구분하여 마감 공고로 저장한다. 최근 RSS 10건 범위이며 전체 과거 공고 수집 완료를 뜻하지 않는다.
 - 다음 조사 후보: 재외동포청 `https://www.oka.go.kr/web/board/ajax/list.do?menu_cd=000017&currentPage=1&searchData=contdata&searchText=` (brdList/fstBrdList, num/title/cont/disp_write_dt). start_dt/end_dt 기본값은 신청기간으로 사용하지 않는다. 국세청 `https://www.nts.go.kr/nts/na/ntt/selectNttList.do?bbsId=1011&mi=2207` (a.nttInfoBtn data-id, td[data-table=date]). 두 기관은 경로 조사만 완료했으며 아직 수집기 연결 완료가 아니다.
+# 19차: 재외동포청·국세청 (2026-09-03)
+
+- 재외동포청 공식 공개 JSON 목록: `https://www.oka.go.kr/web/board/ajax/list.do?menu_cd=000017&currentPage=1&searchData=contdata&searchText=`. menuInfo의 사이트/게시판, 페이지 번호, 목록 필드 및 숫자 num 검증. 고정공지와 일반목록 중복 제거.
+- 11행 중 공모 후보 3건. 4744는 본문의 신청기간 2026-08-31~09-14 18:00 한국시간, 4662는 07-16~08-03 마감. 4743은 잔여 사업비 소진 조건을 표시하고 확정 마감일을 생성하지 않는다. start_dt/end_dt의 1900/2900 기본값은 무시한다.
+- 국세청 공식 공지사항: `https://www.nts.go.kr/nts/na/ntt/selectNttList.do?bbsId=1011&mi=2207`. nttInfoBtn의 data-id와 제목 속성, 작성일 셀 추출. 스크립트 실행 없이 공식 상세 경로를 구성한다.
+- 국세청 10행 중 K-SUUL AWARDS 참가신청 안내 1건. 접수기간이 목록에 없어 원문 확인으로 보존한다. 채용, 기간제근로자 모집, 심사결과는 제외. 전체 과거 공고 수집 완료 또는 현재 접수 중임을 의미하지 않는다.
+- 별도 인증키가 없는 공개 화면 조회 경로이므로 API 안정성 계약을 가정하지 않고 구조 오류를 감시한다.

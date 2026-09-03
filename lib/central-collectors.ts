@@ -23,11 +23,13 @@ export const centralCollectors=[
   {id:'nfa-board',institutionId:'central-1661000',institution:'소방청',name:'소방청 공지사항',url:'https://www.nfa.go.kr/nfa/news/notice/',origin:'https://www.nfa.go.kr',format:'nfa',category:'소방·안전'},
   {id:'pps-board',institutionId:'central-1230000',institution:'조달청',name:'조달청 공지사항 RSS',url:'https://www.pps.go.kr/kor/rssFeed.do?boardId=00026',origin:'https://www.pps.go.kr',format:'rss',category:'조달·기업지원'},
   {id:'saemangeum-board',institutionId:'central-1730000',institution:'새만금개발청',name:'새만금개발청 공지사항 RSS',url:'https://www.saemangeum.go.kr/sda/brd/rssFeed.do?bbsSn=2',origin:'https://www.saemangeum.go.kr',format:'rss',category:'지역개발·문화'},
+  {id:'oka-board',institutionId:'central-1832000',institution:'재외동포청',name:'재외동포청 공지사항',url:'https://www.oka.go.kr/web/board/ajax/list.do?menu_cd=000017&currentPage=1&searchData=contdata&searchText=',origin:'https://www.oka.go.kr',format:'oka',category:'재외동포·정착지원'},
+  {id:'nts-board',institutionId:'central-1210000',institution:'국세청',name:'국세청 공지사항',url:'https://www.nts.go.kr/nts/na/ntt/selectNttList.do?bbsId=1011&mi=2207',origin:'https://www.nts.go.kr',format:'nts',category:'세정·기업지원'},
 ] as const;
 // Registered rows retain history; audited collector definitions own fetch endpoints.
 export function centralCollectorUrl(id:string,fallback:string){return centralCollectors.find(c=>c.id===id)?.url||fallback;}
 // RSS endpoints may reject HTML-only content negotiation with an HTTP 200 error page.
-export function centralCollectorAccept(id:string){return centralCollectors.find(c=>c.id===id)?.format==='rss'?'application/rss+xml,application/xml,text/xml;q=0.9,*/*;q=0.5':'text/html,application/xhtml+xml,application/json';}
+export function centralCollectorAccept(id:string){return id==='oka-board'?'application/json':centralCollectors.find(c=>c.id===id)?.format==='rss'?'application/rss+xml,application/xml,text/xml;q=0.9,*/*;q=0.5':'text/html,application/xhtml+xml,application/json';}
 type Config=typeof centralCollectors[number];
 export function centralGrantCandidate(title:string){
   if(/(수상작\s*(발표|$)|수상자\s*(공고|발표)|자문단|현장투어|모니터단|서포터즈|정책단|기자단|인플루언서)/.test(title))return false;
@@ -55,6 +57,8 @@ function publicationDate(s:string){
 function identity(raw:string,c:Config){
   const u=new URL(raw,c.origin);if(!['https:','http:'].includes(u.protocol)||u.hostname!==new URL(c.origin).hostname||u.username||u.password)throw new Error('공식 공고 주소 확인 필요');
   let id:string|null=null;
+  if(c.id==='nts-board'&&u.pathname==='/nts/na/ntt/selectNttInfo.do'&&u.searchParams.get('bbsId')==='1011'&&u.searchParams.get('mi')==='2207')id=u.searchParams.get('nttSn');
+  if(c.id==='oka-board'&&u.pathname==='/web/board/brdDetail.do'&&u.searchParams.get('menu_cd')==='000017')id=u.searchParams.get('num');
   if(c.id==='saemangeum-board'&&u.pathname==='/sda/brd/view.do'&&u.searchParams.get('key')==='2009075579016')id=u.searchParams.get('nttSn');
   if(c.id==='pps-board'&&u.pathname==='/kor/bbs/view.do'&&u.searchParams.get('key')==='00324')id=u.searchParams.get('bbsSn');
   if(c.id==='mpva-board'&&u.pathname.replace(/;jsessionid=[A-Za-z0-9+_.-]+$/,'')==='/mpva/selectBbsNttView.do'&&u.searchParams.get('bbsNo')==='15'&&u.searchParams.get('key')==='76'){
@@ -99,7 +103,21 @@ function identity(raw:string,c:Config){
 }
 export function parseCentralBoard(body:string,c:Config){
   const rows:Array<{title:string;link:string;posted:string;description?:string}>=[];
-  if(c.format==='rss'){
+  if(c.format==='nts'){
+    for(const match of body.replace(/<!--[\s\S]*?-->/g,'').matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)){
+      const anchor=match[0].match(/<a\b[^>]*class="nttInfoBtn"[^>]*>/)?.[0];if(!anchor)continue;
+      const id=anchor.match(/data-id="(\d+)"/)?.[1],title=anchor.match(/title="([^"]+)"/)?.[1];
+      if(!id||!title)throw new Error('국세청 공고 식별자·제목 확인 필요');
+      rows.push({title:text(title),link:`${c.origin}/nts/na/ntt/selectNttInfo.do?mi=2207&bbsId=1011&nttSn=${id}`,posted:match[0].match(/<td\s+data-table="date">(\d{4})\.(\d{2})\.(\d{2})\.<\/td>/)?.slice(1).join('-')||''});
+    }
+  }else if(c.format==='oka'){
+    const data=JSON.parse(body);
+    if(data?.menuInfo?.menu_cd!=='000017'||data?.menuInfo?.site_id!=='oka'||!Array.isArray(data.brdList)||!Array.isArray(data.fstBrdList)||data?.pagingInfoVO?.currentPageNo!==1)throw new Error('재외동포청 목록 구조 확인 필요');
+    for(const item of [...data.fstBrdList,...data.brdList]){
+      if(!Number.isSafeInteger(item.num)||item.num<=0||typeof item.title!=='string'||typeof item.cont!=='string'||typeof item.disp_write_dt!=='string')throw new Error('재외동포청 공고 필드 확인 필요');
+      rows.push({title:text(item.title),link:`${c.origin}/web/board/brdDetail.do?menu_cd=000017&num=${item.num}`,posted:item.disp_write_dt,description:text(item.cont)});
+    }
+  }else if(c.format==='rss'){
     if(!/<rss\b/.test(body)||!/<channel>/.test(body))throw new Error('RSS 구조 확인 필요');
     for(const match of body.matchAll(/<item>[\s\S]*?<\/item>/g)){
       const field=(tag:string)=>text(match[0].match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`))?.[1]||'').replace(/&(lsquo|rsquo|middot);/g,(_,entity:string)=>entity==='middot'?'·':"'");
@@ -186,6 +204,7 @@ export function parseCentralBoard(body:string,c:Config){
     const ref=identity(row.link,c);if(seen.has(ref.id))return [];seen.add(ref.id);
     if(c.id==='pps-board'&&/(성과관리\s*시행계획|국가표준시행계획)/.test(row.title))return [];
     let candidateTitle=c.id==='mfds-board'&&/용역연구개발과제.*주관연구기관.*공모/.test(row.title)?row.title.replace('용역연구개발과제','연구개발과제'):row.title;
+    if(c.id==='nts-board'&&/^｢20\d{2} K-SUUL AWARDS｣ 참가신청 안내$/.test(row.title))candidateTitle='공모 '+row.title;
     if(c.id==='mpm-board'&&/^20\d{2}년 공무원\s*미술전 작품 공모 안내$/.test(row.title))candidateTitle=row.title.replace('공무원','');
     if(c.id==='mof-board'&&/(신규과제 선정계획|사업대상지.*선정 연장 공고)/.test(row.title))candidateTitle='지원사업 '+candidateTitle;
     if(c.id==='motir-board'){
@@ -193,11 +212,25 @@ export function parseCentralBoard(body:string,c:Config){
       if(/(사업.*공고|지원\s*대상과제.*공고)/.test(row.title))candidateTitle='지원사업 '+candidateTitle;
     }
     if(!centralGrantCandidate(candidateTitle))return [];
-    const period=c.id==='saemangeum-board'?saemangeumReception(row.description||''):c.id==='mods-board'?modsReception(row.description||''):c.id==='mpm-board'?mpmReception(row.description||'',row.title):null;
+    const conditional=c.id==='oka-board'&&/잔여\s*사업비.*이후\s*접수분.*소진/.test(row.description||'');
+    const period=c.id==='oka-board'?okaReception(row.description||''):c.id==='saemangeum-board'?saemangeumReception(row.description||''):c.id==='mods-board'?modsReception(row.description||''):c.id==='mpm-board'?mpmReception(row.description||'',row.title):null;
     return [{sourceId:c.id,externalId:ref.id,institution:c.institution,group:'중앙부처',title:row.title,category:c.category,audience:'원문 지원자격 확인',region:null,sourceName:c.name,sourceUrl:ref.url,
-      announcedFrom:publicationDate(row.posted),opensAt:period?.opensAt||null,closesAt:period?.closesAt||null,applicationFrom:period?.applicationFrom||null,applicationTo:period?.applicationTo||null,deadlineLabel:period?.applicationTo||'접수기간 원문 확인',status:period&&period.closesAt<new Date()?'closed':'open'}];
+      announcedFrom:publicationDate(row.posted),opensAt:period?.opensAt||null,closesAt:period?.closesAt||null,applicationFrom:period?.applicationFrom||null,applicationTo:period?.applicationTo||null,deadlineLabel:conditional?'수시 접수·잔여 사업비 소진 시 종료 (원문 확인)':period?.applicationTo||'접수기간 원문 확인',status:period&&period.closesAt<new Date()?'closed':'open'}];
   });
   return {items,parsedRows:rows.length};
+}
+
+export function okaReception(value:string){
+  const body=text(value);
+  if(/잔여\s*사업비|소진|수시/.test(body))return null;
+  const matches=[...body.matchAll(/신청\s*(?:기간|일정)\s*:\s*(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\s*\(\s*[월화수목금토일]\s*\)\s*~\s*(?:(\d{4})\.\s*)?(\d{1,2})\.\s*(\d{1,2})\.\s*\(\s*[월화수목금토일]\s*\)(?:\s*(\d{1,2}):(\d{2}))?/g)];
+  if(matches.length!==1)return null;
+  const m=matches[0],date=(y:string,mo:string,d:string)=>`${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`;
+  const from=date(m[1],m[2],m[3]),to=date(m[4]||m[1],m[5],m[6]);
+  const tail=body.slice(m.index!+m[0].length);
+  if(/^\s*(?:\d|오전|오후)/.test(tail)||publicationDate(from)!==from||publicationDate(to)!==to||from>to||Number(m[7]||0)>23||Number(m[8]||0)>59)return null;
+  const cutoff=m[7]?`${m[7].padStart(2,'0')}:${m[8]}:00`:'23:59:59';
+  return {applicationFrom:from,applicationTo:to,opensAt:new Date(`${from}T00:00:00+09:00`),closesAt:new Date(`${to}T${cutoff}+09:00`)};
 }
 
 // Date-only labeled reception block; do not confuse the following results date with closing.

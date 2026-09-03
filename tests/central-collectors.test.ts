@@ -1,8 +1,34 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 // @ts-expect-error Native Node TypeScript runner.
-import {centralCollectors,parseCentralBoard,centralGrantCandidate,centralCollectorUrl,centralCollectorAccept,modsReception,mpmReception,saemangeumReception} from '../lib/central-collectors.ts';
+import {centralCollectors,parseCentralBoard,centralGrantCandidate,centralCollectorUrl,centralCollectorAccept,modsReception,mpmReception,saemangeumReception,okaReception} from '../lib/central-collectors.ts';
 const c=centralCollectors[0];
+test('OKA JSON validates board metadata, deduplicates pinned calls and ignores placeholder periods',()=>{
+  const c=centralCollectors.find(x=>x.id==='oka-board')!;
+  const call={num:4744,title:'국내동포 단체 지원사업 공모',cont:'신청 기간: 2026. 8. 31.(월) ~ 9. 14.(월) 18:00',disp_write_dt:'2026-08-26',start_dt:'1900-01-01',end_dt:'2900-01-01'};
+  const d={menuInfo:{menu_cd:'000017',site_id:'oka'},pagingInfoVO:{currentPageNo:1},fstBrdList:[call],brdList:[call,{...call,num:4743,title:'정착지원 추가 공모(수시)',cont:'잔여 사업비가 있을 시 이후 접수분도 사업비 소진시 심의 가능'},{...call,num:4741,title:'문학상 수상작 발표'}]};
+  const r=parseCentralBoard(JSON.stringify(d),c);assert.equal(r.items.length,2);assert.equal(r.items[0].closesAt?.toISOString(),'2026-09-14T09:00:00.000Z');assert.equal(r.items[1].applicationTo,null);assert.match(r.items[1].deadlineLabel,/잔여 사업비/);
+  assert.equal(centralCollectorAccept(c.id),'application/json');
+  assert.throws(()=>parseCentralBoard(JSON.stringify({...d,menuInfo:{menu_cd:'wrong',site_id:'oka'}}),c));
+  assert.throws(()=>parseCentralBoard(JSON.stringify({...d,brdList:[{...call,num:'bad'}]}),c));
+  assert.throws(()=>parseCentralBoard('<html>오류</html>',c));
+});
+test('OKA accepts explicit reception dates but rejects conditional and invalid cutoffs',()=>{
+  const v='신청 일정 : 2026.7.16.( 목 )~2026.8.3.(월 ) * 한국시간 기준';
+  assert.equal(okaReception(v)?.applicationTo,'2026-08-03');
+  assert.equal(okaReception(v)?.closesAt.toISOString(),'2026-08-03T14:59:59.000Z');
+  assert.equal(okaReception(v.replace('8.3.','2.30.')),null);
+  assert.equal(okaReception(v+' 잔여 사업비 소진'),null);
+  assert.equal(okaReception(v+' '+v),null);
+  assert.equal(okaReception('신청 기간: 2026.8.31.(월)~9.14.(월) 25:00'),null);
+});
+test('NTS reads data identifiers without executing javascript and excludes personnel and results',()=>{
+  const c=centralCollectors.find(x=>x.id==='nts-board')!;
+  const b=['｢2026 K-SUUL AWARDS｣ 참가신청 안내','｢2026 K-SUUL AWARDS｣ 서류심사 결과 안내','기간제근로자 모집합니다'].map((t,i)=>`<tr><td><a href="javascript:;" data-id="${1353693+i}" title="${t}" class="nttInfoBtn">제목</a></td><td data-table="date">2026.07.27.</td></tr>`).join('');
+  const r=parseCentralBoard(b,c);assert.equal(r.parsedRows,3);assert.equal(r.items.length,1);assert.equal(r.items[0].externalId,'1353693');assert.equal(r.items[0].announcedFrom,'2026-07-27');assert.equal(r.items[0].applicationTo,null);assert.match(r.items[0].sourceUrl,/bbsId=1011&nttSn=1353693$/);
+  assert.throws(()=>parseCentralBoard(b.replace('data-id="1353693"','data-id="bad"'),c));
+  assert.throws(()=>parseCentralBoard('error',c));
+});
 test('Saemangeum RSS accepts official calls but not reporters and appointment results',()=>{
   const c=centralCollectors.find(x=>x.id==='saemangeum-board')!;
   const b='<rss><channel>'+['2026 새만금 AI 영상 공모전 공고','기자단 모집','공모전 결과 발표','위원 위촉 명단','합격자 발표'].map((t,i)=>`<item><title>${t}</title><link>https://www.saemangeum.go.kr/sda/brd/view.do?nttSn=${11082+i}&amp;key=2009075579016</link><pubDate>Mon, 18 May 2026 00:55:53 GMT</pubDate></item>`).join('')+'</channel></rss>';
@@ -61,7 +87,7 @@ test('MOTIR extracts business calls without executing scripts or importing admin
 });
 test('RSS requests negotiate XML while HTML and other collectors keep their existing Accept',()=>{
   for(const config of centralCollectors){
-    assert.equal(centralCollectorAccept(config.id),config.format==='rss'?'application/rss+xml,application/xml,text/xml;q=0.9,*/*;q=0.5':'text/html,application/xhtml+xml,application/json');
+    assert.equal(centralCollectorAccept(config.id),config.format==='oka'?'application/json':config.format==='rss'?'application/rss+xml,application/xml,text/xml;q=0.9,*/*;q=0.5':'text/html,application/xhtml+xml,application/json');
   }
   assert.equal(centralCollectorAccept('bizinfo'),'text/html,application/xhtml+xml,application/json');
   const config=centralCollectors.find(x=>x.id==='unikorea-board')!;
