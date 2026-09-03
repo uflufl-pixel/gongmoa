@@ -9,6 +9,7 @@ import {centralCollectors,parseCentralBoard,centralCollectorUrl,centralCollector
 import {fetchMolitList} from '../lib/molit-fetch';
 import {fetchPoliceList} from '../lib/police-fetch';
 import {fetchBojoChanges} from '../lib/bojo-changes';
+import {fetchTextWithDiagnostics,FetchDiagnosticError} from '../lib/fetch-diagnostics';
 
 export const SYNC_BATCHES = [
   ['bojo','bizinfo','moe-board','gov24-orgs','mss-board','kdca-board','mfds-board','moj-board','motir-board','pps-board','mogef-board','mofe-board','police-board'],
@@ -29,17 +30,20 @@ async function inspectSource(source:{id:string;url:string;name:string}) {
   try {
     const fetchUrl=source.id==='bojo'?'https://www.bojo.go.kr/':source.id==='kocca-support'?'https://www.kocca.kr/xml/rss/rss_pims.xml':centralCollectorUrl(source.id,source.url);
     const request=()=>source.id==='police-board'?fetchPoliceList():source.id==='molit-board'?fetchMolitList():fetch(fetchUrl,{headers:{accept:centralCollectorAccept(source.id),'user-agent':'GongmoaSourceMonitor/1.1 (+https://gongmoa.uflufl.chatgpt.site)'},signal:AbortSignal.timeout(10000),redirect:'follow'});
-    let response:Response;
-    try { response=await request(); } catch { response=await request(); }
-    if(response.status===408||response.status===429||response.status>=500) response=await request();
-    const body=await response.text();
+    let response:Response,body:string;
+    if(source.id==='mnd-board')({response,body}=await fetchTextWithDiagnostics(request));
+    else {
+      try { response=await request(); } catch { response=await request(); }
+      if(response.status===408||response.status===429||response.status>=500) response=await request();
+      body=await response.text();
+    }
     const sample=body.slice(0,1_000_000);
     const titleMatch=sample.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
     const keywordHits=(sample.match(/공모|지원사업|사업공고|모집/g)||[]).length;
     const usable=response.ok&&(body.length>5000||keywordHits>0);
     return {check:{id:crypto.randomUUID(),sourceId:source.id,outcome:usable?'success':response.ok?'content_error':'http_error',statusCode:response.status,contentHash:await sha256(sample),contentBytes:new TextEncoder().encode(body).byteLength,keywordHits,pageTitle:titleMatch?decoder(titleMatch[1]).slice(0,200):source.name,message:usable?null:response.ok?'응답 본문 확인 필요':`HTTP ${response.status}`,startedAt,finishedAt:new Date()},body:usable?body:null};
   } catch(error) {
-    return {check:{id:crypto.randomUUID(),sourceId:source.id,outcome:'fetch_error',statusCode:null,contentHash:null,contentBytes:null,keywordHits:null,pageTitle:source.name,message:error instanceof Error?error.message.slice(0,300):'Fetch failed',startedAt,finishedAt:new Date()},body:null};
+    return {check:{id:crypto.randomUUID(),sourceId:source.id,outcome:'fetch_error',statusCode:error instanceof FetchDiagnosticError?error.statusCode:null,contentHash:null,contentBytes:null,keywordHits:null,pageTitle:source.name,message:error instanceof Error?error.message.slice(0,300):'Fetch failed',startedAt,finishedAt:new Date()},body:null};
   }
 }
 
