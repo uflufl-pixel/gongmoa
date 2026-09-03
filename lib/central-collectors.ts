@@ -270,8 +270,9 @@ export async function enrichMmaItems(items:ReturnType<typeof parseCentralBoard>[
   const c=centralCollectors.find(c=>c.id==='mma-board')!;
   return (await Promise.all(items.map(async item=>{
     if(item.sourceId!==c.id||identity(item.sourceUrl,c).id!==item.externalId)throw new Error('병무청 상세 주소 확인 필요');
-    const r=await fetcher(item.sourceUrl,{headers:{accept:'text/html'},signal:AbortSignal.timeout(10000)});
-    if(!r.ok||identity(r.url||item.sourceUrl,c).id!==item.externalId)throw new Error('병무청 상세 응답 확인 필요');
+    const r=await fetcher(item.sourceUrl,{headers:{accept:'text/html','user-agent':'GongmoaSourceMonitor/1.1 (+https://gongmoa.uflufl.chatgpt.site)'},signal:AbortSignal.timeout(10000)});
+    if(!r.ok)throw new Error(`병무청 상세 HTTP ${r.status}`);
+    if(identity(r.url||item.sourceUrl,c).id!==item.externalId)throw new Error('병무청 상세 응답 공고 식별자 불일치');
     const detail=parseMmaDetail(await r.text(),item.title);
     if(!centralGrantCandidate(detail.title))return [];
     return [{...item,title:detail.title,...(detail.period||{}),deadlineLabel:detail.period?.applicationTo||item.deadlineLabel,status:detail.period&&detail.period.closesAt<new Date()?'closed':item.status}];

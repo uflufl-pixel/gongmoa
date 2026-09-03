@@ -10,9 +10,11 @@ test('MMA deduplicates pinned calls, excludes public positions and enriches veri
   const b=row(1522495,title)+row(1522495,title)+row(1522094,'과장급 공모직위');
   const parsed=parseCentralBoard(b,c);assert.equal(parsed.items.length,1);assert.equal(parsed.items[0].announcedFrom,'2026-06-29');
   const detail=`<th>제목</th><td>${title}</td><td class="con_text">공모기간 :2026. 6. 29. ~ 8. 28.(2개월)</td>`;
-  const items=await enrichMmaItems(parsed.items,async()=>new Response(detail));assert.equal(items[0].status,'closed');assert.equal(items[0].applicationTo,'2026-08-28');
+  const items=await enrichMmaItems(parsed.items,async(_url,init)=>{assert.match(new Headers(init?.headers).get('user-agent')||'',/^GongmoaSourceMonitor\//);return new Response(detail);});assert.equal(items[0].status,'closed');assert.equal(items[0].applicationTo,'2026-08-28');
   assert.throws(()=>parseMmaDetail(detail,'다른 공모'));assert.equal(parseMmaDetail(detail.replace('8. 28.','2. 30.'),title).period,null);
-  await assert.rejects(()=>enrichMmaItems(parsed.items,async()=>new Response('error',{status:503})));
+  await assert.rejects(()=>enrichMmaItems(parsed.items,async()=>new Response('error',{status:503})),/병무청 상세 HTTP 503/);
+  const wrongRecord=new Response(detail);Object.defineProperty(wrongRecord,'url',{value:parsed.items[0].sourceUrl.replace('1522495','1522496')});
+  await assert.rejects(()=>enrichMmaItems(parsed.items,async()=>wrongRecord),/식별자 불일치/);
   await assert.rejects(()=>enrichMmaItems([...parsed.items,...parsed.items,...parsed.items,...parsed.items]));
   assert.throws(()=>parseCentralBoard(b.replaceAll('gesipan_id=2','gesipan_id=3'),c));
 });
