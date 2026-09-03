@@ -20,6 +20,8 @@ export const centralCollectors=[
 ] as const;
 // Registered rows retain history; audited collector definitions own fetch endpoints.
 export function centralCollectorUrl(id:string,fallback:string){return centralCollectors.find(c=>c.id===id)?.url||fallback;}
+// RSS endpoints may reject HTML-only content negotiation with an HTTP 200 error page.
+export function centralCollectorAccept(id:string){return centralCollectors.find(c=>c.id===id)?.format==='rss'?'application/rss+xml,application/xml,text/xml;q=0.9,*/*;q=0.5':'text/html,application/xhtml+xml,application/json';}
 type Config=typeof centralCollectors[number];
 export function centralGrantCandidate(title:string){
   if(/(수상작\s*발표|수상자\s*(공고|발표)|자문단|현장투어|모니터단|서포터즈)/.test(title))return false;

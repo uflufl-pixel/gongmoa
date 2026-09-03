@@ -1,8 +1,16 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 // @ts-expect-error Native Node TypeScript runner.
-import {centralCollectors,parseCentralBoard,centralGrantCandidate,centralCollectorUrl,modsReception} from '../lib/central-collectors.ts';
+import {centralCollectors,parseCentralBoard,centralGrantCandidate,centralCollectorUrl,centralCollectorAccept,modsReception} from '../lib/central-collectors.ts';
 const c=centralCollectors[0];
+test('RSS requests negotiate XML while HTML and other collectors keep their existing Accept',()=>{
+  for(const config of centralCollectors){
+    assert.equal(centralCollectorAccept(config.id),config.format==='rss'?'application/rss+xml,application/xml,text/xml;q=0.9,*/*;q=0.5':'text/html,application/xhtml+xml,application/json');
+  }
+  assert.equal(centralCollectorAccept('bizinfo'),'text/html,application/xhtml+xml,application/json');
+  const config=centralCollectors.find(x=>x.id==='unikorea-board')!;
+  assert.throws(()=>parseCentralBoard('<!doctype html><html><title>에러페이지</title><p>다시 한번 확인해주세요!</p></html>',config));
+});
 test('MODS official RSS retains explicit reception cutoff and excludes monitoring recruitment',()=>{
   const config=centralCollectors.find(x=>x.id==='mods-board')!;
   const period='접수 기간2026.7.20.(월) ~ 8.9.(일) 23:59까지';

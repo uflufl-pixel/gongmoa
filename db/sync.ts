@@ -5,7 +5,7 @@ import { ensureSeeded } from './queries';
 import { notices, revisions, sourceChecks, sources } from './schema';
 import { bojoDate, unpackBojoPage } from '../lib/bojo-page';
 import { applicationPeriod } from '../lib/application-period';
-import {centralCollectors,parseCentralBoard,centralCollectorUrl} from '../lib/central-collectors';
+import {centralCollectors,parseCentralBoard,centralCollectorUrl,centralCollectorAccept} from '../lib/central-collectors';
 import {fetchMolitList} from '../lib/molit-fetch';
 
 export const SYNC_BATCHES = [
@@ -26,7 +26,7 @@ async function inspectSource(source:{id:string;url:string;name:string}) {
   const startedAt=new Date();
   try {
     const fetchUrl=source.id==='bojo'?'https://www.bojo.go.kr/':source.id==='kocca-support'?'https://www.kocca.kr/xml/rss/rss_pims.xml':centralCollectorUrl(source.id,source.url);
-    const request=()=>source.id==='molit-board'?fetchMolitList():fetch(fetchUrl,{headers:{accept:'text/html,application/xhtml+xml,application/json','user-agent':'GongmoaSourceMonitor/1.1 (+https://gongmoa.uflufl.chatgpt.site)'},signal:AbortSignal.timeout(10000),redirect:'follow'});
+    const request=()=>source.id==='molit-board'?fetchMolitList():fetch(fetchUrl,{headers:{accept:centralCollectorAccept(source.id),'user-agent':'GongmoaSourceMonitor/1.1 (+https://gongmoa.uflufl.chatgpt.site)'},signal:AbortSignal.timeout(10000),redirect:'follow'});
     let response:Response;
     try { response=await request(); } catch { response=await request(); }
     if(response.status===408||response.status===429||response.status>=500) response=await request();
