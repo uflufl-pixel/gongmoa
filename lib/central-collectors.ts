@@ -37,6 +37,7 @@ export const centralCollectors=[
   {id:'moip-board',institutionId:'central-1431000',institution:'지식재산처',name:'지식재산처 공지사항 RSS',url:'https://www.moip.go.kr/ko/annuc/UXmlRssApp.do?menuCd=SCD0200609',origin:'https://www.moip.go.kr',format:'rss',category:'지식재산·기업지원'},
   {id:'mnd-board',institutionId:'central-1290000',institution:'국방부',name:'국방부 공지사항 RSS',url:'https://www.mnd.go.kr/bbs/mnd/11066/rssList.do?row=50',origin:'https://www.mnd.go.kr',format:'rss',category:'국방·사회'},
   {id:'dapa-board',institutionId:'central-1690000',institution:'방위사업청',name:'방위사업청 공지사항',url:'https://www.dapa.go.kr/dapa/doc/selectDocList.do?bbsSeq=443&menuSeq=3031',origin:'https://www.dapa.go.kr',format:'dapa',category:'방위산업·기업지원'},
+  {id:'kasa-board',institutionId:'central-1834100',institution:'우주항공청',name:'우주항공청 사업공고',url:'https://www.kasa.go.kr/bbs/BBSMSTR_000000000018.do',origin:'https://www.kasa.go.kr',format:'kasa',category:'우주항공·연구개발'},
 ] as const;
 // Registered rows retain history; audited collector definitions own fetch endpoints.
 export function centralCollectorUrl(id:string,fallback:string){return centralCollectors.find(c=>c.id===id)?.url||fallback;}
@@ -69,6 +70,11 @@ function publicationDate(s:string){
 function identity(raw:string,c:Config){
   const u=new URL(raw,c.origin);if(!['https:','http:'].includes(u.protocol)||u.hostname!==new URL(c.origin).hostname||u.username||u.password)throw new Error('공식 공고 주소 확인 필요');
   let id:string|null=null;
+  if(c.id==='kasa-board'){
+    const key=u.searchParams.get('nttId');
+    if(u.pathname!=='/bbs/BBSMSTR_000000000018/view.do'||!key||!/^B\d{12}[A-Za-z0-9]{6}$/.test(key))throw new Error('우주항공청 공고 식별자 확인 필요');
+    return {id:key,url:`${c.origin}/bbs/BBSMSTR_000000000018/view.do?nttId=${key}`};
+  }
   if(c.id==='dapa-board'&&u.pathname==='/dapa/doc/selectDoc.do'&&u.searchParams.get('bbsSeq')==='443'&&u.searchParams.get('menuSeq')==='3031'){
     id=u.searchParams.get('docSeq');u.search=`?bbsSeq=443&menuSeq=3031&docSeq=${id||''}`;u.hash='';
   }
@@ -150,7 +156,20 @@ function identity(raw:string,c:Config){
 }
 export function parseCentralBoard(body:string,c:Config){
   const rows:Array<{title:string;link:string;posted:string;description?:string}>=[];
-  if(c.format==='dapa'){
+  if(c.format==='kasa'){
+    const clean=body.replace(/<!--[\s\S]*?-->/g,'').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'');
+    if(!/<form\b[^>]*\bid="searchForm"[^>]*\baction="\/bbs\/BBSMSTR_000000000018\/list\.do(?:;jsessionid=[A-Za-z0-9_.-]+)?"/.test(clean))throw new Error('우주항공청 사업 게시판 확인 필요');
+    const section=clean.match(/<form\b[^>]*\bid="deleteForm"[^>]*>([\s\S]*?)<\/form>/)?.[1];
+    if(!section)throw new Error('우주항공청 목록 영역 확인 필요');
+    for(const row of section.split(/<div\b[^>]*\bclass="program__board-row(?:\s[^"]*)?"[^>]*>/).slice(1)){
+      if(!/class="program__board-cell subject"[^>]*role="cell"/.test(row))continue;
+      const id=row.match(/onclick="fn_search_detail\('([^']+)'\); return false;"/)?.[1];
+      const title=row.match(/<strong class="board__subject-text">([\s\S]*?)<\/strong>/)?.[1];
+      const posted=row.match(/class="program__board-cell regDate"[^>]*>\s*<span class="td">(\d{4}-\d{2}-\d{2})<\/span>/)?.[1];
+      if(!id||!title||!posted)throw new Error('우주항공청 공고 행 구조 확인 필요');
+      rows.push({title:text(title),link:`${c.origin}/bbs/BBSMSTR_000000000018/view.do?nttId=${encodeURIComponent(id)}`,posted});
+    }
+  }else if(c.format==='dapa'){
     const clean=body.replace(/<!--[\s\S]*?-->/g,'').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'');
     if(!/<input[^>]+name="bbsSeq"[^>]+value="443"/.test(clean)||!/<input[^>]+name="menuSeq"[^>]+value="3031"/.test(clean))throw new Error('방위사업청 공지 게시판 확인 필요');
     for(const match of clean.matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)){
@@ -306,6 +325,7 @@ export function parseCentralBoard(body:string,c:Config){
     if(!row.title||!row.link)throw new Error('목록 제목·링크 누락');
     const ref=identity(row.link,c);if(seen.has(ref.id))return [];seen.add(ref.id);
     if(c.id==='dapa-board'&&/수요조사|설명회/.test(row.title))return [];
+    if(c.id==='kasa-board'&&/수요조사|심의\s*신청|자동판매기|발주계획|지정제/.test(row.title))return [];
     if(c.id==='mnd-board'&&/상비예비군|비상임감사|교육\s*참가자\s*모집|후원/.test(row.title))return [];
     if(c.id==='moip-board'&&/교육.*(?:운영계획|과정).*모집/.test(row.title))return [];
     if(c.id==='police-board'&&/논문\s*모집/.test(row.title))return [];
@@ -315,6 +335,7 @@ export function parseCentralBoard(body:string,c:Config){
     if(c.id==='naacc-board'&&/질의|답변|설명회|심사|당선/.test(row.title))return [];
     if(c.id==='mofe-board'&&/모니터링단|(?:상임|운영)이사|상임감사|초빙|제안요청/.test(row.title))return [];
     let candidateTitle=c.id==='mfds-board'&&/용역연구개발과제.*주관연구기관.*공모/.test(row.title)?row.title.replace('용역연구개발과제','연구개발과제'):row.title;
+    if(c.id==='kasa-board'&&/(연구사업\s*재?공고|신규과제\s*공고|지원\s*기반구축\s*사업\s*공고)/.test(row.title))candidateTitle='지원사업 '+row.title;
     if(c.id==='dapa-board'&&/^20\d{2}년 퇴직공무원 사회공헌사업\(방위사업 Bridge와 함께 참여해요\) 컨설팅 참여기업 모집 공고문$/.test(row.title))candidateTitle=row.title.replace('퇴직공무원','');
     if(c.id==='mnd-board'&&/^20\d{2}년 국방AI 경진대회 개최 안내$/.test(row.title))candidateTitle='공모 '+row.title;
     if(c.id==='nts-board'&&/^｢20\d{2} K-SUUL AWARDS｣ 참가신청 안내$/.test(row.title))candidateTitle='공모 '+row.title;
