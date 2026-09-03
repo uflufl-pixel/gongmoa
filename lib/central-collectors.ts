@@ -18,6 +18,7 @@ export const centralCollectors=[
   {id:'mods-board',institutionId:'central-1241000',institution:'국가데이터처',name:'국가데이터처 공지사항 RSS',url:'https://mods.go.kr/board.es?mid=a10306020000&bid=a103060100&act=rss',origin:'https://mods.go.kr',format:'rss',category:'통계·데이터'},
   {id:'unikorea-board',institutionId:'central-1250000',institution:'통일부',name:'통일부 공지사항 RSS',url:'https://unikorea.go.kr/web/unikorea/rss/bbs_0000000000000001',origin:'https://unikorea.go.kr',format:'rss',category:'통일·사회'},
   {id:'motir-board',institutionId:'central-1451000',institution:'산업통상부',name:'산업통상부 사업공고',url:'https://www.motir.go.kr/kor/article/ATCL2826a2625',origin:'https://www.motir.go.kr',format:'motir',category:'산업·통상'},
+  {id:'mpm-board',institutionId:'central-1760000',institution:'인사혁신처',name:'인사혁신처 공지사항 RSS',url:'https://www.mpm.go.kr/board/rss.do?boardId=bbs_0000000000000020&mode=fed&proc=rss',origin:'https://www.mpm.go.kr',format:'rss',category:'행정·문화'},
 ] as const;
 // Registered rows retain history; audited collector definitions own fetch endpoints.
 export function centralCollectorUrl(id:string,fallback:string){return centralCollectors.find(c=>c.id===id)?.url||fallback;}
@@ -25,7 +26,7 @@ export function centralCollectorUrl(id:string,fallback:string){return centralCol
 export function centralCollectorAccept(id:string){return centralCollectors.find(c=>c.id===id)?.format==='rss'?'application/rss+xml,application/xml,text/xml;q=0.9,*/*;q=0.5':'text/html,application/xhtml+xml,application/json';}
 type Config=typeof centralCollectors[number];
 export function centralGrantCandidate(title:string){
-  if(/(수상작\s*발표|수상자\s*(공고|발표)|자문단|현장투어|모니터단|서포터즈)/.test(title))return false;
+  if(/(수상작\s*발표|수상자\s*(공고|발표)|자문단|현장투어|모니터단|서포터즈|정책단|기자단|인플루언서)/.test(title))return false;
   if(/(선정\s*공고|우선협상.*선정|최종\s*선정과제)/.test(title))return false;
   if(/(체험단|연수생|면허.*시험|자격시험)/.test(title))return false;
   return /(공모|모집|지원사업|신규지원|시행계획|지원계획)/.test(title)&&!/(채용|임원|이사장|기관장|원장|본부장|강사|매니저|후보자|위원|참여단|직위|임용|근로자|공무직|공무원|전입희망|입찰|용역|개찰|결과|합격|공개검증|의견수렴|공시송달|취소|포상|서훈)/.test(title);
@@ -50,6 +51,7 @@ function publicationDate(s:string){
 function identity(raw:string,c:Config){
   const u=new URL(raw,c.origin);if(!['https:','http:'].includes(u.protocol)||u.hostname!==new URL(c.origin).hostname||u.username||u.password)throw new Error('공식 공고 주소 확인 필요');
   let id:string|null=null;
+  if(c.id==='mpm-board'&&u.pathname==='/board/board.do'&&u.searchParams.get('boardId')==='bbs_0000000000000020'&&u.searchParams.get('mode')==='view')id=u.searchParams.get('cntId');
   if(c.id==='motir-board')id=/^\/kor\/article\/ATCL2826a2625\/(\d+)\/view$/.exec(u.pathname)?.[1]||null;
   if(c.id==='unikorea-board')id=/^\/web\/unikorea\/bbs\/bbs_0000000000000001\/(\d+)$/.exec(u.pathname)?.[1]||null;
   if(c.id==='mods-board'&&u.pathname==='/board.es'&&u.searchParams.get('bid')==='108'&&u.searchParams.get('act')==='view')id=u.searchParams.get('list_no');
@@ -89,7 +91,7 @@ export function parseCentralBoard(body:string,c:Config){
     if(!/<rss\b/.test(body)||!/<channel>/.test(body))throw new Error('RSS 구조 확인 필요');
     for(const match of body.matchAll(/<item>[\s\S]*?<\/item>/g)){
       const field=(tag:string)=>text(match[0].match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`))?.[1]||'');
-      rows.push({title:c.id==='kma-board'?text(field('title')):field('title'),link:field('link'),posted:field('pubDate'),description:c.id==='mods-board'?field('description'):undefined});
+      rows.push({title:c.id==='kma-board'?text(field('title')):field('title'),link:field('link'),posted:field('pubDate'),description:['mods-board','mpm-board'].includes(c.id)?field('description'):undefined});
     }
   }else if(c.format==='motir'){
     if(!/사업공고 게시판 목록/.test(body))throw new Error('산업통상부 사업공고 목록 구조 확인 필요');
@@ -163,17 +165,29 @@ export function parseCentralBoard(body:string,c:Config){
     if(!row.title||!row.link)throw new Error('목록 제목·링크 누락');
     const ref=identity(row.link,c);if(seen.has(ref.id))return [];seen.add(ref.id);
     let candidateTitle=c.id==='mfds-board'&&/용역연구개발과제.*주관연구기관.*공모/.test(row.title)?row.title.replace('용역연구개발과제','연구개발과제'):row.title;
+    if(c.id==='mpm-board'&&/^20\d{2}년 공무원\s*미술전 작품 공모 안내$/.test(row.title))candidateTitle=row.title.replace('공무원','');
     if(c.id==='mof-board'&&/(신규과제 선정계획|사업대상지.*선정 연장 공고)/.test(row.title))candidateTitle='지원사업 '+candidateTitle;
     if(c.id==='motir-board'){
       if(/(등록폐지|승인\s*공고)/.test(row.title))return [];
       if(/(사업.*공고|지원\s*대상과제.*공고)/.test(row.title))candidateTitle='지원사업 '+candidateTitle;
     }
     if(!centralGrantCandidate(candidateTitle))return [];
-    const period=c.id==='mods-board'?modsReception(row.description||''):null;
+    const period=c.id==='mods-board'?modsReception(row.description||''):c.id==='mpm-board'?mpmReception(row.description||'',row.title):null;
     return [{sourceId:c.id,externalId:ref.id,institution:c.institution,group:'중앙부처',title:row.title,category:c.category,audience:'원문 지원자격 확인',region:null,sourceName:c.name,sourceUrl:ref.url,
       announcedFrom:publicationDate(row.posted),opensAt:period?.opensAt||null,closesAt:period?.closesAt||null,applicationFrom:period?.applicationFrom||null,applicationTo:period?.applicationTo||null,deadlineLabel:period?.applicationTo||'접수기간 원문 확인',status:period&&period.closesAt<new Date()?'closed':'open'}];
   });
   return {items,parsedRows:rows.length};
+}
+
+// Two-digit MPM reception years are accepted only when the title explicitly agrees.
+export function mpmReception(value:string,title:string){
+  const year=/^(20\d{2})년 /.exec(title)?.[1];if(!year)return null;
+  const matches=[...text(value).matchAll(/접수기간\s*:?\s*(\d{2})\.\s*(\d{1,2})\.\s*(\d{1,2})\.?\s*\([월화수목금토일]\)\s*[-~]\s*(\d{1,2})\.\s*(\d{1,2})\.?\s*\([월화수목금토일]\)\s*(\d{2}):(\d{2})까지/g)];
+  if(matches.length!==1)return null;const m=matches[0];if(year.slice(2)!==m[1])return null;
+  const date=(mo:string,d:string)=>`${year}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`;
+  const from=date(m[2],m[3]),to=date(m[4],m[5]);
+  if(publicationDate(from)!==from||publicationDate(to)!==to||from>to||Number(m[6])>23||Number(m[7])>59)return null;
+  return {applicationFrom:from,applicationTo:to,opensAt:new Date(`${from}T00:00:00+09:00`),closesAt:new Date(`${to}T${m[6]}:${m[7]}:00+09:00`)};
 }
 
 // Only the explicitly labeled RSS reception field with a stated cutoff is accepted.

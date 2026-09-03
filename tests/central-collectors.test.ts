@@ -1,8 +1,21 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 // @ts-expect-error Native Node TypeScript runner.
-import {centralCollectors,parseCentralBoard,centralGrantCandidate,centralCollectorUrl,centralCollectorAccept,modsReception} from '../lib/central-collectors.ts';
+import {centralCollectors,parseCentralBoard,centralGrantCandidate,centralCollectorUrl,centralCollectorAccept,modsReception,mpmReception} from '../lib/central-collectors.ts';
 const c=centralCollectors[0];
+test('MPM imports art calls with explicit closed periods, not personnel or policy recruitment',()=>{
+  const config=centralCollectors.find(x=>x.id==='mpm-board')!;
+  const body='<rss><channel>'+['2026년 공무원 미술전 작품 공모 안내','2026년 공직문학상 작품 공모 안내','2026년 공무원 미술전 작품 공모 안내 채용','국민참여정책단 모집','국민기자단 및 인플루언서 모집'].map((t,i)=>`<item><title>${t}</title><link>https://www.mpm.go.kr/board/board.do?boardId=bbs_0000000000000020&amp;mode=view&amp;cntId=${1884+i}</link><description>접수기간 : 26.6.23(화)-7.6(월) 18:00까지</description><pubDate>2026-05-22T08:32:21+0900</pubDate></item>`).join('')+'</channel></rss>';
+  const r=parseCentralBoard(body,config);assert.equal(r.parsedRows,5);assert.equal(r.items.length,2);assert.equal(r.items[0].title,'2026년 공무원 미술전 작품 공모 안내');assert.equal(r.items[0].announcedFrom,'2026-05-22');assert.equal(r.items[0].applicationTo,'2026-07-06');assert.equal(r.items[0].closesAt?.toISOString(),'2026-07-06T09:00:00.000Z');assert.equal(r.items[0].status,'closed');
+  assert.throws(()=>parseCentralBoard(body.replaceAll('bbs_0000000000000020','bbs_wrong'),config));
+  assert.throws(()=>parseCentralBoard(body.replaceAll('www.mpm.go.kr','example.com'),config));
+});
+test('MPM reception rejects ambiguous years, impossible dates and duplicate periods',()=>{
+  const p='접수기간: 25.6.3.(화) ~ 6.16.(월) 18:00까지';
+  assert.equal(mpmReception(p,'2025년 공직 문학상 작품 공모 안내')?.applicationTo,'2025-06-16');
+  for(const value of [p+p,p.replace('6.3.','2.30.'),p.replace('18:00','24:00'),p.replace('6.16.','6.1.')])assert.equal(mpmReception(value,'2025년 작품 공모'),null);
+  assert.equal(mpmReception(p,'2026년 작품 공모'),null);assert.equal(mpmReception(p,'작품 공모'),null);
+});
 test('MOTIR extracts business calls without executing scripts or importing administrative outcomes',()=>{
   const config=centralCollectors.find(x=>x.id==='motir-board')!;
   const titles=['AX실증밸리조성(R&D) 사업 신규지원 대상과제 공고','자동차부품 인프라 구축 사업 공고','사업화 지원 프로그램 지원 대상과제 하반기 공고','투자지원금 사업 수정 공고','지원사업 선정 공고','민간자격 등록폐지 공고','규제특례 승인 공고','사업 용역 입찰 공고'];
