@@ -6,7 +6,7 @@ const now=Date.parse('2026-09-03T12:00:00Z');
 const kiatRow=(id:string,title:string)=>`<tr><td class="td_title"><a href="javascript:contentsView('${id}')">${title}</a></td><td class="td_reg_date">2026-08-28</td><td><span class="app_state" data-start="2026-08-28" data-end="2026-09-28"></span></td></tr>`;
 const kiatBody=(titles:string[])=>'<table><caption>사업공고 리스트 화면</caption><thead>접수기간</thead><tbody>'+titles.map((t,i)=>kiatRow(String(i).padStart(32,'0'),t)).join('')+'</tbody></table>';
 test('KIAT fixed POST request cannot redirect or accept caller URLs',async()=>{
-  await fetchKiatList(async(input,init)=>{assert.equal(input,'https://www.kiat.or.kr/front/board/boardContentsListAjax.do');assert.equal(init?.method,'POST');assert.equal(init?.redirect,'error');assert.equal(new URLSearchParams(String(init?.body)).get('board_id'),'90');assert.ok(init?.signal);return new Response('ok');});
+  await fetchKiatList(async(input,init)=>{assert.equal(input,'https://www.kiat.or.kr/front/board/boardContentsListAjax.do');assert.equal(init?.method,'POST');assert.equal(init?.redirect,'manual');assert.equal(new URLSearchParams(String(init?.body)).get('board_id'),'90');assert.ok(init?.signal);return new Response('ok');});
 });
 test('KIAT retains recruitment selection exception, rejects noise and preserves date-only semantics',()=>{
   const body=kiatBody(['2026년도 독일 등 유럽 진출 희망 중견기업 지원사업 선정 공고','기술개발사업 공고','기술 수요조사 공고','유공자 포상 모집','사업공고 작성 안내','지원제도 안내','연구원 채용 공고','지원사업 선정 공고']);

@@ -8,7 +8,7 @@ export const nipaSource={id:'nipa-board',institutionId:'public-031',name:'정보
 export function fetchKiatList(fetcher:typeof fetch=fetch){
   return fetcher('https://www.kiat.or.kr/front/board/boardContentsListAjax.do',{
     method:'POST',headers:{'content-type':'application/x-www-form-urlencoded',accept:'text/html','user-agent':'GongmoaSourceMonitor/1.1 (+https://gongmoa.uflufl.chatgpt.site)'},
-    body:'board_id=90&miv_pageNo=1&miv_pageSize=10&mode=W&state_filter=W',signal:AbortSignal.timeout(10000),redirect:'error',
+    body:'board_id=90&miv_pageNo=1&miv_pageSize=10&mode=W&state_filter=W',signal:AbortSignal.timeout(10000),redirect:'manual',
   });
 }
 function text(s:string){return s.replace(/<[^>]*>/g,' ').replace(/&nbsp;/gi,' ').replace(/&amp;/gi,'&').replace(/&quot;/gi,'"').replace(/&#(\d+);/g,(_,n)=>Number(n)<=0x10ffff?String.fromCodePoint(Number(n)):'').replace(/\s+/g,' ').trim();}
