@@ -10,10 +10,11 @@ import {fetchMolitList} from '../lib/molit-fetch';
 import {fetchPoliceList} from '../lib/police-fetch';
 import {fetchBojoChanges} from '../lib/bojo-changes';
 import {fetchTextWithDiagnostics,FetchDiagnosticError} from '../lib/fetch-diagnostics';
+import {fetchKiatList,parseKiatBoard,parseNipaBoard} from '../lib/public-collectors';
 
 export const SYNC_BATCHES = [
-  ['bojo','bizinfo','moe-board','gov24-orgs','mss-board','kdca-board','mfds-board','moj-board','motir-board','pps-board','mogef-board','mofe-board','police-board','dapa-board'],
-  ['mcst-board','mois-board','me-board','kocca-support','mafra-board','rda-board','moel-board','moel-support','khs-board','mpm-board','oka-board','naacc-board','cio-board','moip-board'],
+  ['bojo','bizinfo','moe-board','gov24-orgs','mss-board','kdca-board','mfds-board','moj-board','motir-board','pps-board','mogef-board','mofe-board','police-board','dapa-board','kiat-board'],
+  ['mcst-board','mois-board','me-board','kocca-support','mafra-board','rda-board','moel-board','moel-support','khs-board','mpm-board','oka-board','naacc-board','cio-board','moip-board','nipa-board'],
   ['seoul-board','busan-board','incheon-board','daejeon-board','daegu-board','moleg-board','kma-board','molit-board','mods-board','mpva-board','saemangeum-board','kcg-board','pss-board','mnd-board'],
   ['ulsan-board','jeonbuk-board','gyeongnam-business','chungbuk-board','jeju-board','mohw-board','forest-board','forest-news','mof-board','unikorea-board','nfa-board','nts-board','mma-board','spo-board','kasa-board'],
 ] as const;
@@ -29,7 +30,7 @@ async function inspectSource(source:{id:string;url:string;name:string}) {
   const startedAt=new Date();
   try {
     const fetchUrl=source.id==='bojo'?'https://www.bojo.go.kr/':source.id==='kocca-support'?'https://www.kocca.kr/xml/rss/rss_pims.xml':centralCollectorUrl(source.id,source.url);
-    const request=()=>source.id==='police-board'?fetchPoliceList():source.id==='molit-board'?fetchMolitList():fetch(fetchUrl,{headers:{accept:centralCollectorAccept(source.id),'user-agent':'GongmoaSourceMonitor/1.1 (+https://gongmoa.uflufl.chatgpt.site)'},signal:AbortSignal.timeout(10000),redirect:'follow'});
+    const request=()=>source.id==='kiat-board'?fetchKiatList():source.id==='police-board'?fetchPoliceList():source.id==='molit-board'?fetchMolitList():fetch(fetchUrl,{headers:{accept:centralCollectorAccept(source.id),'user-agent':'GongmoaSourceMonitor/1.1 (+https://gongmoa.uflufl.chatgpt.site)'},signal:AbortSignal.timeout(10000),redirect:'follow'});
     let response:Response,body:string;
     if(source.id==='mnd-board')({response,body}=await fetchTextWithDiagnostics(request));
     else {
@@ -338,6 +339,16 @@ export async function syncOfficialSources(requestedSourceIds?:readonly string[])
   const koccaParsed=inspected.find(x=>x.check.sourceId==='kocca-support'); const koccaLinks=(koccaBody.match(/intcNo=[A-Z0-9]+/g)||[]).length;
   if(koccaParsed?.check.outcome==='success'&&koccaLinks<5) Object.assign(koccaParsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: 링크 ${koccaLinks}건`,finishedAt:new Date()});
   const centralItems:IncomingNotice[]=[];
+  const nipa=inspected.find(x=>x.check.sourceId==='nipa-board');
+  if(nipa?.body&&nipa.check.outcome==='success'){
+    try{const parsed=parseNipaBoard(nipa.body);centralItems.push(...parsed.items);nipa.check.message=`목록 ${parsed.parsedRows}건 확인 · 공모 후보 ${parsed.items.length}건`;}
+    catch(error){nipa.check.outcome='parser_error';nipa.check.message=error instanceof Error?error.message:'NIPA 공고 구조 확인 필요';}
+  }
+  const kiat=inspected.find(x=>x.check.sourceId==='kiat-board');
+  if(kiat?.body&&kiat.check.outcome==='success'){
+    try{const parsed=parseKiatBoard(kiat.body);centralItems.push(...parsed.items);kiat.check.message=`목록 ${parsed.parsedRows}건 확인 · 공모 후보 ${parsed.items.length}건`;}
+    catch(error){kiat.check.outcome='parser_error';kiat.check.message=error instanceof Error?error.message:'KIAT 공고 구조 확인 필요';}
+  }
   for(const config of centralCollectors){
     const result=inspected.find(x=>x.check.sourceId===config.id);if(!result?.body||result.check.outcome!=='success')continue;
     try{const parsed=parseCentralBoard(result.body,config);const items=config.id==='mma-board'?await enrichMmaItems(parsed.items):parsed.items;centralItems.push(...items);result.check.message=`목록 ${parsed.parsedRows}건 확인 · 공모 후보 ${items.length}건`;}
