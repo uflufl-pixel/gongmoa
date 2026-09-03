@@ -19,6 +19,8 @@ export const centralCollectors=[
   {id:'unikorea-board',institutionId:'central-1250000',institution:'통일부',name:'통일부 공지사항 RSS',url:'https://unikorea.go.kr/web/unikorea/rss/bbs_0000000000000001',origin:'https://unikorea.go.kr',format:'rss',category:'통일·사회'},
   {id:'motir-board',institutionId:'central-1451000',institution:'산업통상부',name:'산업통상부 사업공고',url:'https://www.motir.go.kr/kor/article/ATCL2826a2625',origin:'https://www.motir.go.kr',format:'motir',category:'산업·통상'},
   {id:'mpm-board',institutionId:'central-1760000',institution:'인사혁신처',name:'인사혁신처 공지사항 RSS',url:'https://www.mpm.go.kr/board/rss.do?boardId=bbs_0000000000000020&mode=fed&proc=rss',origin:'https://www.mpm.go.kr',format:'rss',category:'행정·문화'},
+  {id:'mpva-board',institutionId:'central-1830000',institution:'국가보훈부',name:'국가보훈부 공지사항',url:'https://www.mpva.go.kr/mpva/selectBbsNttList.do?bbsNo=15&key=76',origin:'https://www.mpva.go.kr',format:'mpva',category:'보훈·사회'},
+  {id:'nfa-board',institutionId:'central-1661000',institution:'소방청',name:'소방청 공지사항',url:'https://www.nfa.go.kr/nfa/news/notice/',origin:'https://www.nfa.go.kr',format:'nfa',category:'소방·안전'},
 ] as const;
 // Registered rows retain history; audited collector definitions own fetch endpoints.
 export function centralCollectorUrl(id:string,fallback:string){return centralCollectors.find(c=>c.id===id)?.url||fallback;}
@@ -28,7 +30,7 @@ type Config=typeof centralCollectors[number];
 export function centralGrantCandidate(title:string){
   if(/(수상작\s*발표|수상자\s*(공고|발표)|자문단|현장투어|모니터단|서포터즈|정책단|기자단|인플루언서)/.test(title))return false;
   if(/(선정\s*공고|우선협상.*선정|최종\s*선정과제)/.test(title))return false;
-  if(/(체험단|연수생|면허.*시험|자격시험)/.test(title))return false;
+  if(/(체험단|연수생|면허.*시험|자격시험|대행업체)/.test(title))return false;
   return /(공모|모집|지원사업|신규지원|시행계획|지원계획)/.test(title)&&!/(채용|임원|이사장|기관장|원장|본부장|강사|매니저|후보자|위원|참여단|직위|임용|근로자|공무직|공무원|전입희망|입찰|용역|개찰|결과|합격|공개검증|의견수렴|공시송달|취소|포상|서훈)/.test(title);
 }
 function text(s:string){return s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1').replace(/<[^>]+>/g,' ').replace(/&#(x[\da-f]+|\d+);/gi,(_,v:string)=>{const n=v.startsWith('x')?parseInt(v.slice(1),16):Number(v);return n<=0x10ffff?String.fromCodePoint(n):'';}).replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();}
@@ -51,6 +53,12 @@ function publicationDate(s:string){
 function identity(raw:string,c:Config){
   const u=new URL(raw,c.origin);if(!['https:','http:'].includes(u.protocol)||u.hostname!==new URL(c.origin).hostname||u.username||u.password)throw new Error('공식 공고 주소 확인 필요');
   let id:string|null=null;
+  if(c.id==='mpva-board'&&u.pathname.replace(/;jsessionid=[A-Za-z0-9+_.-]+$/,'')==='/mpva/selectBbsNttView.do'&&u.searchParams.get('bbsNo')==='15'&&u.searchParams.get('key')==='76'){
+    id=u.searchParams.get('nttNo');u.pathname='/mpva/selectBbsNttView.do';u.search=`?bbsNo=15&key=76&nttNo=${id||''}`;
+  }
+  if(c.id==='nfa-board'&&u.pathname==='/nfa/news/notice/'&&u.searchParams.get('boardId')==='bbs_0000000000000009'&&u.searchParams.get('mode')==='view'){
+    id=u.searchParams.get('cntId');u.search=`?boardId=bbs_0000000000000009&mode=view&cntId=${id||''}`;
+  }
   if(c.id==='mpm-board'&&u.pathname==='/board/board.do'&&u.searchParams.get('boardId')==='bbs_0000000000000020'&&u.searchParams.get('mode')==='view')id=u.searchParams.get('cntId');
   if(c.id==='motir-board')id=/^\/kor\/article\/ATCL2826a2625\/(\d+)\/view$/.exec(u.pathname)?.[1]||null;
   if(c.id==='unikorea-board')id=/^\/web\/unikorea\/bbs\/bbs_0000000000000001\/(\d+)$/.exec(u.pathname)?.[1]||null;
@@ -92,6 +100,14 @@ export function parseCentralBoard(body:string,c:Config){
     for(const match of body.matchAll(/<item>[\s\S]*?<\/item>/g)){
       const field=(tag:string)=>text(match[0].match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`))?.[1]||'');
       rows.push({title:c.id==='kma-board'?text(field('title')):field('title'),link:field('link'),posted:field('pubDate'),description:['mods-board','mpm-board'].includes(c.id)?field('description'):undefined});
+    }
+  }else if(c.format==='mpva'||c.format==='nfa'){
+    const clean=body.replace(/<!--[\s\S]*?-->/g,'');
+    for(const match of clean.matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)){
+      const cell=match[0].match(c.format==='mpva'?/<td class="p-subject">([\s\S]*?)<\/td>/:/<td class="(?:notice )?title">([\s\S]*?)<\/td>/);if(!cell)continue;
+      const a=cell[1].match(/<a\b[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/);if(!a)throw new Error('공고 제목·링크 구조 확인 필요');
+      const date=c.format==='mpva'?match[0].match(/<td\s*>\s*(\d{4}-\d{2}-\d{2})\s*<\/td>/)?.[1]:match[0].match(/<td class="(?:notice )?created hidden-mobile">\s*(\d{4}-\d{2}-\d{2})/)?.[1];
+      rows.push({title:text(a[2]),link:new URL(text(a[1]),c.url).href,posted:date||''});
     }
   }else if(c.format==='motir'){
     if(!/사업공고 게시판 목록/.test(body))throw new Error('산업통상부 사업공고 목록 구조 확인 필요');

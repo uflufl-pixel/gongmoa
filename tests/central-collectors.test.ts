@@ -3,6 +3,18 @@ import assert from 'node:assert/strict';
 // @ts-expect-error Native Node TypeScript runner.
 import {centralCollectors,parseCentralBoard,centralGrantCandidate,centralCollectorUrl,centralCollectorAccept,modsReception,mpmReception} from '../lib/central-collectors.ts';
 const c=centralCollectors[0];
+test('MPVA strips temporary sessions and validates notice-board identity before filtering',()=>{
+  const c=centralCollectors.find(x=>x.id==='mpva-board')!;
+  const b='<table>'+['제대군인 창업 경진대회 참가자 모집','공시송달 공고','준보훈병원 선정 결과 공고'].map((t,i)=>`<tr><td class="p-subject"><a href="./selectBbsNttView.do;jsessionid=ab+c.node?key=76&amp;bbsNo=15&amp;nttNo=${100+i}&amp;pageIndex=1">${t}</a></td><td >2026-08-18</td></tr>`).join('')+'</table>';
+  const r=parseCentralBoard(b,c);assert.equal(r.parsedRows,3);assert.equal(r.items.length,1);assert.equal(r.items[0].sourceUrl,'https://www.mpva.go.kr/mpva/selectBbsNttView.do?bbsNo=15&key=76&nttNo=100');assert.equal(r.items[0].announcedFrom,'2026-08-18');assert.equal(r.items[0].applicationTo,null);
+  assert.throws(()=>parseCentralBoard(b.replaceAll('bbsNo=15','bbsNo=360'),c));assert.throws(()=>parseCentralBoard(b.replaceAll('./selectBbs','https://example.com/selectBbs'),c));
+});
+test('NFA parses pinned and ordinary notices while ignoring commented links and outsourcing',()=>{
+  const c=centralCollectors.find(x=>x.id==='nfa-board')!;
+  const b='<table>'+['소방안전 사진 공모전','국외연수 대행업체 모집','공무원 채용 모집'].map((t,i)=>`<tr><td class="${i?'':'notice '}title"><!-- <a href="https://example.com/">가짜 공모</a> --><a href="?boardId=bbs_0000000000000009&amp;mode=view&amp;cntId=${808+i}&amp;pageIdx=1">${t}</a></td><td class="${i?'':'notice '}created hidden-mobile">2026-07-06</td></tr>`).join('')+'</table>';
+  const r=parseCentralBoard(b,c);assert.equal(r.parsedRows,3);assert.equal(r.items.length,1);assert.equal(r.items[0].externalId,'808');assert.equal(r.items[0].announcedFrom,'2026-07-06');assert.equal(r.items[0].sourceUrl,'https://www.nfa.go.kr/nfa/news/notice/?boardId=bbs_0000000000000009&mode=view&cntId=808');assert.equal(r.items[0].applicationTo,null);
+  assert.throws(()=>parseCentralBoard(b.replaceAll('bbs_0000000000000009','bbs_other'),c));assert.throws(()=>parseCentralBoard(b.replaceAll('href="?boardId','href="https://example.com/?boardId'),c));
+});
 test('MPM imports art calls with explicit closed periods, not personnel or policy recruitment',()=>{
   const config=centralCollectors.find(x=>x.id==='mpm-board')!;
   const body='<rss><channel>'+['2026년 공무원 미술전 작품 공모 안내','2026년 공직문학상 작품 공모 안내','2026년 공무원 미술전 작품 공모 안내 채용','국민참여정책단 모집','국민기자단 및 인플루언서 모집'].map((t,i)=>`<item><title>${t}</title><link>https://www.mpm.go.kr/board/board.do?boardId=bbs_0000000000000020&amp;mode=view&amp;cntId=${1884+i}</link><description>접수기간 : 26.6.23(화)-7.6(월) 18:00까지</description><pubDate>2026-05-22T08:32:21+0900</pubDate></item>`).join('')+'</channel></rss>';
