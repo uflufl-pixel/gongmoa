@@ -30,6 +30,7 @@ export const centralCollectors=[
   {id:'mogef-board',institutionId:'central-1384000',institution:'성평등가족부',name:'성평등가족부 공고 RSS',url:'https://www.mogef.go.kr/rss/rssnews.do?mid=news400&div=16',origin:'https://www.mogef.go.kr',format:'rss',category:'성평등·가족·청소년'},
   {id:'mma-board',institutionId:'central-1300000',institution:'병무청',name:'병무청 공모 검색',url:'https://www.mma.go.kr/board/boardList.do?mc=usr0000379&gesipan_id=2&searchCondition=gsgjemok_nm&searchKeyword=%EA%B3%B5%EB%AA%A8',origin:'https://www.mma.go.kr',format:'mma',category:'병무·문화'},
   {id:'mofe-board',institutionId:'central-1053000',institution:'재정경제부',name:'재정경제부 공지 RSS',url:'https://mofe.go.kr/com/detailRssTagService.do?bbsId=MOSFBBS_000000000030',origin:'https://mofe.go.kr',format:'rss',category:'경제·기업지원'},
+  {id:'cio-board',institutionId:'central-1790364',institution:'고위공직자범죄수사처',name:'공수처 공지사항',url:'https://www.cio.go.kr/board/list/120',origin:'https://www.cio.go.kr',format:'cio',category:'행정·사회'},
 ] as const;
 // Registered rows retain history; audited collector definitions own fetch endpoints.
 export function centralCollectorUrl(id:string,fallback:string){return centralCollectors.find(c=>c.id===id)?.url||fallback;}
@@ -62,6 +63,9 @@ function publicationDate(s:string){
 function identity(raw:string,c:Config){
   const u=new URL(raw,c.origin);if(!['https:','http:'].includes(u.protocol)||u.hostname!==new URL(c.origin).hostname||u.username||u.password)throw new Error('공식 공고 주소 확인 필요');
   let id:string|null=null;
+  if(c.id==='cio-board'&&u.pathname==='/board/view/120'){
+    id=u.searchParams.get('cid');u.search=`?cid=${id||''}`;
+  }
   if(c.id==='mofe-board'&&u.pathname.replace(/;jsessionid=[A-Za-z0-9+_.-]+$/,'')==='/nw/nes/detailNesDtaView.do'&&u.searchParams.get('searchBbsId')==='MOSFBBS_000000000030'&&u.searchParams.get('menuNo')==='4050100'){
     const ref=u.searchParams.get('searchNttId')||'';id=/^MOSF_(\d{15})$/.exec(ref)?.[1]||null;
     u.pathname='/nw/nes/detailNesDtaView.do';u.search=`?searchBbsId=MOSFBBS_000000000030&menuNo=4050100&searchNttId=${ref}`;
@@ -120,7 +124,14 @@ function identity(raw:string,c:Config){
 }
 export function parseCentralBoard(body:string,c:Config){
   const rows:Array<{title:string;link:string;posted:string;description?:string}>=[];
-  if(c.format==='mma'){
+  if(c.format==='cio'){
+    for(const match of body.replace(/<!--[\s\S]*?-->/g,'').matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)){
+      const cell=match[0].match(/<td class="textLeft">([\s\S]*?)<\/td>/);if(!cell)continue;
+      const a=cell[1].match(/<a href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/);
+      if(!a)throw new Error('공수처 공고 제목·링크 확인 필요');
+      rows.push({title:text(a[2]),link:text(a[1]),posted:text(match[0].match(/<td class="dateTh">([\s\S]*?)<\/td>/)?.[1]||'').replaceAll('.','-')});
+    }
+  }else if(c.format==='mma'){
     for(const match of body.replace(/<!--[\s\S]*?-->/g,'').matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)){
       const a=match[0].match(/<td class="text_left">\s*(?:<strong>\s*)?<a href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/);if(!a)continue;
       rows.push({title:text(a[2]),link:new URL(text(a[1]),c.url).href,posted:match[0].match(/<td[^>]*>\s*(?:<strong>\s*)?(\d{4}-\d{2}-\d{2})/)?.[1]||''});

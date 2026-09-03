@@ -3,6 +3,14 @@ import assert from 'node:assert/strict';
 // @ts-expect-error Native Node TypeScript runner.
 import {centralCollectors,parseCentralBoard,centralGrantCandidate,centralCollectorUrl,centralCollectorAccept,modsReception,mpmReception,saemangeumReception,okaReception,parseMmaDetail,enrichMmaItems} from '../lib/central-collectors.ts';
 const c=centralCollectors[0];
+test('CIO distinguishes zero candidates from broken list and validates the notice board',()=>{
+  const c=centralCollectors.find(x=>x.id==='cio-board')!;
+  const row=(id:string,title:string)=>`<tr><td class="textLeft"><a href="/board/view/120?page=&amp;cid=${id}">${title}</a></td><td class="dateTh">2026.08.12</td></tr>`;
+  const noise=row('5406','을지연습 실시')+row('5249','공무원 포상 후보자 공개검증')+row('5217','청사 신축 설계용역 입찰공고');
+  assert.equal(parseCentralBoard(noise,c).items.length,0);
+  const positive=noise+row('9999','청렴문화 공모전');const r=parseCentralBoard(positive,c);assert.equal(r.items.length,1);assert.equal(r.items[0].announcedFrom,'2026-08-12');assert.equal(r.items[0].sourceUrl,'https://www.cio.go.kr/board/view/120?cid=9999');assert.equal(r.items[0].applicationTo,null);
+  for(const invalid of [positive.replaceAll('/view/120','/view/121'),positive.replace('cid=5406','cid=invalid'),positive.replace('href="/board','href="https://example.com/board'),'<html>접근 오류</html>'])assert.throws(()=>parseCentralBoard(invalid,c));
+});
 test('MOFE validates notice identity, excludes personnel and preserves unknown reception',()=>{
   const c=centralCollectors.find(x=>x.id==='mofe-board')!;
   const titles=['지역경제교육센터 공모','2026년도 공급망안정화 선도사업자 제1차 선정계획 공고','공공데이터 모니터링단 모집','비상임이사 공개모집','지역경제교육센터 선정 공고','물가안정 유공 포상 후보자 공모'];
