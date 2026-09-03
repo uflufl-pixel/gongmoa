@@ -17,6 +17,7 @@ export const centralCollectors=[
   {id:'khs-board',institutionId:'central-1833100',institution:'국가유산청',name:'국가유산청 공지사항',url:'https://www.khs.go.kr/multiBbz/selectMultiBbzList.do?bbzId=newpublic&mn=NS_01_01',origin:'https://khs.go.kr',format:'khs',category:'국가유산·문화'},
   {id:'mods-board',institutionId:'central-1241000',institution:'국가데이터처',name:'국가데이터처 공지사항 RSS',url:'https://mods.go.kr/board.es?mid=a10306020000&bid=a103060100&act=rss',origin:'https://mods.go.kr',format:'rss',category:'통계·데이터'},
   {id:'unikorea-board',institutionId:'central-1250000',institution:'통일부',name:'통일부 공지사항 RSS',url:'https://unikorea.go.kr/web/unikorea/rss/bbs_0000000000000001',origin:'https://unikorea.go.kr',format:'rss',category:'통일·사회'},
+  {id:'motir-board',institutionId:'central-1451000',institution:'산업통상부',name:'산업통상부 사업공고',url:'https://www.motir.go.kr/kor/article/ATCL2826a2625',origin:'https://www.motir.go.kr',format:'motir',category:'산업·통상'},
 ] as const;
 // Registered rows retain history; audited collector definitions own fetch endpoints.
 export function centralCollectorUrl(id:string,fallback:string){return centralCollectors.find(c=>c.id===id)?.url||fallback;}
@@ -49,6 +50,7 @@ function publicationDate(s:string){
 function identity(raw:string,c:Config){
   const u=new URL(raw,c.origin);if(!['https:','http:'].includes(u.protocol)||u.hostname!==new URL(c.origin).hostname||u.username||u.password)throw new Error('공식 공고 주소 확인 필요');
   let id:string|null=null;
+  if(c.id==='motir-board')id=/^\/kor\/article\/ATCL2826a2625\/(\d+)\/view$/.exec(u.pathname)?.[1]||null;
   if(c.id==='unikorea-board')id=/^\/web\/unikorea\/bbs\/bbs_0000000000000001\/(\d+)$/.exec(u.pathname)?.[1]||null;
   if(c.id==='mods-board'&&u.pathname==='/board.es'&&u.searchParams.get('bid')==='108'&&u.searchParams.get('act')==='view')id=u.searchParams.get('list_no');
   if(c.id==='khs-board'){
@@ -88,6 +90,14 @@ export function parseCentralBoard(body:string,c:Config){
     for(const match of body.matchAll(/<item>[\s\S]*?<\/item>/g)){
       const field=(tag:string)=>text(match[0].match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`))?.[1]||'');
       rows.push({title:c.id==='kma-board'?text(field('title')):field('title'),link:field('link'),posted:field('pubDate'),description:c.id==='mods-board'?field('description'):undefined});
+    }
+  }else if(c.format==='motir'){
+    if(!/사업공고 게시판 목록/.test(body))throw new Error('산업통상부 사업공고 목록 구조 확인 필요');
+    for(const match of body.matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)){
+      const cell=match[0].match(/<td class="ta-l">([\s\S]*?)<\/td>/);if(!cell)continue;
+      const a=cell[1].match(/<a href="javascript:article\.view\('(\d+)'\);">\s*<i>([\s\S]*?)<\/i>\s*<\/a>/);
+      if(!a)throw new Error('산업통상부 공고 링크·제목 구조 확인 필요');
+      rows.push({title:text(a[2]),link:`${c.origin}/kor/article/ATCL2826a2625/${a[1]}/view`,posted:match[0].match(/<td>\s*(\d{4}-\d{2}-\d{2})\s*<\/td>/)?.[1]||''});
     }
   }else if(c.format==='khs'){
     for(const match of body.matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)){
@@ -154,6 +164,10 @@ export function parseCentralBoard(body:string,c:Config){
     const ref=identity(row.link,c);if(seen.has(ref.id))return [];seen.add(ref.id);
     let candidateTitle=c.id==='mfds-board'&&/용역연구개발과제.*주관연구기관.*공모/.test(row.title)?row.title.replace('용역연구개발과제','연구개발과제'):row.title;
     if(c.id==='mof-board'&&/(신규과제 선정계획|사업대상지.*선정 연장 공고)/.test(row.title))candidateTitle='지원사업 '+candidateTitle;
+    if(c.id==='motir-board'){
+      if(/(등록폐지|승인\s*공고)/.test(row.title))return [];
+      if(/(사업.*공고|지원\s*대상과제.*공고)/.test(row.title))candidateTitle='지원사업 '+candidateTitle;
+    }
     if(!centralGrantCandidate(candidateTitle))return [];
     const period=c.id==='mods-board'?modsReception(row.description||''):null;
     return [{sourceId:c.id,externalId:ref.id,institution:c.institution,group:'중앙부처',title:row.title,category:c.category,audience:'원문 지원자격 확인',region:null,sourceName:c.name,sourceUrl:ref.url,
