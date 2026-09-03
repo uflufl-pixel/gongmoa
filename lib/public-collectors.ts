@@ -6,6 +6,31 @@ import {applicationPeriod} from './application-period.ts';
 export const kiatSource={id:'kiat-board',institutionId:'public-251',name:'한국산업기술진흥원 사업공고',url:'https://www.kiat.or.kr/front/board/boardContentsListPage.do?board_id=90'};
 export const nipaSource={id:'nipa-board',institutionId:'public-031',name:'정보통신산업진흥원 사업공고',url:'https://www.nipa.kr/home/2-2'};
 export const keitiSource={id:'keiti-board',institutionId:'public-340',name:'한국환경산업기술원 공지·공고',url:'https://www.keiti.re.kr/site/keiti/ex/board/List.do?cbIdx=277'};
+export const kosmeSource={id:'kosme-esg',institutionId:'public-301',name:'중소벤처기업진흥공단 ESG 지원사업',url:'https://kdoctor.kosmes.or.kr/esgplatform/board/board13.do'};
+export function fetchKosmeList(fetcher:typeof fetch=fetch){
+  return fetcher(kosmeSource.url,{redirect:'manual',signal:AbortSignal.timeout(10000),headers:{accept:'text/html','user-agent':'GongmoaSourceMonitor/1.1 (+https://gongmoa.uflufl.chatgpt.site)'}});
+}
+export function parseKosmeBoard(html:string){
+  const clean=html.replace(/<!--[\s\S]*?-->/g,'').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'');
+  const table=clean.match(/<div\b[^>]*class="board_table"[^>]*>\s*<table\b[^>]*>([\s\S]*?)<\/table>/i)?.[1];
+  if(!table||!table.includes('작성일')||!table.includes('제목'))throw new Error('KOSME ESG 목록 구조 확인 필요');
+  const rows=[...table.matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/gi)].map(x=>x[0]).filter(x=>/<td\b/i.test(x));
+  if(rows.length<3)throw new Error('KOSME ESG 공고 행 부족');
+  const seen=new Set<string>();
+  const items=rows.flatMap(row=>{
+    const tag=row.match(/^<tr\b[^>]*>/i)?.[0]||'';
+    const action=tag.match(/\bonclick="([^"]*)"/i)?.[1]||'';
+    const id=/^(?:javascript:)?Board\.Move\('frmInfo',\s*'board13View\.do',\s*'',\s*([1-9]\d*)\);?$/.exec(action)?.[1];
+    const cells=[...row.matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/gi)].map(x=>text(x[1]));
+    if(!id||cells.length!==4||!cells[1]||!validDay(cells[2]))throw new Error('KOSME ESG 제목·식별자·게시일 확인 필요');
+    if(seen.has(id))return [];seen.add(id);
+    const title=cells[1];
+    // Only beneficiary-enterprise invitations; repost attribution and supplier recruitment are deferred.
+    if(!/(수요기업|참여기업|지원기업|수혜기업)\s*모집/.test(title)||!centralGrantCandidate(title)||/설명회|세미나|수강생|교육생|검증기관|원가계산기관|수행기관|공급기업|컨설턴트|수요\s*조사/.test(title))return [];
+    return [{sourceId:kosmeSource.id,externalId:id,institution:'중소벤처기업진흥공단',group:'공사·공단',title,category:'ESG·탄소중립',audience:'중소기업 (원문 지원자격 확인)',region:null,sourceName:kosmeSource.name,sourceUrl:`https://kdoctor.kosmes.or.kr/esgplatform/board/board13View.do?idx=${id}`,announcedFrom:cells[2],applicationFrom:null,applicationTo:null,opensAt:null,closesAt:null,deadlineLabel:'접수기간 원문 확인',status:'open',ministry:'중소벤처기업부'}];
+  });
+  return {items,parsedRows:rows.length};
+}
 export async function fetchKeitiList(fetcher:typeof fetch=fetch){
   const signal=AbortSignal.timeout(10000);
   const pages=await Promise.all([1,2,3].map(async page=>{
