@@ -10,7 +10,8 @@ export async function detailStatus(){
     WHERE n.source_id='bizinfo' AND n.external_id GLOB 'PBLN_[0-9]*'`).bind(Date.now(),Date.now()).first();
 }
 
-export async function enrichBizinfoBatch(){
+export async function enrichBizinfoBatch(limit=5){
+  if(!Number.isInteger(limit)||limit<1||limit>5)throw new Error('Invalid detail batch size');
   const now=Date.now();
   // Recover only failures caused by the previous unsupported Worker redirect option.
   await env.DB.prepare("UPDATE notice_details SET next_attempt_at=0,last_error='실행 환경 오류 수정 후 재시도 대기' WHERE last_error LIKE 'Invalid redirect value,%' AND lease_until<?").bind(now).run();
@@ -18,7 +19,7 @@ export async function enrichBizinfoBatch(){
     LEFT JOIN notice_details d ON d.notice_id=n.id
     WHERE n.source_id='bizinfo' AND n.external_id GLOB 'PBLN_[0-9]*'
     AND COALESCE(d.next_attempt_at,0)<=? AND COALESCE(d.lease_until,0)<?
-    ORDER BY COALESCE(d.checked_at,0),n.id LIMIT 5`).bind(now,now).all<{id:string;external_id:string}>();
+    ORDER BY COALESCE(d.checked_at,0),n.id LIMIT ?`).bind(now,now,limit).all<{id:string;external_id:string}>();
   const results:Array<{id:string;outcome:string;message?:string}>=[];
   for(const n of candidates.results){
     if(!/^PBLN_[0-9]+$/.test(n.external_id))continue;

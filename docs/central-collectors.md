@@ -81,3 +81,10 @@
 ## 9차: 해양수산부 공지사항
 
 공식 목록 https://www.mof.go.kr/doc/ko/selectDocList.do?menuSeq=375&bbsSeq=9 를 batch 3에 추가했다. 목록의 공식 상세 이동 함수에서 숫자 docSeq만 추출하며 임의 스크립트는 실행하지 않는다. 고정 공지 2건을 포함한 12행에서 공모·지원계획 후보 4건을 확인했다. 신규과제 선정계획과 사업대상지 선정 연장 공고를 인식하되 선정결과, 조사 사업자 선정, 위원·채용 모집은 제외한다. 공고일만 저장하고 접수기간은 원문 확인으로 유지한다. 현재 첫 페이지 수집이며 채용·공모 게시판과 과거 전체 페이지는 포함하지 않는다. 운영 성공 확인 시 중앙기관 연결은 16/45개다.
+# 18차: 새만금개발청 (2026-09-03)
+
+- 공식 공지사항 목록 `https://www.saemangeum.go.kr/sda/brd/list.do?key=2009075579016`이 안내하는 RSS `https://www.saemangeum.go.kr/sda/brd/rssFeed.do?bbsSn=2` 사용.
+- 10개 항목 중 AI 영상 공모전 1건 선별. 기자단 모집, 위촉·합격·수상 결과는 제외한다.
+- 공식 hostname, `/sda/brd/view.do`, 게시판 key, 숫자 nttSn 검증 후 저장한다.
+- RSS 본문의 접수 기간 2026-05-18~06-07을 결과 발표일 06-26과 구분하여 마감 공고로 저장한다. 최근 RSS 10건 범위이며 전체 과거 공고 수집 완료를 뜻하지 않는다.
+- 다음 조사 후보: 재외동포청 `https://www.oka.go.kr/web/board/ajax/list.do?menu_cd=000017&currentPage=1&searchData=contdata&searchText=` (brdList/fstBrdList, num/title/cont/disp_write_dt). start_dt/end_dt 기본값은 신청기간으로 사용하지 않는다. 국세청 `https://www.nts.go.kr/nts/na/ntt/selectNttList.do?bbsId=1011&mi=2207` (a.nttInfoBtn data-id, td[data-table=date]). 두 기관은 경로 조사만 완료했으며 아직 수집기 연결 완료가 아니다.

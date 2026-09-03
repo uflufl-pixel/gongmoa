@@ -1,8 +1,24 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 // @ts-expect-error Native Node TypeScript runner.
-import {centralCollectors,parseCentralBoard,centralGrantCandidate,centralCollectorUrl,centralCollectorAccept,modsReception,mpmReception} from '../lib/central-collectors.ts';
+import {centralCollectors,parseCentralBoard,centralGrantCandidate,centralCollectorUrl,centralCollectorAccept,modsReception,mpmReception,saemangeumReception} from '../lib/central-collectors.ts';
 const c=centralCollectors[0];
+test('Saemangeum RSS accepts official calls but not reporters and appointment results',()=>{
+  const c=centralCollectors.find(x=>x.id==='saemangeum-board')!;
+  const b='<rss><channel>'+['2026 새만금 AI 영상 공모전 공고','기자단 모집','공모전 결과 발표','위원 위촉 명단','합격자 발표'].map((t,i)=>`<item><title>${t}</title><link>https://www.saemangeum.go.kr/sda/brd/view.do?nttSn=${11082+i}&amp;key=2009075579016</link><pubDate>Mon, 18 May 2026 00:55:53 GMT</pubDate></item>`).join('')+'</channel></rss>';
+  const r=parseCentralBoard(b,c);assert.equal(r.parsedRows,5);assert.equal(r.items.length,1);assert.equal(r.items[0].externalId,'11082');assert.equal(r.items[0].announcedFrom,'2026-05-18');assert.equal(r.items[0].applicationTo,null);
+  assert.throws(()=>parseCentralBoard(b.replaceAll('key=2009075579016','key=1'),c));assert.throws(()=>parseCentralBoard(b.replaceAll('www.saemangeum.go.kr','example.com'),c));
+  assert.throws(()=>parseCentralBoard(b.replaceAll('nttSn=11082','nttSn=wrong'),c));
+});
+test('Saemangeum reception distinguishes closing from results and rejects ambiguous dates',()=>{
+  const period='접수 기간 2026년 5월 18일(월) ~ 6월 7일(일)';
+  assert.equal(saemangeumReception(period+' 6. 결과 발표 2026년 6월 26일(금)')?.applicationTo,'2026-06-07');
+  assert.equal(saemangeumReception(period)?.closesAt.toISOString(),'2026-06-07T14:59:59.000Z');
+  assert.equal(saemangeumReception(period+' 18:00까지'),null);
+  assert.equal(saemangeumReception(period.replace('6월 7일','2월 30일')),null);
+  assert.equal(saemangeumReception('결과 발표 2026년 6월 26일(금)'),null);
+  assert.equal(saemangeumReception(period+' 6. 결과 발표 '+period),null);
+});
 test('PPS RSS validates public notice links and excludes winners and administrative plans',()=>{
   const c=centralCollectors.find(x=>x.id==='pps-board')!;
   const b='<rss><channel>'+['(&lsquo;26년 3분기) 공공조달 진출지원 컨설팅 희망기업 모집공고','2026년 혁신&middot;수출기업 모집','혁신제품 전문기관 스카우터 모집 공고','공모전」수상작','조달청 성과관리 시행계획','조달청 국가표준시행계획 공고','입찰 공모','위원 모집'].map((t,i)=>`<item><title><![CDATA[${t}]]></title><link>https://www.pps.go.kr/kor/bbs/view.do?key=00324&amp;bbsSn=${2609010018+i}</link><pubDate>2026-09-01 16:55:41</pubDate></item>`).join('')+'</channel></rss>';

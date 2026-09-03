@@ -3,15 +3,16 @@ import { env } from 'cloudflare:workers';
 import { getDb } from './index';
 import { ensureSeeded } from './queries';
 import { notices, revisions, sourceChecks, sources } from './schema';
-import { bojoDate, unpackBojoPage } from '../lib/bojo-page';
+import { bojoDate } from '../lib/bojo-page';
 import { applicationPeriod } from '../lib/application-period';
 import {centralCollectors,parseCentralBoard,centralCollectorUrl,centralCollectorAccept} from '../lib/central-collectors';
 import {fetchMolitList} from '../lib/molit-fetch';
+import {fetchBojoChanges} from '../lib/bojo-changes';
 
 export const SYNC_BATCHES = [
   ['bojo','bizinfo','moe-board','gov24-orgs','mss-board','kdca-board','mfds-board','moj-board','motir-board','pps-board'],
   ['mcst-board','mois-board','me-board','kocca-support','mafra-board','rda-board','moel-board','moel-support','khs-board','mpm-board'],
-  ['seoul-board','busan-board','incheon-board','daejeon-board','daegu-board','moleg-board','kma-board','molit-board','mods-board','mpva-board'],
+  ['seoul-board','busan-board','incheon-board','daejeon-board','daegu-board','moleg-board','kma-board','molit-board','mods-board','mpva-board','saemangeum-board'],
   ['ulsan-board','jeonbuk-board','gyeongnam-business','chungbuk-board','jeju-board','mohw-board','forest-board','forest-news','mof-board','unikorea-board','nfa-board'],
 ] as const;
 
@@ -226,23 +227,7 @@ function parseKocca(html:string):IncomingNotice[] {
 async function collectBojoApi() {
   const key=env.BOJO_API_KEY;
   if(!key) return null;
-  const kstNow=new Date(Date.now()+9*60*60*1000); const today=kstNow.toISOString().slice(0,10).replaceAll('-','');
-  // Daily runs only need today and yesterday; keeping this window narrow avoids
-  // slow provider fan-out while still covering delayed updates around midnight.
-  const dates=Array.from({length:2},(_,i)=>{const date=new Date(kstNow);date.setUTCDate(date.getUTCDate()-i);return date.toISOString().slice(0,10).replaceAll('-','')});
-  const responses=await Promise.all(dates.map(async date=>{
-    const rows:BojoItem[]=[];
-    for(let page=1;page<=20;page++) {
-    const url=`https://apis.data.go.kr/1051000/MoefOpenAPI2025/T_OPD_ASBS_PBNS_UNITY?serviceKey=${key}&pageNo=${page}&numOfRows=100&resultType=json&bsnsyear=${kstNow.getUTCFullYear()}&pblanc_updt_dt=${date}`;
-    const response=await fetch(url,{headers:{accept:'application/json','user-agent':'GongmoaCollector/1.0'},signal:AbortSignal.timeout(15000)});
-    if(!response.ok) throw new Error(`기획예산처 API HTTP ${response.status}`);
-    const result=unpackBojoPage(await response.json(),page,100);
-    rows.push(...result.rows);
-    if(result.nextPage===null) return rows;
-    }
-    throw new Error('보조금 변경분이 실행 한도를 초과했습니다. 전체 수집으로 보완이 필요합니다.');
-  }));
-  return parseBojoItems(responses.flat());
+  return await fetchBojoChanges(key);
 }
 
 export function parseBojoItems(rows:BojoItem[]) {
@@ -293,10 +278,11 @@ export async function syncOfficialSources(requestedSourceIds?:readonly string[])
   const allSourceItems=await db.select({id:sources.id,url:sources.url,name:sources.name}).from(sources);
   const selected=new Set(requestedSourceIds?.length?requestedSourceIds:SYNC_BATCHES[0]);
   const sourceItems=allSourceItems.filter(source=>selected.has(source.id));
-  const [inspected,bojoItems]=await Promise.all([Promise.all(sourceItems.map(inspectSource)),selected.has('bojo')?collectBojoApi():Promise.resolve(null)]);
-  if(bojoItems) {
+  const [inspected,bojoResult]=await Promise.all([Promise.all(sourceItems.map(inspectSource)),selected.has('bojo')?collectBojoApi():Promise.resolve(null)]);
+  const bojoItems=bojoResult?.ok?parseBojoItems(bojoResult.rows):[];
+  if(bojoResult) {
     const apiCheck=inspected.find(x=>x.check.sourceId==='bojo');
-    if(apiCheck) Object.assign(apiCheck.check,{outcome:'success',statusCode:200,keywordHits:bojoItems.length,pageTitle:'기획예산처 국고보조금 공모사업 API',message:null,finishedAt:new Date()});
+    if(apiCheck) Object.assign(apiCheck.check,{outcome:bojoResult.ok?'success':'fetch_error',statusCode:bojoResult.ok?200:null,keywordHits:bojoResult.ok?bojoItems.length:null,pageTitle:'기획예산처 국고보조금 공모사업 API',message:bojoResult.ok?null:bojoResult.message,finishedAt:new Date()});
   }
   const bizItems=parseBizinfo(inspected.find(x=>x.check.sourceId==='bizinfo')?.body||'');
   const moeItems=parseMoe(inspected.find(x=>x.check.sourceId==='moe-board')?.body||'');

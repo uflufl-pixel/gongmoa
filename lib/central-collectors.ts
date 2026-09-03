@@ -22,6 +22,7 @@ export const centralCollectors=[
   {id:'mpva-board',institutionId:'central-1830000',institution:'국가보훈부',name:'국가보훈부 공지사항',url:'https://www.mpva.go.kr/mpva/selectBbsNttList.do?bbsNo=15&key=76',origin:'https://www.mpva.go.kr',format:'mpva',category:'보훈·사회'},
   {id:'nfa-board',institutionId:'central-1661000',institution:'소방청',name:'소방청 공지사항',url:'https://www.nfa.go.kr/nfa/news/notice/',origin:'https://www.nfa.go.kr',format:'nfa',category:'소방·안전'},
   {id:'pps-board',institutionId:'central-1230000',institution:'조달청',name:'조달청 공지사항 RSS',url:'https://www.pps.go.kr/kor/rssFeed.do?boardId=00026',origin:'https://www.pps.go.kr',format:'rss',category:'조달·기업지원'},
+  {id:'saemangeum-board',institutionId:'central-1730000',institution:'새만금개발청',name:'새만금개발청 공지사항 RSS',url:'https://www.saemangeum.go.kr/sda/brd/rssFeed.do?bbsSn=2',origin:'https://www.saemangeum.go.kr',format:'rss',category:'지역개발·문화'},
 ] as const;
 // Registered rows retain history; audited collector definitions own fetch endpoints.
 export function centralCollectorUrl(id:string,fallback:string){return centralCollectors.find(c=>c.id===id)?.url||fallback;}
@@ -54,6 +55,7 @@ function publicationDate(s:string){
 function identity(raw:string,c:Config){
   const u=new URL(raw,c.origin);if(!['https:','http:'].includes(u.protocol)||u.hostname!==new URL(c.origin).hostname||u.username||u.password)throw new Error('공식 공고 주소 확인 필요');
   let id:string|null=null;
+  if(c.id==='saemangeum-board'&&u.pathname==='/sda/brd/view.do'&&u.searchParams.get('key')==='2009075579016')id=u.searchParams.get('nttSn');
   if(c.id==='pps-board'&&u.pathname==='/kor/bbs/view.do'&&u.searchParams.get('key')==='00324')id=u.searchParams.get('bbsSn');
   if(c.id==='mpva-board'&&u.pathname.replace(/;jsessionid=[A-Za-z0-9+_.-]+$/,'')==='/mpva/selectBbsNttView.do'&&u.searchParams.get('bbsNo')==='15'&&u.searchParams.get('key')==='76'){
     id=u.searchParams.get('nttNo');u.pathname='/mpva/selectBbsNttView.do';u.search=`?bbsNo=15&key=76&nttNo=${id||''}`;
@@ -101,7 +103,7 @@ export function parseCentralBoard(body:string,c:Config){
     if(!/<rss\b/.test(body)||!/<channel>/.test(body))throw new Error('RSS 구조 확인 필요');
     for(const match of body.matchAll(/<item>[\s\S]*?<\/item>/g)){
       const field=(tag:string)=>text(match[0].match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`))?.[1]||'').replace(/&(lsquo|rsquo|middot);/g,(_,entity:string)=>entity==='middot'?'·':"'");
-      rows.push({title:c.id==='kma-board'?text(field('title')):field('title'),link:field('link'),posted:field('pubDate'),description:['mods-board','mpm-board'].includes(c.id)?field('description'):undefined});
+      rows.push({title:c.id==='kma-board'?text(field('title')):field('title'),link:field('link'),posted:field('pubDate'),description:c.id==='saemangeum-board'?field('content:encoded'):['mods-board','mpm-board'].includes(c.id)?field('description'):undefined});
     }
   }else if(c.format==='mpva'||c.format==='nfa'){
     const clean=body.replace(/<!--[\s\S]*?-->/g,'');
@@ -191,11 +193,21 @@ export function parseCentralBoard(body:string,c:Config){
       if(/(사업.*공고|지원\s*대상과제.*공고)/.test(row.title))candidateTitle='지원사업 '+candidateTitle;
     }
     if(!centralGrantCandidate(candidateTitle))return [];
-    const period=c.id==='mods-board'?modsReception(row.description||''):c.id==='mpm-board'?mpmReception(row.description||'',row.title):null;
+    const period=c.id==='saemangeum-board'?saemangeumReception(row.description||''):c.id==='mods-board'?modsReception(row.description||''):c.id==='mpm-board'?mpmReception(row.description||'',row.title):null;
     return [{sourceId:c.id,externalId:ref.id,institution:c.institution,group:'중앙부처',title:row.title,category:c.category,audience:'원문 지원자격 확인',region:null,sourceName:c.name,sourceUrl:ref.url,
       announcedFrom:publicationDate(row.posted),opensAt:period?.opensAt||null,closesAt:period?.closesAt||null,applicationFrom:period?.applicationFrom||null,applicationTo:period?.applicationTo||null,deadlineLabel:period?.applicationTo||'접수기간 원문 확인',status:period&&period.closesAt<new Date()?'closed':'open'}];
   });
   return {items,parsedRows:rows.length};
+}
+
+// Date-only labeled reception block; do not confuse the following results date with closing.
+export function saemangeumReception(value:string){
+  const matches=[...text(value).matchAll(/접수\s*기간\s*:?\s*(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일\([월화수목금토일]\)\s*~\s*(?:(\d{4})년\s*)?(\d{1,2})월\s*(\d{1,2})일\([월화수목금토일]\)(?=\s+\d+\.\s*결과\s*발표|\s*$)/g)];
+  if(matches.length!==1)return null;
+  const m=matches[0],date=(y:string,mo:string,d:string)=>`${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`;
+  const from=date(m[1],m[2],m[3]),to=date(m[4]||m[1],m[5],m[6]);
+  if(publicationDate(from)!==from||publicationDate(to)!==to||from>to)return null;
+  return {applicationFrom:from,applicationTo:to,opensAt:new Date(`${from}T00:00:00+09:00`),closesAt:new Date(`${to}T23:59:59+09:00`)};
 }
 
 // Two-digit MPM reception years are accepted only when the title explicitly agrees.
