@@ -21,6 +21,7 @@ export const centralCollectors=[
   {id:'mpm-board',institutionId:'central-1760000',institution:'인사혁신처',name:'인사혁신처 공지사항 RSS',url:'https://www.mpm.go.kr/board/rss.do?boardId=bbs_0000000000000020&mode=fed&proc=rss',origin:'https://www.mpm.go.kr',format:'rss',category:'행정·문화'},
   {id:'mpva-board',institutionId:'central-1830000',institution:'국가보훈부',name:'국가보훈부 공지사항',url:'https://www.mpva.go.kr/mpva/selectBbsNttList.do?bbsNo=15&key=76',origin:'https://www.mpva.go.kr',format:'mpva',category:'보훈·사회'},
   {id:'nfa-board',institutionId:'central-1661000',institution:'소방청',name:'소방청 공지사항',url:'https://www.nfa.go.kr/nfa/news/notice/',origin:'https://www.nfa.go.kr',format:'nfa',category:'소방·안전'},
+  {id:'pps-board',institutionId:'central-1230000',institution:'조달청',name:'조달청 공지사항 RSS',url:'https://www.pps.go.kr/kor/rssFeed.do?boardId=00026',origin:'https://www.pps.go.kr',format:'rss',category:'조달·기업지원'},
 ] as const;
 // Registered rows retain history; audited collector definitions own fetch endpoints.
 export function centralCollectorUrl(id:string,fallback:string){return centralCollectors.find(c=>c.id===id)?.url||fallback;}
@@ -28,7 +29,7 @@ export function centralCollectorUrl(id:string,fallback:string){return centralCol
 export function centralCollectorAccept(id:string){return centralCollectors.find(c=>c.id===id)?.format==='rss'?'application/rss+xml,application/xml,text/xml;q=0.9,*/*;q=0.5':'text/html,application/xhtml+xml,application/json';}
 type Config=typeof centralCollectors[number];
 export function centralGrantCandidate(title:string){
-  if(/(수상작\s*발표|수상자\s*(공고|발표)|자문단|현장투어|모니터단|서포터즈|정책단|기자단|인플루언서)/.test(title))return false;
+  if(/(수상작\s*(발표|$)|수상자\s*(공고|발표)|자문단|현장투어|모니터단|서포터즈|정책단|기자단|인플루언서)/.test(title))return false;
   if(/(선정\s*공고|우선협상.*선정|최종\s*선정과제)/.test(title))return false;
   if(/(체험단|연수생|면허.*시험|자격시험|대행업체)/.test(title))return false;
   return /(공모|모집|지원사업|신규지원|시행계획|지원계획)/.test(title)&&!/(채용|임원|이사장|기관장|원장|본부장|강사|매니저|후보자|위원|참여단|직위|임용|근로자|공무직|공무원|전입희망|입찰|용역|개찰|결과|합격|공개검증|의견수렴|공시송달|취소|포상|서훈)/.test(title);
@@ -53,6 +54,7 @@ function publicationDate(s:string){
 function identity(raw:string,c:Config){
   const u=new URL(raw,c.origin);if(!['https:','http:'].includes(u.protocol)||u.hostname!==new URL(c.origin).hostname||u.username||u.password)throw new Error('공식 공고 주소 확인 필요');
   let id:string|null=null;
+  if(c.id==='pps-board'&&u.pathname==='/kor/bbs/view.do'&&u.searchParams.get('key')==='00324')id=u.searchParams.get('bbsSn');
   if(c.id==='mpva-board'&&u.pathname.replace(/;jsessionid=[A-Za-z0-9+_.-]+$/,'')==='/mpva/selectBbsNttView.do'&&u.searchParams.get('bbsNo')==='15'&&u.searchParams.get('key')==='76'){
     id=u.searchParams.get('nttNo');u.pathname='/mpva/selectBbsNttView.do';u.search=`?bbsNo=15&key=76&nttNo=${id||''}`;
   }
@@ -98,7 +100,7 @@ export function parseCentralBoard(body:string,c:Config){
   if(c.format==='rss'){
     if(!/<rss\b/.test(body)||!/<channel>/.test(body))throw new Error('RSS 구조 확인 필요');
     for(const match of body.matchAll(/<item>[\s\S]*?<\/item>/g)){
-      const field=(tag:string)=>text(match[0].match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`))?.[1]||'');
+      const field=(tag:string)=>text(match[0].match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`))?.[1]||'').replace(/&(lsquo|rsquo|middot);/g,(_,entity:string)=>entity==='middot'?'·':"'");
       rows.push({title:c.id==='kma-board'?text(field('title')):field('title'),link:field('link'),posted:field('pubDate'),description:['mods-board','mpm-board'].includes(c.id)?field('description'):undefined});
     }
   }else if(c.format==='mpva'||c.format==='nfa'){
@@ -180,6 +182,7 @@ export function parseCentralBoard(body:string,c:Config){
   const items=rows.flatMap(row=>{
     if(!row.title||!row.link)throw new Error('목록 제목·링크 누락');
     const ref=identity(row.link,c);if(seen.has(ref.id))return [];seen.add(ref.id);
+    if(c.id==='pps-board'&&/(성과관리\s*시행계획|국가표준시행계획)/.test(row.title))return [];
     let candidateTitle=c.id==='mfds-board'&&/용역연구개발과제.*주관연구기관.*공모/.test(row.title)?row.title.replace('용역연구개발과제','연구개발과제'):row.title;
     if(c.id==='mpm-board'&&/^20\d{2}년 공무원\s*미술전 작품 공모 안내$/.test(row.title))candidateTitle=row.title.replace('공무원','');
     if(c.id==='mof-board'&&/(신규과제 선정계획|사업대상지.*선정 연장 공고)/.test(row.title))candidateTitle='지원사업 '+candidateTitle;

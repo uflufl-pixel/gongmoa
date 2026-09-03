@@ -3,6 +3,12 @@ import assert from 'node:assert/strict';
 // @ts-expect-error Native Node TypeScript runner.
 import {centralCollectors,parseCentralBoard,centralGrantCandidate,centralCollectorUrl,centralCollectorAccept,modsReception,mpmReception} from '../lib/central-collectors.ts';
 const c=centralCollectors[0];
+test('PPS RSS validates public notice links and excludes winners and administrative plans',()=>{
+  const c=centralCollectors.find(x=>x.id==='pps-board')!;
+  const b='<rss><channel>'+['(&lsquo;26년 3분기) 공공조달 진출지원 컨설팅 희망기업 모집공고','2026년 혁신&middot;수출기업 모집','혁신제품 전문기관 스카우터 모집 공고','공모전」수상작','조달청 성과관리 시행계획','조달청 국가표준시행계획 공고','입찰 공모','위원 모집'].map((t,i)=>`<item><title><![CDATA[${t}]]></title><link>https://www.pps.go.kr/kor/bbs/view.do?key=00324&amp;bbsSn=${2609010018+i}</link><pubDate>2026-09-01 16:55:41</pubDate></item>`).join('')+'</channel></rss>';
+  const r=parseCentralBoard(b,c);assert.equal(r.parsedRows,8);assert.equal(r.items.length,3);assert.equal(r.items[0].title,"('26년 3분기) 공공조달 진출지원 컨설팅 희망기업 모집공고");assert.equal(r.items[1].title,'2026년 혁신·수출기업 모집');assert.equal(r.items[0].announcedFrom,'2026-09-01');assert.equal(r.items[0].applicationTo,null);
+  assert.throws(()=>parseCentralBoard(b.replaceAll('key=00324','key=00000'),c));assert.throws(()=>parseCentralBoard(b.replaceAll('www.pps.go.kr','example.com'),c));
+});
 test('MPVA strips temporary sessions and validates notice-board identity before filtering',()=>{
   const c=centralCollectors.find(x=>x.id==='mpva-board')!;
   const b='<table>'+['제대군인 창업 경진대회 참가자 모집','공시송달 공고','준보훈병원 선정 결과 공고'].map((t,i)=>`<tr><td class="p-subject"><a href="./selectBbsNttView.do;jsessionid=ab+c.node?key=76&amp;bbsNo=15&amp;nttNo=${100+i}&amp;pageIndex=1">${t}</a></td><td >2026-08-18</td></tr>`).join('')+'</table>';
