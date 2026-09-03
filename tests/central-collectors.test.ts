@@ -3,6 +3,13 @@ import assert from 'node:assert/strict';
 // @ts-expect-error Native Node TypeScript runner.
 import {centralCollectors,parseCentralBoard,centralGrantCandidate,centralCollectorUrl,centralCollectorAccept,modsReception,mpmReception,saemangeumReception,okaReception} from '../lib/central-collectors.ts';
 const c=centralCollectors[0];
+test('MOGEF ignores ambiguous RSS pubDate, strips sessions and reads explicit Korean cutoff',()=>{
+  const c=centralCollectors.find(x=>x.id==='mogef-board')!;
+  const b='<rss><channel>'+['성별균형 홍보 콘텐츠 공모전','청소년 행사 주관기관 공모','포상 후보자 모집','자문단 모집'].map((title,i)=>`<item><title>${title}</title><link>http://www.mogef.go.kr/nw/ntc/nw_ntc_s001d.do;jsessionid=ABC+xyz.node?mid=news400&amp;div1=16&amp;bbtSn=${711290+i}</link><pubDate>2026-09-28</pubDate><description>${i===0?'공모기간은 2026년 8월 26일(수)부터 9월 28일(월) 오전 10시까지이며':''}</description></item>`).join('')+'</channel></rss>';
+  const r=parseCentralBoard(b,c);assert.equal(r.items.length,2);assert.equal(r.items[0].announcedFrom,null);assert.equal(r.items[0].closesAt?.toISOString(),'2026-09-28T01:00:00.000Z');assert.equal(r.items[1].applicationTo,null);assert.ok(!r.items[0].sourceUrl.includes('jsessionid'));assert.match(r.items[0].sourceUrl,/^https:/);
+  assert.throws(()=>parseCentralBoard(b.replaceAll('div1=16','div1=1'),c));assert.throws(()=>parseCentralBoard(b.replaceAll('www.mogef.go.kr','example.com'),c));
+  const invalid=parseCentralBoard(b.replace('오전 10시','오전 25시'),c);assert.equal(invalid.items[0].closesAt,null);
+});
 test('NAACC extracts design calls without executing handlers or importing follow-up notices',()=>{
   const c=centralCollectors.find(x=>x.id==='naacc-board')!;
   const b=['세종지방법원 설계공모 공고','대통령 집무실 설계공모 공고(수정)','설계공모 질의답변','설계공모 심사위원 공개','설계공모 결과 공고'].map((title,i)=>`<tr><td><div class="wrap boardTitle"><a href="#none" onclick="fn_goView('${79673+i}')"><span class="tit ">${title}</span></a></div><li class="date">2026-06-09</li></td></tr>`).join('');

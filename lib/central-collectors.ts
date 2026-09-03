@@ -27,6 +27,7 @@ export const centralCollectors=[
   {id:'nts-board',institutionId:'central-1210000',institution:'국세청',name:'국세청 공지사항',url:'https://www.nts.go.kr/nts/na/ntt/selectNttList.do?bbsId=1011&mi=2207',origin:'https://www.nts.go.kr',format:'nts',category:'세정·기업지원'},
   {id:'kcg-board',institutionId:'central-1532000',institution:'해양경찰청',name:'해양경찰청 고시공고',url:'https://www.kcg.go.kr/kcg/na/ntt/selectNttList.do?bbsId=312&mi=2798',origin:'https://www.kcg.go.kr',format:'kcg',category:'해양·안전'},
   {id:'naacc-board',institutionId:'central-1670000',institution:'행정중심복합도시건설청',name:'행복청 설계공모',url:'https://naacc.go.kr/WEB/contents/N3030100000.do',origin:'https://naacc.go.kr',format:'naacc',category:'건축·도시'},
+  {id:'mogef-board',institutionId:'central-1384000',institution:'성평등가족부',name:'성평등가족부 공고 RSS',url:'https://www.mogef.go.kr/rss/rssnews.do?mid=news400&div=16',origin:'https://www.mogef.go.kr',format:'rss',category:'성평등·가족·청소년'},
 ] as const;
 // Registered rows retain history; audited collector definitions own fetch endpoints.
 export function centralCollectorUrl(id:string,fallback:string){return centralCollectors.find(c=>c.id===id)?.url||fallback;}
@@ -59,6 +60,9 @@ function publicationDate(s:string){
 function identity(raw:string,c:Config){
   const u=new URL(raw,c.origin);if(!['https:','http:'].includes(u.protocol)||u.hostname!==new URL(c.origin).hostname||u.username||u.password)throw new Error('공식 공고 주소 확인 필요');
   let id:string|null=null;
+  if(c.id==='mogef-board'&&u.pathname.replace(/;jsessionid=[A-Za-z0-9+_.-]+$/,'')==='/nw/ntc/nw_ntc_s001d.do'&&u.searchParams.get('mid')==='news400'&&u.searchParams.get('div1')==='16'){
+    id=u.searchParams.get('bbtSn');u.pathname='/nw/ntc/nw_ntc_s001d.do';u.search=`?mid=news400&div1=16&bbtSn=${id||''}`;
+  }
   if(c.id==='naacc-board'&&u.pathname==='/WEB/contents/N3030100000.do'&&u.searchParams.get('schM')==='view')id=u.searchParams.get('id');
   if(c.id==='kcg-board'&&u.pathname==='/kcg/na/ntt/selectNttInfo.do')id=u.searchParams.get('nttSn');
   if(c.id==='nts-board'&&u.pathname==='/nts/na/ntt/selectNttInfo.do'&&u.searchParams.get('bbsId')==='1011'&&u.searchParams.get('mi')==='2207')id=u.searchParams.get('nttSn');
@@ -137,7 +141,7 @@ export function parseCentralBoard(body:string,c:Config){
     if(!/<rss\b/.test(body)||!/<channel>/.test(body))throw new Error('RSS 구조 확인 필요');
     for(const match of body.matchAll(/<item>[\s\S]*?<\/item>/g)){
       const field=(tag:string)=>text(match[0].match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`))?.[1]||'').replace(/&(lsquo|rsquo|middot);/g,(_,entity:string)=>entity==='middot'?'·':"'");
-      rows.push({title:c.id==='kma-board'?text(field('title')):field('title'),link:field('link'),posted:field('pubDate'),description:c.id==='saemangeum-board'?field('content:encoded'):['mods-board','mpm-board'].includes(c.id)?field('description'):undefined});
+      rows.push({title:c.id==='kma-board'?text(field('title')):field('title'),link:field('link'),posted:c.id==='mogef-board'?'':field('pubDate'),description:c.id==='saemangeum-board'?field('content:encoded'):['mods-board','mpm-board','mogef-board'].includes(c.id)?field('description'):undefined});
     }
   }else if(c.format==='mpva'||c.format==='nfa'){
     const clean=body.replace(/<!--[\s\S]*?-->/g,'');
@@ -231,11 +235,21 @@ export function parseCentralBoard(body:string,c:Config){
     }
     if(!centralGrantCandidate(candidateTitle))return [];
     const conditional=c.id==='oka-board'&&/잔여\s*사업비.*이후\s*접수분.*소진/.test(row.description||'');
-    const period=c.id==='oka-board'?okaReception(row.description||''):c.id==='saemangeum-board'?saemangeumReception(row.description||''):c.id==='mods-board'?modsReception(row.description||''):c.id==='mpm-board'?mpmReception(row.description||'',row.title):null;
+    const period=c.id==='mogef-board'?mogefReception(row.description||''):c.id==='oka-board'?okaReception(row.description||''):c.id==='saemangeum-board'?saemangeumReception(row.description||''):c.id==='mods-board'?modsReception(row.description||''):c.id==='mpm-board'?mpmReception(row.description||'',row.title):null;
     return [{sourceId:c.id,externalId:ref.id,institution:c.institution,group:'중앙부처',title:row.title,category:c.category,audience:'원문 지원자격 확인',region:null,sourceName:c.name,sourceUrl:ref.url,
       announcedFrom:publicationDate(row.posted),opensAt:period?.opensAt||null,closesAt:period?.closesAt||null,applicationFrom:period?.applicationFrom||null,applicationTo:period?.applicationTo||null,deadlineLabel:conditional?'수시 접수·잔여 사업비 소진 시 종료 (원문 확인)':period?.applicationTo||'접수기간 원문 확인',status:period&&period.closesAt<new Date()?'closed':'open'}];
   });
   return {items,parsedRows:rows.length};
+}
+
+export function mogefReception(value:string){
+  const matches=[...text(value).matchAll(/공모기간은\s*(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일\([월화수목금토일]\)부터\s*(\d{1,2})월\s*(\d{1,2})일\([월화수목금토일]\)\s*(오전|오후)\s*(\d{1,2})시까지/g)];
+  if(matches.length!==1)return null;
+  const m=matches[0],date=(mo:string,d:string)=>`${m[1]}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`;
+  const from=date(m[2],m[3]),to=date(m[4],m[5]),hour=Number(m[7]);
+  if(publicationDate(from)!==from||publicationDate(to)!==to||from>to||hour<1||hour>12)return null;
+  const hh=String(hour%12+(m[6]==='오후'?12:0)).padStart(2,'0');
+  return {applicationFrom:from,applicationTo:to,opensAt:new Date(`${from}T00:00:00+09:00`),closesAt:new Date(`${to}T${hh}:00:00+09:00`)};
 }
 
 export function okaReception(value:string){
