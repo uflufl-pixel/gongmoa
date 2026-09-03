@@ -34,6 +34,7 @@ export const centralCollectors=[
   {id:'pss-board',institutionId:'central-1021100',institution:'대통령경호처',name:'대통령경호처 공지사항',url:'https://www.pss.go.kr/sites/ko/boards/2',origin:'https://www.pss.go.kr',format:'pss',category:'행정·안전'},
   {id:'spo-board',institutionId:'central-1280000',institution:'대검찰청',name:'대검찰청 공지사항',url:'https://www.spo.go.kr/site/spo/ex/board/List.do?cbIdx=1401',origin:'https://www.spo.go.kr',format:'spo',category:'법무·사회'},
   {id:'police-board',institutionId:'central-1320000',institution:'경찰청',name:'경찰청 공지사항',url:'https://www.police.go.kr/user/bbs/BD_selectBbsList.do?q_bbsCode=1001',origin:'https://www.police.go.kr',format:'police',category:'치안·안전'},
+  {id:'moip-board',institutionId:'central-1431000',institution:'지식재산처',name:'지식재산처 공지사항 RSS',url:'https://www.moip.go.kr/ko/annuc/UXmlRssApp.do?menuCd=SCD0200609',origin:'https://www.moip.go.kr',format:'rss',category:'지식재산·기업지원'},
 ] as const;
 // Registered rows retain history; audited collector definitions own fetch endpoints.
 export function centralCollectorUrl(id:string,fallback:string){return centralCollectors.find(c=>c.id===id)?.url||fallback;}
@@ -66,6 +67,9 @@ function publicationDate(s:string){
 function identity(raw:string,c:Config){
   const u=new URL(raw,c.origin);if(!['https:','http:'].includes(u.protocol)||u.hostname!==new URL(c.origin).hostname||u.username||u.password)throw new Error('공식 공고 주소 확인 필요');
   let id:string|null=null;
+  if(c.id==='moip-board'&&u.pathname==='/ko/kpoBultnDetail.do'&&u.searchParams.get('menuCd')==='SCD0200609'&&u.searchParams.get('aprchId')==='BUT0000020'&&u.searchParams.get('sysCd')==='SCD02'){
+    id=u.searchParams.get('ntatcSeq');u.search=`?menuCd=SCD0200609&ntatcSeq=${id||''}&aprchId=BUT0000020&sysCd=SCD02`;u.hash='';
+  }
   if(c.id==='police-board'&&u.pathname==='/user/bbs/BD_selectBbs.do'&&u.searchParams.get('q_bbsCode')==='1001'){
     id=/^\d{17}$/.test(u.searchParams.get('q_bbscttSn')||'')?u.searchParams.get('q_bbscttSn'):null;
     u.search=`?q_bbsCode=1001&q_bbscttSn=${id||''}`;u.hash='';
@@ -282,6 +286,7 @@ export function parseCentralBoard(body:string,c:Config){
   const items=rows.flatMap(row=>{
     if(!row.title||!row.link)throw new Error('목록 제목·링크 누락');
     const ref=identity(row.link,c);if(seen.has(ref.id))return [];seen.add(ref.id);
+    if(c.id==='moip-board'&&/교육.*(?:운영계획|과정).*모집/.test(row.title))return [];
     if(c.id==='police-board'&&/논문\s*모집/.test(row.title))return [];
     if(c.id==='pps-board'&&/(성과관리\s*시행계획|국가표준시행계획)/.test(row.title))return [];
     if(c.id==='spo-board'&&/(캠프.*참가자\s*모집|기술수요조사)/.test(row.title))return [];
