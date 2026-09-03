@@ -3,7 +3,7 @@ import { getDb } from './index';
 import { bookmarks, institutions, noticeReviews, notices, sourceChecks, sources } from './schema';
 import publicRegistry from '../data/public-institutions.json';
 import {centralCollectors} from '../lib/central-collectors';
-import {kiatSource,nipaSource} from '../lib/public-collectors';
+import {kiatSource,nipaSource,keitiSource} from '../lib/public-collectors';
 import {registerCentralInstitutions} from './central-institutions';
 
 const now = new Date('2026-09-01T14:00:00.000Z');
@@ -29,6 +29,7 @@ const seedInstitutions = [
 const seedSources = [
   {...kiatSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...nipaSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
+  {...keitiSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   ...centralCollectors.map(c=>({id:c.id,institutionId:c.institutionId,name:c.name,url:c.url,method:'institution-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now})),
   { id:'bizinfo', institutionId:'mss', name:'기업마당', url:'https://www.bizinfo.go.kr/sii/siia/selectSIIA200View.do', method:'official-index', cadenceMinutes:60, status:'connected', lastSuccessAt:now, createdAt:now },
   { id:'bojo', institutionId:null, name:'보조금통합포털', url:'https://www.bojo.go.kr/retrieveSearchPubBiz.do', method:'official-index', cadenceMinutes:60, status:'connected', lastSuccessAt:now, createdAt:now },

@@ -5,6 +5,17 @@ import {applicationPeriod} from './application-period.ts';
 
 export const kiatSource={id:'kiat-board',institutionId:'public-251',name:'한국산업기술진흥원 사업공고',url:'https://www.kiat.or.kr/front/board/boardContentsListPage.do?board_id=90'};
 export const nipaSource={id:'nipa-board',institutionId:'public-031',name:'정보통신산업진흥원 사업공고',url:'https://www.nipa.kr/home/2-2'};
+export const keitiSource={id:'keiti-board',institutionId:'public-340',name:'한국환경산업기술원 공지·공고',url:'https://www.keiti.re.kr/site/keiti/ex/board/List.do?cbIdx=277'};
+export async function fetchKeitiList(fetcher:typeof fetch=fetch){
+  const signal=AbortSignal.timeout(10000);
+  const pages=await Promise.all([1,2,3].map(async page=>{
+    const r=await fetcher(`${keitiSource.url}&pageIndex=${page}`,{signal,redirect:'manual',headers:{accept:'text/html','user-agent':'GongmoaSourceMonitor/1.1 (+https://gongmoa.uflufl.chatgpt.site)'}});
+    if(!r.ok)throw new Error(`KEITI 목록 HTTP ${r.status}`);
+    const body=await r.text();parseKeitiBoard(body);return body;
+  }));
+  if(new Set(pages.map(p=>parseKeitiBoard(p).rowIds.join(','))).size!==3)throw new Error('KEITI 페이지 중복 확인 필요');
+  return new Response(pages.join('\n'),{headers:{'content-type':'text/html; charset=utf-8'}});
+}
 export function fetchKiatList(fetcher:typeof fetch=fetch){
   return fetcher('https://www.kiat.or.kr/front/board/boardContentsListAjax.do',{
     method:'POST',headers:{'content-type':'application/x-www-form-urlencoded',accept:'text/html','user-agent':'GongmoaSourceMonitor/1.1 (+https://gongmoa.uflufl.chatgpt.site)'},
@@ -13,6 +24,27 @@ export function fetchKiatList(fetcher:typeof fetch=fetch){
 }
 function text(s:string){return s.replace(/<[^>]*>/g,' ').replace(/&nbsp;/gi,' ').replace(/&amp;/gi,'&').replace(/&quot;/gi,'"').replace(/&#(\d+);/g,(_,n)=>Number(n)<=0x10ffff?String.fromCodePoint(Number(n)):'').replace(/\s+/g,' ').trim();}
 function validDay(s:string){return /^\d{4}-\d{2}-\d{2}$/.test(s)&&applicationPeriod(`${s} ~ ${s}`)!==null;}
+export function parseKeitiBoard(html:string){
+  const clean=html.replace(/<!--[\s\S]*?-->/g,'').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'');
+  const lists=[...clean.matchAll(/<div class="thumb">\s*<ul class="list[^\"]*">([\s\S]*?)<\/ul>/g)];
+  if(!lists.length)throw new Error('KEITI 공지 목록 구조 확인 필요');
+  const rows=lists.flatMap(list=>[...list[1].matchAll(/<li\b[^>]*>([\s\S]*?)<\/li>/g)].map(x=>x[1]));
+  if(rows.length<3)throw new Error('KEITI 공지 행 부족');
+  const seen=new Set<string>();
+  const items=rows.flatMap(row=>{
+    const href=row.match(/<a\b[^>]*href="([^"]+)"/)?.[1];
+    const title=text(row.match(/<span class="subject">([\s\S]*?)<\/span>/)?.[1]||'');
+    const posted=text(row.match(/<span class="date">([\s\S]*?)<\/span>/)?.[1]||'');
+    if(!href||!title||!validDay(posted))throw new Error('KEITI 공고 제목·게시일 확인 필요');
+    const u=new URL(text(href),'https://www.keiti.re.kr');const id=u.searchParams.get('bcIdx');
+    if(u.origin!=='https://www.keiti.re.kr'||u.username||u.password||u.pathname!=='/site/keiti/ex/board/View.do'||u.searchParams.get('cbIdx')!=='277'||!id||!/^\d+$/.test(id))throw new Error('KEITI 공식 공고 식별자 확인 필요');
+    if(seen.has(id))return [];seen.add(id);
+    if(/시상|교육생|평가단|세미나|수요\s*조사|신청내용|접수.*종료|신청.*종료/.test(title)||!centralGrantCandidate(title))return [];
+    return [{sourceId:keitiSource.id,externalId:id,institution:'한국환경산업기술원',group:'공사·공단',title,category:'환경·녹색산업',audience:'원문 지원자격 확인',region:null,sourceName:keitiSource.name,
+      sourceUrl:`https://www.keiti.re.kr/site/keiti/ex/board/View.do?cbIdx=277&bcIdx=${id}`,announcedFrom:posted,applicationFrom:null,applicationTo:null,opensAt:null,closesAt:null,deadlineLabel:'접수기간 원문 확인',status:'open',ministry:'기후에너지환경부'}];
+  });
+  return {items,parsedRows:rows.length,rowIds:[...seen]};
+}
 export function parseKiatBoard(html:string,now=Date.now()){
   const clean=html.replace(/<!--[\s\S]*?-->/g,'').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'');
   const table=clean.match(/<table\b[^>]*>\s*<caption>사업공고 리스트 화면<\/caption>([\s\S]*?)<\/table>/)?.[1];
@@ -61,6 +93,30 @@ export function parseNipaBoard(html:string,now=Date.now()){
     if(/수요\s*조사|설명회|세미나/.test(title)||!/(공모|모집|공고)/.test(title)||!centralGrantCandidate('지원사업 '+title))return [];
     return [{sourceId:nipaSource.id,externalId:id,institution:'정보통신산업진흥원',group:'공사·공단',title,category:'ICT·디지털',audience:'원문 지원자격 확인',region:null,sourceName:nipaSource.name,sourceUrl:`https://www.nipa.kr${link[1]}`,
       announcedFrom:posted,...range,deadlineLabel:period,status:range.closesAt.getTime()<now?'closed':'open',ministry:'과학기술정보통신부'}];
+  });
+  return {items,parsedRows:rows.length};
+}
+
+export function parseKoccaBoard(html:string,now=Date.now()){
+  const clean=html.replace(/<!--[\s\S]*?-->/g,'').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'');
+  const rows=[...clean.matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)].map(x=>x[0]).filter(x=>x.includes('data-label="제목"'));
+  if(rows.length<3)throw new Error('KOCCA 공고 행 부족');
+  const seen=new Set<string>();
+  const items=rows.flatMap(row=>{
+    const cell=row.match(/<td\b[^>]*data-label="제목"[^>]*>([\s\S]*?)<\/td>/)?.[1]||'';
+    const a=cell.match(/<a\b[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/);
+    const field=(label:string)=>text(row.match(new RegExp(`<td[^>]*data-label="${label}"[^>]*>([\\s\\S]*?)<\\/td>`))?.[1]||'');
+    const short=(s:string)=>/^\d{2}\.\d{2}\.\d{2}$/.test(s)?`20${s.replaceAll('.','-')}`:'';
+    const posted=short(field('공고일')),period=field('접수기간');const dates=period.split(/\s*~\s*/).map(short);
+    const range=dates.length===2?applicationPeriod(`${dates[0]} ~ ${dates[1]}`):null;
+    const continuous=/상시|소진\s*시/.test(text(a?.[2]||''))||/^상시(?:\s*모집)?$/.test(period);
+    if(!a||!text(a[2])||!validDay(posted)||(!continuous&&!range))throw new Error('KOCCA 제목·접수기간 확인 필요');
+    const u=new URL(text(a[1]),'https://www.kocca.kr'),id=u.searchParams.get('intcNo');
+    if(u.origin!=='https://www.kocca.kr'||u.username||u.password||u.pathname!=='/kocca/pims/view.do'||u.searchParams.get('menuNo')!=='204104'||!id||!/^\d{3}[A-Z]\d{8}$/.test(id))throw new Error('KOCCA 공식 공고 식별자 확인 필요');
+    if(seen.has(id))return [];seen.add(id);const title=text(a[2]);if(!centralGrantCandidate(title))return [];
+    return [{sourceId:'kocca-support',externalId:id,institution:'한국콘텐츠진흥원',group:'공사·공단',title,category:'문화·콘텐츠',audience:'원문 지원자격 확인',region:null,sourceName:'한국콘텐츠진흥원 지원공고',sourceUrl:`https://www.kocca.kr/kocca/pims/view.do?intcNo=${id}&menuNo=204104`,announcedFrom:posted,
+      applicationFrom:continuous?null:range!.applicationFrom,applicationTo:continuous?null:range!.applicationTo,opensAt:continuous?null:range!.opensAt,closesAt:continuous?null:range!.closesAt,
+      deadlineLabel:continuous?'상시 모집 · 원문 접수조건 확인':`${range!.applicationFrom} ~ ${range!.applicationTo} · 일자 기준, 마감시각 원문 확인`,status:!continuous&&range!.closesAt.getTime()<now?'closed':'open',ministry:'문화체육관광부'}];
   });
   return {items,parsedRows:rows.length};
 }

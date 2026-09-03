@@ -10,12 +10,12 @@ import {fetchMolitList} from '../lib/molit-fetch';
 import {fetchPoliceList} from '../lib/police-fetch';
 import {fetchBojoChanges} from '../lib/bojo-changes';
 import {fetchTextWithDiagnostics,FetchDiagnosticError} from '../lib/fetch-diagnostics';
-import {fetchKiatList,parseKiatBoard,parseNipaBoard} from '../lib/public-collectors';
+import {fetchKiatList,parseKiatBoard,parseNipaBoard,fetchKeitiList,parseKeitiBoard,parseKoccaBoard} from '../lib/public-collectors';
 
 export const SYNC_BATCHES = [
   ['bojo','bizinfo','moe-board','gov24-orgs','mss-board','kdca-board','mfds-board','moj-board','motir-board','pps-board','mogef-board','mofe-board','police-board','dapa-board','kiat-board'],
   ['mcst-board','mois-board','me-board','kocca-support','mafra-board','rda-board','moel-board','moel-support','khs-board','mpm-board','oka-board','naacc-board','cio-board','moip-board','nipa-board'],
-  ['seoul-board','busan-board','incheon-board','daejeon-board','daegu-board','moleg-board','kma-board','molit-board','mods-board','mpva-board','saemangeum-board','kcg-board','pss-board','mnd-board'],
+  ['seoul-board','busan-board','incheon-board','daejeon-board','daegu-board','moleg-board','kma-board','molit-board','mods-board','mpva-board','saemangeum-board','kcg-board','pss-board','mnd-board','keiti-board'],
   ['ulsan-board','jeonbuk-board','gyeongnam-business','chungbuk-board','jeju-board','mohw-board','forest-board','forest-news','mof-board','unikorea-board','nfa-board','nts-board','mma-board','spo-board','kasa-board'],
 ] as const;
 
@@ -29,8 +29,8 @@ async function sha256(value:string) {
 async function inspectSource(source:{id:string;url:string;name:string}) {
   const startedAt=new Date();
   try {
-    const fetchUrl=source.id==='bojo'?'https://www.bojo.go.kr/':source.id==='kocca-support'?'https://www.kocca.kr/xml/rss/rss_pims.xml':centralCollectorUrl(source.id,source.url);
-    const request=()=>source.id==='kiat-board'?fetchKiatList():source.id==='police-board'?fetchPoliceList():source.id==='molit-board'?fetchMolitList():fetch(fetchUrl,{headers:{accept:centralCollectorAccept(source.id),'user-agent':'GongmoaSourceMonitor/1.1 (+https://gongmoa.uflufl.chatgpt.site)'},signal:AbortSignal.timeout(10000),redirect:'follow'});
+    const fetchUrl=source.id==='bojo'?'https://www.bojo.go.kr/':source.id==='kocca-support'?'https://www.kocca.kr/kocca/pims/list.do?menuNo=204104':centralCollectorUrl(source.id,source.url);
+    const request=()=>source.id==='keiti-board'?fetchKeitiList():source.id==='kiat-board'?fetchKiatList():source.id==='police-board'?fetchPoliceList():source.id==='molit-board'?fetchMolitList():fetch(fetchUrl,{headers:{accept:centralCollectorAccept(source.id),'user-agent':'GongmoaSourceMonitor/1.1 (+https://gongmoa.uflufl.chatgpt.site)'},signal:AbortSignal.timeout(10000),redirect:'follow'});
     let response:Response,body:string;
     if(source.id==='mnd-board')({response,body}=await fetchTextWithDiagnostics(request));
     else {
@@ -305,7 +305,7 @@ export async function syncOfficialSources(requestedSourceIds?:readonly string[])
   const gyeongnamBody=inspected.find(x=>x.check.sourceId==='gyeongnam-business')?.body||''; const gyeongnamItems=parseGyeongnamBusiness(gyeongnamBody);
   const chungbukBody=inspected.find(x=>x.check.sourceId==='chungbuk-board')?.body||''; const chungbukItems=parseChungbuk(chungbukBody);
   const jejuBody=inspected.find(x=>x.check.sourceId==='jeju-board')?.body||''; const jejuItems=parseJeju(jejuBody);
-  const koccaBody=inspected.find(x=>x.check.sourceId==='kocca-support')?.body||''; const koccaItems=parseKocca(koccaBody);
+  let koccaItems:IncomingNotice[]=[];
   for(const [sourceId,count,minimum] of [['bizinfo',bizItems.length,5],['moe-board',moeItems.length,1]] as const) {
     const parsed=inspected.find(x=>x.check.sourceId===sourceId);
     if(parsed?.check.outcome==='success'&&count<minimum) Object.assign(parsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: ${count}건 해석`,finishedAt:new Date()});
@@ -336,9 +336,17 @@ export async function syncOfficialSources(requestedSourceIds?:readonly string[])
   }
   const jejuParsed=inspected.find(x=>x.check.sourceId==='jeju-board');
   if(jejuParsed?.check.outcome==='success'&&(!jejuBody.includes('"gosis"')||jejuItems.length<1)) Object.assign(jejuParsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: ${jejuItems.length}건 해석`,finishedAt:new Date()});
-  const koccaParsed=inspected.find(x=>x.check.sourceId==='kocca-support'); const koccaLinks=(koccaBody.match(/intcNo=[A-Z0-9]+/g)||[]).length;
-  if(koccaParsed?.check.outcome==='success'&&koccaLinks<5) Object.assign(koccaParsed.check,{outcome:'parser_error',message:`목록 구조 확인 필요: 링크 ${koccaLinks}건`,finishedAt:new Date()});
+  const koccaParsed=inspected.find(x=>x.check.sourceId==='kocca-support');
+  if(koccaParsed?.body&&koccaParsed.check.outcome==='success'){
+    try{const parsed=parseKoccaBoard(koccaParsed.body);koccaItems=parsed.items;koccaParsed.check.message=`목록 ${parsed.parsedRows}건 확인 · 공모 후보 ${parsed.items.length}건`;}
+    catch(error){koccaParsed.check.outcome='parser_error';koccaParsed.check.message=error instanceof Error?error.message:'KOCCA 공고 구조 확인 필요';}
+  }
   const centralItems:IncomingNotice[]=[];
+  const keiti=inspected.find(x=>x.check.sourceId==='keiti-board');
+  if(keiti?.body&&keiti.check.outcome==='success'){
+    try{const parsed=parseKeitiBoard(keiti.body);centralItems.push(...parsed.items);keiti.check.message=`최근 3페이지 ${parsed.parsedRows}건 확인 · 공모 후보 ${parsed.items.length}건`;}
+    catch(error){keiti.check.outcome='parser_error';keiti.check.message=error instanceof Error?error.message:'KEITI 공고 구조 확인 필요';}
+  }
   const nipa=inspected.find(x=>x.check.sourceId==='nipa-board');
   if(nipa?.body&&nipa.check.outcome==='success'){
     try{const parsed=parseNipaBoard(nipa.body);centralItems.push(...parsed.items);nipa.check.message=`목록 ${parsed.parsedRows}건 확인 · 공모 후보 ${parsed.items.length}건`;}
