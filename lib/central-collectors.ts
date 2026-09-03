@@ -28,6 +28,7 @@ export const centralCollectors=[
   {id:'kcg-board',institutionId:'central-1532000',institution:'해양경찰청',name:'해양경찰청 고시공고',url:'https://www.kcg.go.kr/kcg/na/ntt/selectNttList.do?bbsId=312&mi=2798',origin:'https://www.kcg.go.kr',format:'kcg',category:'해양·안전'},
   {id:'naacc-board',institutionId:'central-1670000',institution:'행정중심복합도시건설청',name:'행복청 설계공모',url:'https://naacc.go.kr/WEB/contents/N3030100000.do',origin:'https://naacc.go.kr',format:'naacc',category:'건축·도시'},
   {id:'mogef-board',institutionId:'central-1384000',institution:'성평등가족부',name:'성평등가족부 공고 RSS',url:'https://www.mogef.go.kr/rss/rssnews.do?mid=news400&div=16',origin:'https://www.mogef.go.kr',format:'rss',category:'성평등·가족·청소년'},
+  {id:'mma-board',institutionId:'central-1300000',institution:'병무청',name:'병무청 공모 검색',url:'https://www.mma.go.kr/board/boardList.do?mc=usr0000379&gesipan_id=2&searchCondition=gsgjemok_nm&searchKeyword=%EA%B3%B5%EB%AA%A8',origin:'https://www.mma.go.kr',format:'mma',category:'병무·문화'},
 ] as const;
 // Registered rows retain history; audited collector definitions own fetch endpoints.
 export function centralCollectorUrl(id:string,fallback:string){return centralCollectors.find(c=>c.id===id)?.url||fallback;}
@@ -60,6 +61,9 @@ function publicationDate(s:string){
 function identity(raw:string,c:Config){
   const u=new URL(raw,c.origin);if(!['https:','http:'].includes(u.protocol)||u.hostname!==new URL(c.origin).hostname||u.username||u.password)throw new Error('공식 공고 주소 확인 필요');
   let id:string|null=null;
+  if(c.id==='mma-board'&&u.pathname==='/board/boardView.do'&&u.searchParams.get('gesipan_id')==='2'&&u.searchParams.get('mc')==='usr0000379'){
+    id=u.searchParams.get('gsgeul_no');u.search=`?mc=usr0000379&gesipan_id=2&gsgeul_no=${id||''}`;
+  }
   if(c.id==='mogef-board'&&u.pathname.replace(/;jsessionid=[A-Za-z0-9+_.-]+$/,'')==='/nw/ntc/nw_ntc_s001d.do'&&u.searchParams.get('mid')==='news400'&&u.searchParams.get('div1')==='16'){
     id=u.searchParams.get('bbtSn');u.pathname='/nw/ntc/nw_ntc_s001d.do';u.search=`?mid=news400&div1=16&bbtSn=${id||''}`;
   }
@@ -111,7 +115,12 @@ function identity(raw:string,c:Config){
 }
 export function parseCentralBoard(body:string,c:Config){
   const rows:Array<{title:string;link:string;posted:string;description?:string}>=[];
-  if(c.format==='naacc'){
+  if(c.format==='mma'){
+    for(const match of body.replace(/<!--[\s\S]*?-->/g,'').matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)){
+      const a=match[0].match(/<td class="text_left">\s*(?:<strong>\s*)?<a href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/);if(!a)continue;
+      rows.push({title:text(a[2]),link:new URL(text(a[1]),c.url).href,posted:match[0].match(/<td[^>]*>\s*(?:<strong>\s*)?(\d{4}-\d{2}-\d{2})/)?.[1]||''});
+    }
+  }else if(c.format==='naacc'){
     for(const match of body.replace(/<!--[\s\S]*?-->/g,'').matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)){
       if(!match[0].includes('boardTitle'))continue;
       const id=match[0].match(/onclick="fn_goView\('(\d+)'\)"/)?.[1],title=match[0].match(/<span class="tit\s*">([\s\S]*?)<\/span>/)?.[1];
@@ -240,6 +249,33 @@ export function parseCentralBoard(body:string,c:Config){
       announcedFrom:publicationDate(row.posted),opensAt:period?.opensAt||null,closesAt:period?.closesAt||null,applicationFrom:period?.applicationFrom||null,applicationTo:period?.applicationTo||null,deadlineLabel:conditional?'수시 접수·잔여 사업비 소진 시 종료 (원문 확인)':period?.applicationTo||'접수기간 원문 확인',status:period&&period.closesAt<new Date()?'closed':'open'}];
   });
   return {items,parsedRows:rows.length};
+}
+
+export function parseMmaDetail(body:string, expectedTitle:string){
+  const title=text(body.match(/<th[^>]*>제목<\/th>\s*<td[^>]*>([\s\S]*?)<\/td>/)?.[1]||'');
+  const content=text(body.match(/<td[^>]*class="con_text"[^>]*>([\s\S]*?)<\/td>/)?.[1]||'');
+  if(!title||!content||!title.startsWith(expectedTitle.replace(/\s*\.\.\.$/,'').trim()))throw new Error('병무청 상세 제목·본문 확인 필요');
+  const matches=[...content.matchAll(/공모기간\s*:\s*(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\s*~\s*(\d{1,2})\.\s*(\d{1,2})\.\s*\(\d+개월\)/g)];
+  let period=null;
+  if(matches.length===1){
+    const m=matches[0],date=(mo:string,d:string)=>`${m[1]}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`;
+    const from=date(m[2],m[3]),to=date(m[4],m[5]);
+    if(publicationDate(from)===from&&publicationDate(to)===to&&from<=to)period={applicationFrom:from,applicationTo:to,opensAt:new Date(`${from}T00:00:00+09:00`),closesAt:new Date(`${to}T23:59:59+09:00`)};
+  }
+  return {title,period};
+}
+
+export async function enrichMmaItems(items:ReturnType<typeof parseCentralBoard>['items'],fetcher:typeof fetch=fetch){
+  if(items.length>3)throw new Error('병무청 상세 수집 한도 초과: 분할 수집 필요');
+  const c=centralCollectors.find(c=>c.id==='mma-board')!;
+  return (await Promise.all(items.map(async item=>{
+    if(item.sourceId!==c.id||identity(item.sourceUrl,c).id!==item.externalId)throw new Error('병무청 상세 주소 확인 필요');
+    const r=await fetcher(item.sourceUrl,{headers:{accept:'text/html'},signal:AbortSignal.timeout(10000)});
+    if(!r.ok||identity(r.url||item.sourceUrl,c).id!==item.externalId)throw new Error('병무청 상세 응답 확인 필요');
+    const detail=parseMmaDetail(await r.text(),item.title);
+    if(!centralGrantCandidate(detail.title))return [];
+    return [{...item,title:detail.title,...(detail.period||{}),deadlineLabel:detail.period?.applicationTo||item.deadlineLabel,status:detail.period&&detail.period.closesAt<new Date()?'closed':item.status}];
+  }))).flat();
 }
 
 export function mogefReception(value:string){

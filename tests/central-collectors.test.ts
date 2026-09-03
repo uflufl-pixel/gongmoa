@@ -1,8 +1,21 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 // @ts-expect-error Native Node TypeScript runner.
-import {centralCollectors,parseCentralBoard,centralGrantCandidate,centralCollectorUrl,centralCollectorAccept,modsReception,mpmReception,saemangeumReception,okaReception} from '../lib/central-collectors.ts';
+import {centralCollectors,parseCentralBoard,centralGrantCandidate,centralCollectorUrl,centralCollectorAccept,modsReception,mpmReception,saemangeumReception,okaReception,parseMmaDetail,enrichMmaItems} from '../lib/central-collectors.ts';
 const c=centralCollectors[0];
+test('MMA deduplicates pinned calls, excludes public positions and enriches verified detail',async()=>{
+  const c=centralCollectors.find(x=>x.id==='mma-board')!;
+  const title='2026년 사회복무요원 체험수기·사진 공모';
+  const row=(id:number,t:string)=>`<tr><td class="text_left"><strong><a href="boardView.do?gesipan_id=2&amp;mc=usr0000379&amp;gsgeul_no=${id}">${t}</a></strong></td><td><strong>2026-06-29</strong></td></tr>`;
+  const b=row(1522495,title)+row(1522495,title)+row(1522094,'과장급 공모직위');
+  const parsed=parseCentralBoard(b,c);assert.equal(parsed.items.length,1);assert.equal(parsed.items[0].announcedFrom,'2026-06-29');
+  const detail=`<th>제목</th><td>${title}</td><td class="con_text">공모기간 :2026. 6. 29. ~ 8. 28.(2개월)</td>`;
+  const items=await enrichMmaItems(parsed.items,async()=>new Response(detail));assert.equal(items[0].status,'closed');assert.equal(items[0].applicationTo,'2026-08-28');
+  assert.throws(()=>parseMmaDetail(detail,'다른 공모'));assert.equal(parseMmaDetail(detail.replace('8. 28.','2. 30.'),title).period,null);
+  await assert.rejects(()=>enrichMmaItems(parsed.items,async()=>new Response('error',{status:503})));
+  await assert.rejects(()=>enrichMmaItems([...parsed.items,...parsed.items,...parsed.items,...parsed.items]));
+  assert.throws(()=>parseCentralBoard(b.replaceAll('gesipan_id=2','gesipan_id=3'),c));
+});
 test('MOGEF ignores ambiguous RSS pubDate, strips sessions and reads explicit Korean cutoff',()=>{
   const c=centralCollectors.find(x=>x.id==='mogef-board')!;
   const b='<rss><channel>'+['성별균형 홍보 콘텐츠 공모전','청소년 행사 주관기관 공모','포상 후보자 모집','자문단 모집'].map((title,i)=>`<item><title>${title}</title><link>http://www.mogef.go.kr/nw/ntc/nw_ntc_s001d.do;jsessionid=ABC+xyz.node?mid=news400&amp;div1=16&amp;bbtSn=${711290+i}</link><pubDate>2026-09-28</pubDate><description>${i===0?'공모기간은 2026년 8월 26일(수)부터 9월 28일(월) 오전 10시까지이며':''}</description></item>`).join('')+'</channel></rss>';

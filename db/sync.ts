@@ -5,7 +5,7 @@ import { ensureSeeded } from './queries';
 import { notices, revisions, sourceChecks, sources } from './schema';
 import { bojoDate } from '../lib/bojo-page';
 import { applicationPeriod } from '../lib/application-period';
-import {centralCollectors,parseCentralBoard,centralCollectorUrl,centralCollectorAccept} from '../lib/central-collectors';
+import {centralCollectors,parseCentralBoard,centralCollectorUrl,centralCollectorAccept,enrichMmaItems} from '../lib/central-collectors';
 import {fetchMolitList} from '../lib/molit-fetch';
 import {fetchBojoChanges} from '../lib/bojo-changes';
 
@@ -13,7 +13,7 @@ export const SYNC_BATCHES = [
   ['bojo','bizinfo','moe-board','gov24-orgs','mss-board','kdca-board','mfds-board','moj-board','motir-board','pps-board','mogef-board'],
   ['mcst-board','mois-board','me-board','kocca-support','mafra-board','rda-board','moel-board','moel-support','khs-board','mpm-board','oka-board','naacc-board'],
   ['seoul-board','busan-board','incheon-board','daejeon-board','daegu-board','moleg-board','kma-board','molit-board','mods-board','mpva-board','saemangeum-board','kcg-board'],
-  ['ulsan-board','jeonbuk-board','gyeongnam-business','chungbuk-board','jeju-board','mohw-board','forest-board','forest-news','mof-board','unikorea-board','nfa-board','nts-board'],
+  ['ulsan-board','jeonbuk-board','gyeongnam-business','chungbuk-board','jeju-board','mohw-board','forest-board','forest-news','mof-board','unikorea-board','nfa-board','nts-board','mma-board'],
 ] as const;
 
 const decoder=(value:string)=>value.replace(/<[^>]+>/g,' ').replace(/&#(x?[0-9a-f]+);/gi,(_,n)=>String.fromCodePoint(n[0].toLowerCase()==='x'?parseInt(n.slice(1),16):parseInt(n,10))).replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&middot;/g,'·').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();
@@ -335,7 +335,7 @@ export async function syncOfficialSources(requestedSourceIds?:readonly string[])
   const centralItems:IncomingNotice[]=[];
   for(const config of centralCollectors){
     const result=inspected.find(x=>x.check.sourceId===config.id);if(!result?.body||result.check.outcome!=='success')continue;
-    try{const parsed=parseCentralBoard(result.body,config);centralItems.push(...parsed.items);result.check.message=`목록 ${parsed.parsedRows}건 확인 · 공모 후보 ${parsed.items.length}건`;}
+    try{const parsed=parseCentralBoard(result.body,config);const items=config.id==='mma-board'?await enrichMmaItems(parsed.items):parsed.items;centralItems.push(...items);result.check.message=`목록 ${parsed.parsedRows}건 확인 · 공모 후보 ${items.length}건`;}
     catch(error){result.check.outcome='parser_error';result.check.message=error instanceof Error?error.message:'공고 구조 확인 필요';}
   }
   for(const result of inspected) {
