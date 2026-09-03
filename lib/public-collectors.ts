@@ -53,7 +53,7 @@ export function parseNipaBoard(html:string,now=Date.now()){
     const cell=row.match(/<td class="tl">([\s\S]*?)<\/td>/)?.[1]||'';
     const link=cell.match(/<a\b[^>]*href="(\/home\/2-2\/(\d+))"[^>]*>([\s\S]*?)<\/a>/);
     const period=text(cell.match(/<span class="bco">\s*신청기간\s*:\s*([\s\S]*?)<\/span>/)?.[1]||'');
-    const range=applicationPeriod(period);
+    const range=/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}\s*~\s*\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(period)?applicationPeriod(period):null;
     const cells=[...row.matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/g)];
     const posted=text(cells.at(-1)?.[1]||'');
     if(!link||!text(link[3])||!range||!validDay(posted))throw new Error('NIPA 공고 식별자·신청기간 확인 필요');

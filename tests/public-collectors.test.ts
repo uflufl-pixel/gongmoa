@@ -21,6 +21,7 @@ const nipaRow=(id:string,title:string)=>`<tr><td>1</td><td class="tl"><div><a hr
 test('NIPA keeps exact KST cutoff, validates official path and distinguishes errors from zero candidates',()=>{
   const body='<table class="tbgg"><tbody>'+nipaRow('16921','AI 사업 공고')+nipaRow('16900','입주기업 모집')+nipaRow('16899','산업 유공자 포상 공고')+'</tbody></table>';
   const parsed=parseNipaBoard(body,now);assert.equal(parsed.parsedRows,3);assert.equal(parsed.items.length,2);assert.equal(parsed.items[0].closesAt.toISOString(),'2026-09-23T06:00:00.000Z');assert.equal(parsed.items[0].sourceUrl,'https://www.nipa.kr/home/2-2/16921');
+  assert.throws(()=>parseNipaBoard(body.replaceAll(' 15:00',''),now));
   assert.equal(parseNipaBoard(body,Date.parse('2026-09-23T15:01:00+09:00')).items[0].status,'closed');
   for(const bad of [body.replace('/home/2-2/16921','https://evil.test/16921'),body.replace('/home/2-2/16921','/home/2-3/16921'),body.replace('2026-09-23 15:00','2026-09-23 25:00'),body.replace('신청기간','게시기간'),body.replace('class="tbgg"','class="other"')])assert.throws(()=>parseNipaBoard(bad,now));
   assert.equal(parseNipaBoard(body.replace('AI 사업 공고','채용 공고').replace('입주기업 모집','입찰 공고'),now).items.length,0);
