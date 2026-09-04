@@ -2,6 +2,8 @@
 import {namhaeUrl,verifyNamhaeEvidence} from './namhae-evidence.ts';
 // @ts-expect-error Native Node tests use explicit extensions.
 import {ripcSourceUrl,verifyRipcEvidence} from './ripc-evidence.ts';
+// @ts-expect-error Native Node tests use explicit extensions.
+import {tourazUrl,verifyTourazEvidence} from './touraz-evidence.ts';
 export type GrantEvidence={purpose:string;audience:string;support:string;application:string};
 type Reception={applicationFrom:string;applicationTo:string}&({deadlinePrecision:'date';closesAt:null}|{deadlinePrecision?:'time';closesAt:string});
 export type GrantAudit={sourceId:string;externalId:string;sourceUrl:string;title:string;contentHash:string;detailHash:string;checkedAt:string;evidence:GrantEvidence;reception?:Reception};
@@ -48,6 +50,11 @@ export const grantAudits:GrantAudit[]=[{
   title:'[강원] 남부권 2026년 소상공인 IP창출지원 레시피 특허 출원 지원사업 모집 공고',contentHash:'797d5e7e8ad53455b98ed0c12194f6d255ae5f8e7020ca2cd82351d539b8ac55',detailHash:'0565e5c1522fc195757cacce8b8e6915b8a1780cc0ec59ef8d7080592bf68c65',checkedAt:'2026-09-04T22:30:00.000Z',
   reception:{applicationFrom:'2026-09-01',applicationTo:'2026-09-10',closesAt:'2026-09-10T08:00:00.000Z'},
   evidence:{purpose:'소상공인이 보유한 음식 조리·식품 제조 레시피를 특허로 출원해 지식재산 피해를 예방하고 안정적 성장을 지원',audience:'사업자등록증을 보유한 소상공인 대표자로, 2026년 상표출원 지원 또는 IP창출 종합패키지 중 정확히 하나를 지원받고 즉시 출원할 정도로 구체적인 레시피를 보유해야 함. 휴·폐업, 금융기관 불량거래, 비영리, 프랜차이즈 가맹점·가맹점이 있는 본부 등 제외. 공고별 관할지역과 제외업종 세부표는 원문에서 미확인',support:'분담금 포함 375만원 이내. 소상공인 분담 20%(현금10%+현물10%), 출원·등록 관납료 별도. 지원금은 선정 협력기관에 지급되며 신청자 현금지원이 아님',application:'RIPC 지원사업 신청시스템에서 지원기업으로 가입해 활용계획서를 제출. 2026년 9월 10일 17시 마감. 공식 본문과 HWP 공고문을 대조했으며 개인별 적격성·실제 제출 성공은 별도 확인'},
+},{
+  sourceId:'touraz-kto',externalId:'1709',sourceUrl:tourazUrl,
+  title:'2027 무장애 관광환경 조성 사업 공모 실시',contentHash:'de9aadd6d0f93490d19e499e3c32dbadc236a34b5c48077b39a199ce7c6bd767',detailHash:'6cb5b4bce1fda2d08f3339d8e68462d25a495e7066cbb6282fad670ae68e7c07',checkedAt:'2026-09-04T23:00:00.000Z',
+  reception:{applicationFrom:'2026-09-07',applicationTo:'2026-09-30',closesAt:null,deadlinePrecision:'date'},
+  evidence:{purpose:'관광지의 물리적·정보적·콘텐츠 접근성을 개선하고 관광교통·민간시설·안내거점·여행상품을 연계한 무장애 관광환경 조성',audience:'광역(시·도) 및 기초자치단체(시·군·자치구). 열린관광지는 원칙적으로 2~4개 관광지점을 권역으로 신청하며 일부 기존 열린관광지·플러스 유형은 단일 지점 가능. 동일 내용 국가보조금 중복지원 불가, 제주는 국비 제외. 민간시설·사업자는 구성에 참여할 수 있으나 직접 신청자가 아님',support:'열린관광지 30개 지점, 지점당 국비 2.5억원. 연계성 강화 1개 권역, 3년간 국비 최대 40억원(10억·15억·15억). 두 분야 모두 국비의 100% 이상 지방비 매칭이며 선정규모·국비는 예산확정·재정협의에 따라 변경 가능',application:'2026년 9월 7일~9월 30일. 공문과 우편을 모두 접수기간 내 도착시켜야 함. 공문은 신청서·전체 전자파일, 우편은 사업계획서 1부·날인 확약서·증빙자료. 기초지자체는 소속 광역에도 공문 발송. 도착 마감시각은 안내서에 없어 날짜형으로 표시'},
 }];
 type RecordIdentity={sourceId:string;externalId:string;sourceUrl:string;title:string;contentHash:string};
 export function verifyGrant(n:RecordIdentity,audits:GrantAudit[]=grantAudits,now=Date.now()):GrantVerification{
@@ -81,6 +88,10 @@ export async function verifyGrantDetail(n:RecordIdentity,fetcher:typeof fetch=fe
   if(audit.sourceUrl===ripcSourceUrl){
     try{await verifyRipcEvidence(audit.detailHash,fetcher);return {...result,reason:'공식 본문·HWP 공고문 4개 요건 확인 · 관할지역·세부 제외업종·개인별 신청자격 별도 확인'};}
     catch(error){const message=error instanceof Error?error.message:'';const safe=['RIPC 본문 변경','RIPC 첨부 변경 또는 오류 응답','RIPC 공고문 첨부 연결 변경','RIPC 상세 필수항목 누락','RIPC 공고 제목 불일치','근거 HTTP 응답 오류','근거 크기 제한 초과'].includes(message)?message:'공식 근거 조회 지연 또는 구조 오류';return {status:'candidate',reason:`${safe} · 재검토 필요`};}
+  }
+  if(audit.sourceUrl===tourazUrl){
+    try{await verifyTourazEvidence(audit.detailHash,fetcher);return {...result,reason:'공식 본문·공모안내서 4개 요건 확인 · 예산확정·개별 신청자격 별도 확인'};}
+    catch(error){const message=error instanceof Error?error.message:'';const safe=['투어라즈 본문 변경','투어라즈 안내서 변경 또는 오류 응답','투어라즈 안내서 첨부 연결 변경','투어라즈 상세 필수항목 누락','투어라즈 공고 제목 불일치','근거 HTTP 응답 오류','근거 크기 제한 초과'].includes(message)?message:'공식 근거 조회 지연 또는 구조 오류';return {status:'candidate',reason:`${safe} · 재검토 필요`};}
   }
   const formats:Record<string,'kosme'|'nipa'|'koat'>={
     'https://kdoctor.kosmes.or.kr/esgplatform/board/board13View.do?idx=1351':'kosme',
