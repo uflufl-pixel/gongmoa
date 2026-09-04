@@ -12,13 +12,14 @@ import {fetchBojoChanges} from '../lib/bojo-changes';
 import {fetchTextWithDiagnostics,FetchDiagnosticError} from '../lib/fetch-diagnostics';
 import {fetchKiatList,parseKiatBoard,parseNipaBoard,fetchKeitiList,parseKeitiBoard,parseKoccaBoard,fetchKosmeList,parseKosmeBoard} from '../lib/public-collectors';
 import {fetchKoatList,parseKoatBoard} from '../lib/koat-collector';
+import {fetchSocialenterpriseList,parseSocialenterpriseBoard} from '../lib/socialenterprise-collector';
 import {fetchTourazCsv,collectTourazKto} from '../lib/touraz-download';
 
 export const SYNC_BATCHES = [
   ['bojo','bizinfo','moe-board','gov24-orgs','mss-board','kdca-board','mfds-board','moj-board','motir-board','pps-board','mogef-board','mofe-board','police-board','dapa-board','kiat-board'],
   ['mcst-board','mois-board','me-board','kocca-support','mafra-board','rda-board','moel-board','moel-support','khs-board','mpm-board','oka-board','naacc-board','cio-board','moip-board','nipa-board'],
   ['seoul-board','busan-board','incheon-board','daejeon-board','daegu-board','moleg-board','kma-board','molit-board','mods-board','mpva-board','saemangeum-board','kcg-board','pss-board','mnd-board','keiti-board'],
-  ['ulsan-board','jeonbuk-board','gyeongnam-business','chungbuk-board','jeju-board','mohw-board','forest-board','forest-news','mof-board','unikorea-board','nfa-board','nts-board','mma-board','spo-board','kasa-board','kosme-esg','koat-board'],
+  ['ulsan-board','jeonbuk-board','gyeongnam-business','chungbuk-board','jeju-board','mohw-board','forest-board','forest-news','mof-board','unikorea-board','nfa-board','nts-board','mma-board','spo-board','kasa-board','kosme-esg','koat-board','socialenterprise-board'],
 ] as const;
 
 const decoder=(value:string)=>value.replace(/<[^>]+>/g,' ').replace(/&#(x?[0-9a-f]+);/gi,(_,n)=>String.fromCodePoint(n[0].toLowerCase()==='x'?parseInt(n.slice(1),16):parseInt(n,10))).replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&middot;/g,'·').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();
@@ -32,7 +33,7 @@ async function inspectSource(source:{id:string;url:string;name:string}) {
   const startedAt=new Date();
   try {
     const fetchUrl=source.id==='bojo'?'https://www.bojo.go.kr/':source.id==='kocca-support'?'https://www.kocca.kr/kocca/pims/list.do?menuNo=204104':centralCollectorUrl(source.id,source.url);
-    const request=()=>source.id==='koat-board'?fetchKoatList():source.id==='kosme-esg'?fetchKosmeList():source.id==='keiti-board'?fetchKeitiList():source.id==='kiat-board'?fetchKiatList():source.id==='police-board'?fetchPoliceList():source.id==='molit-board'?fetchMolitList():fetch(fetchUrl,{headers:{accept:centralCollectorAccept(source.id),'user-agent':'GongmoaSourceMonitor/1.1 (+https://gongmoa.uflufl.chatgpt.site)'},signal:AbortSignal.timeout(10000),redirect:'follow'});
+    const request=()=>source.id==='socialenterprise-board'?fetchSocialenterpriseList():source.id==='koat-board'?fetchKoatList():source.id==='kosme-esg'?fetchKosmeList():source.id==='keiti-board'?fetchKeitiList():source.id==='kiat-board'?fetchKiatList():source.id==='police-board'?fetchPoliceList():source.id==='molit-board'?fetchMolitList():fetch(fetchUrl,{headers:{accept:centralCollectorAccept(source.id),'user-agent':'GongmoaSourceMonitor/1.1 (+https://gongmoa.uflufl.chatgpt.site)'},signal:AbortSignal.timeout(10000),redirect:'follow'});
     let response:Response,body:string;
     if(source.id==='touraz-kto'){body=await fetchTourazCsv();response=new Response(body,{headers:{'content-type':'text/csv'}});}
     else if(source.id==='mnd-board')({response,body}=await fetchTextWithDiagnostics(request));
@@ -354,6 +355,11 @@ export async function syncOfficialSources(requestedSourceIds?:readonly string[])
     }catch(error){touraz.check.outcome='parser_error';touraz.check.message=error instanceof Error?error.message:'투어라즈 구조 확인 필요';}
   }
   const koat=inspected.find(x=>x.check.sourceId==='koat-board');
+  const socialenterprise=inspected.find(x=>x.check.sourceId==='socialenterprise-board');
+  if(socialenterprise?.body&&socialenterprise.check.outcome==='success'){
+    try{const parsed=parseSocialenterpriseBoard(socialenterprise.body);centralItems.push(...parsed.items);socialenterprise.check.message=`첫 페이지 ${parsed.parsedRows}건 확인 · 공모 후보 ${parsed.items.length}건`;}
+    catch{socialenterprise.check.outcome='parser_error';socialenterprise.check.message='사회적기업진흥원 사업공고 구조 확인 필요';}
+  }
   if(koat?.body&&koat.check.outcome==='success'){
     try{const parsed=parseKoatBoard(koat.body);centralItems.push(...parsed.items);koat.check.message=`첫 페이지 ${parsed.parsedRows}건 확인 · 공모 후보 ${parsed.items.length}건`;}
     catch(error){koat.check.outcome='parser_error';koat.check.message=error instanceof Error?error.message:'KOAT 구조 확인 필요';}
