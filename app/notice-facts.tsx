@@ -1,6 +1,8 @@
 import {receptionState,type SearchRecord} from '../lib/notice-search';
+import {safeApplicationUrl} from '../lib/application-links';
 export default function NoticeFacts({details={}}:{details?:SearchRecord}){
   const state=receptionState(details);
+  const links=[...new Set((details.applicationUrls||[]).map(safeApplicationUrl).filter((url):url is string=>url!==null))];
   const label={open:'접수 중',closed:'접수 마감',upcoming:'접수 예정',unknown:'접수기간 미확인'}[state];
   return <div className="noticeFacts">
     {details.ministry&&<div>소관부처·지자체 · {details.ministry}</div>}
@@ -8,6 +10,7 @@ export default function NoticeFacts({details={}}:{details?:SearchRecord}){
     {(details.announcedFrom||details.announcedTo)&&<div>공고기간 · {details.announcedFrom||'미확인'} ~ {details.announcedTo||'미확인'}</div>}
     {details.supportBudget!=null&&<div>공고 지원예산 · {details.supportBudget.toLocaleString('ko-KR')}원</div>}
     {details.applicationMethod&&<div>신청방법 · {details.applicationMethod}</div>}
+    {links.map(url=><div key={url}><a href={url} target="_blank" rel="noopener noreferrer">공식 안내 신청 사이트 · {new URL(url).hostname} ↗</a></div>)}
     {details.deadlineLabel&&/\d{2}:\d{2}/.test(details.deadlineLabel)&&<div>원문 접수 시각(KST) · {details.deadlineLabel}</div>}
     {details.detailVerifiedAt&&<div>상세 확인 · {new Date(details.detailVerifiedAt).toLocaleDateString('ko-KR',{timeZone:'Asia/Seoul'})}</div>}
     <footer><strong>{details.applicationPeriod||(details.applicationFrom||details.applicationTo?`${details.applicationFrom||'미확인'} ~ ${details.applicationTo||'미확인'}`:'원문 접수기간 확인')}</strong><span>{label}</span></footer>

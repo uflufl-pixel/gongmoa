@@ -1,4 +1,6 @@
-export type BizinfoDetail={ministry:string;institution:string;audience:string|null;applicationFrom:string|null;applicationTo:string|null;applicationPeriod:string;applicationMethod:string|null};
+// @ts-expect-error Native Node test runner needs the explicit TypeScript extension.
+import {safeApplicationUrl} from './application-links.ts';
+export type BizinfoDetail={applicationUrls?:string[];ministry:string;institution:string;audience:string|null;applicationFrom:string|null;applicationTo:string|null;applicationPeriod:string;applicationMethod:string|null};
 function plain(value:string){
   return value.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'').replace(/<[^>]+>/g,' ').replace(/&#(x[0-9a-f]+|[0-9]+);/gi,(_,n:string)=>{const cp=n[0].toLowerCase()==='x'?parseInt(n.slice(1),16):Number(n);return cp<=0x10ffff?String.fromCodePoint(cp):'';}).replace(/&nbsp;/gi,' ').replace(/&amp;/gi,'&').replace(/&quot;/gi,'"').replace(/&#39;/g,"'").replace(/&lt;/gi,'<').replace(/&gt;/gi,'>').replace(/\s+/g,' ').trim();
 }
@@ -8,8 +10,14 @@ function date(value:string){
   return Number.isFinite(d.getTime())&&d.toISOString().slice(0,10)===normalized?normalized:null;
 }
 export function parseBizinfoDetail(html:string):BizinfoDetail{
-  const fields=new Map<string,string>();
-  for(const m of html.matchAll(/<li\b[^>]*>\s*<span\b[^>]*class=["'][^"']*\bs_title\b[^"']*["'][^>]*>([\s\S]*?)<\/span>([\s\S]*?)<\/li>/gi)) fields.set(plain(m[1]),plain(m[2]));
+  const fields=new Map<string,string>(),applicationUrls=new Set<string>();
+  const clean=html.replace(/<!--[\s\S]*?-->/g,'').replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi,'');
+  for(const m of clean.matchAll(/<li\b[^>]*>\s*<span\b[^>]*class=["'][^"']*\bs_title\b[^"']*["'][^>]*>([\s\S]*?)<\/span>([\s\S]*?)<\/li>/gi)) {
+    const label=plain(m[1]);fields.set(label,plain(m[2]));
+    if(label==='사업신청 사이트')for(const a of m[2].matchAll(/<a\b[^>]*\shref\s*=\s*(["'])(.*?)\1/gi)){
+      const url=safeApplicationUrl(plain(a[2]));if(url)applicationUrls.add(url);
+    }
+  }
   const ministry=fields.get('소관부처·지자체'),institution=fields.get('사업수행기관'),period=fields.get('신청기간'),overview=fields.get('사업개요');
   if(!ministry||!institution||!period||!overview)throw new Error('기업마당 상세 구조 변경 또는 필수 항목 누락');
   // Only the explicitly labeled application period can provide dates.
@@ -18,7 +26,7 @@ export function parseBizinfoDetail(html:string):BizinfoDetail{
   if(range&&(!from||!to||from>to))throw new Error('기업마당 신청기간 날짜 오류');
   // The first bullet is the target in the official layout. Do not extract budgets.
   const target=overview.split('☞')[1]?.trim()||null;
-  return {ministry:ministry.slice(0,300),institution:institution.slice(0,300),audience:target?.slice(0,500)||null,applicationFrom:from,applicationTo:to,applicationPeriod:period.slice(0,300),applicationMethod:fields.get('사업신청 방법')?.slice(0,1000)||null};
+  return {applicationUrls:[...applicationUrls],ministry:ministry.slice(0,300),institution:institution.slice(0,300),audience:target?.slice(0,500)||null,applicationFrom:from,applicationTo:to,applicationPeriod:period.slice(0,300),applicationMethod:fields.get('사업신청 방법')?.slice(0,1000)||null};
 }
 
 export function mergeBizinfoDetail<T extends {institution:string;audience:string;status:string;closesAt:Date|null;opensAt:Date|null}>(notice:T,detail:BizinfoDetail,checkedAt:number){

@@ -58,7 +58,7 @@ export async function verifyGrantDetail(n:RecordIdentity,fetcher:typeof fetch=fe
     return result;
   }catch{return {status:'candidate',reason:'공식 본문 재확인 지연 · 검토 후보 유지'};}
 }
-export function grantReception(v:GrantVerification,now=Date.now()){
+export function grantReception(v:GrantVerification,now=Date.now()):Partial<{applicationFrom:string;applicationTo:string;closesAt:string;status:'closed'|'open';deadlineLabel:string}>{
   if(v.status!=='verified'||!v.reception)return {};
   const r=v.reception;
   return {...r,status:Date.parse(r.closesAt)<now?'closed':'open',deadlineLabel:`${r.applicationTo} ${new Date(Date.parse(r.closesAt)+9*3600000).toISOString().slice(11,16)} (본문 확인)`};
