@@ -4,6 +4,7 @@ import { bookmarks, institutions, noticeReviews, notices, sourceChecks, sources 
 import publicRegistry from '../data/public-institutions.json';
 import {centralCollectors} from '../lib/central-collectors';
 import {kiatSource,nipaSource,keitiSource,kosmeSource} from '../lib/public-collectors';
+import {koatSource} from '../lib/koat-collector';
 import {registerCentralInstitutions} from './central-institutions';
 
 const now = new Date('2026-09-01T14:00:00.000Z');
@@ -28,6 +29,7 @@ const seedInstitutions = [
 ];
 const seedSources = [
   {...kosmeSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
+  {...koatSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...kiatSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...nipaSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...keitiSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
