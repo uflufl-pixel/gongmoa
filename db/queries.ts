@@ -6,6 +6,7 @@ import {centralCollectors} from '../lib/central-collectors';
 import {kiatSource,nipaSource,keitiSource,kosmeSource} from '../lib/public-collectors';
 import {koatSource} from '../lib/koat-collector';
 import {socialenterpriseSource} from '../lib/socialenterprise-collector';
+import {arkoSource} from '../lib/arko-collector';
 import {tourazSource} from '../lib/touraz-download';
 import {registerCentralInstitutions} from './central-institutions';
 
@@ -34,6 +35,7 @@ const seedSources = [
   {...kosmeSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...koatSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...socialenterpriseSource,method:'official-public-json',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
+  {...arkoSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...kiatSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...nipaSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...keitiSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},

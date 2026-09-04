@@ -4,6 +4,7 @@ import {withKoccaDetails} from '@/db/kocca-details';
 import {isCollectedRecord} from '@/lib/data-quality';
 import {verifyGrantDetail,grantReception} from '@/lib/grant-verification';
 import {tourazCandidate,tourazReception} from '@/lib/touraz-download';
+import {arkoCandidate} from '@/lib/arko-collector';
 
 function relationKey(institution:string,title:string) {
   const normalizedTitle=title.toLowerCase()
@@ -23,7 +24,7 @@ export async function GET() {
       const sourceReceptionState=i.status==='closed'?'종료':i.status==='pending'?'대기':'접수';
       return {...i,sourceReceptionState,deadlinePrecision:'date' as const,status:tourazReception(sourceReceptionState,i.applicationFrom||'',i.applicationTo||'')};
     });
-    const visibleItems=items.filter(item=>isCollectedRecord(item)&&!isObviousNonGrant(item.title));
+    const visibleItems=items.filter(item=>isCollectedRecord(item)&&!isObviousNonGrant(item.title)&&(item.sourceId!=='arko-board'||arkoCandidate(item.title)));
     const groups=new Map<string,typeof items>();
     for(const item of visibleItems) { const key=relationKey(item.institution,item.title); if(key) groups.set(key,[...(groups.get(key)||[]),item]); }
     const enriched=await Promise.all(visibleItems.map(async item=>{const related=groups.get(relationKey(item.institution,item.title))||[];const grantVerification=await verifyGrantDetail(item);return {...item,...grantReception(grantVerification),audience:grantVerification.status==='verified'?grantVerification.evidence!.audience:item.audience,grantVerification,relatedCount:Math.max(0,related.length-1),relatedSources:[...new Set(related.map(x=>x.sourceName))]};}));
