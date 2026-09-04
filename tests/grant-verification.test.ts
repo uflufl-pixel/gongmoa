@@ -3,6 +3,20 @@ import assert from 'node:assert/strict';
 // @ts-expect-error Native Node runner.
 import {verifyGrant,verifyGrantDetail,grantAudits,currentGrantVerification,detailFingerprint,grantReception} from '../lib/grant-verification.ts';
 const audit=grantAudits[0],now=Date.parse(audit.checkedAt)+1000;
+test('KOAT hashes complete nested body and rejects ambiguous boundaries',async()=>{
+  const body='<td class="main"><div>지원</div><div>신청</div></td>';
+  assert.equal(await detailFingerprint(body,'koat'),await detailFingerprint(body+'<footer>변경</footer>','koat'));
+  assert.notEqual(await detailFingerprint(body,'koat'),await detailFingerprint(body.replace('신청','마감'),'koat'));
+  await assert.rejects(()=>detailFingerprint(body+body,'koat'));
+  await assert.rejects(()=>detailFingerprint('<td class="main"><table><td>nested</td></table></td>','koat'));
+});
+test('KOAT exact cutoff and invalid reception values fail safely',()=>{
+  const a=grantAudits.find(x=>x.sourceId==='koat-board')!;
+  const v=verifyGrant(a,grantAudits,Date.parse(a.checkedAt)+1000);
+  assert.equal(grantReception(v,Date.parse('2026-09-09T08:59:00Z')).status,'open');
+  assert.equal(grantReception(v,Date.parse('2026-09-09T09:01:00Z')).status,'closed');
+  for(const patch of [{closesAt:'bad'},{applicationFrom:'2026-09-10'},{applicationTo:'2026-02-30'},{closesAt:'2026-09-10T09:00:00Z'}])assert.deepEqual(grantReception({...v,reception:{...a.reception!,...patch}}),{});
+});
 test('only same audited identity and four evidence fields qualify, never titles or old approvals',()=>{
   assert.equal(verifyGrant(audit,grantAudits,now).status,'verified');
   assert.equal(verifyGrant({...audit,externalId:'other'},grantAudits,now).status,'candidate');

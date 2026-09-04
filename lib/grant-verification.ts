@@ -12,6 +12,11 @@ export function currentGrantVerification(v?:GrantVerification,now=Date.now()):Gr
 }
 // Reviewed official detail, not an automatic title/keyword decision. Source changes invalidate this audit.
 export const grantAudits:GrantAudit[]=[{
+  sourceId:'koat-board',externalId:'16460',sourceUrl:'https://www.koat.or.kr/board/business/16460/view.do',
+  title:'스마트팜 청년창업 보육센터 글로벌 역량강화 참여자 모집 수정공고',contentHash:'b24ff6575a423fa300bc55f86c0f43d9d790c057bfdc4d0a691030721410c903',detailHash:'a7fba963f3e643b1e257f1c2626025d511c9cafed3f8efce64470beb008fd207',checkedAt:'2026-09-04T09:00:32.946Z',
+  reception:{applicationFrom:'2026-09-01',applicationTo:'2026-09-09',closesAt:'2026-09-09T09:00:00.000Z'},
+  evidence:{purpose:'선진 스마트팜 현장 학습으로 청년 농업인의 영농 역량 강화',audience:'보육센터 8기 교육생 팀(수료 후 창업 예정) 또는 1~7기 수료생 개인(자가창업·임대팜 입주). 교육 중 징계 및 보육센터 사업 내 연수 경험이 없어야 함',support:'총 28명, 네덜란드 6박 8일 현장견학·전문가 교류 전액 국비 지원',application:'공식 원문의 네이버 폼으로 신청. 2026년 9월 9일 18시 마감. 첨부 세부서류 및 폼 제출 가능 여부는 별도 확인'},
+},{
   sourceId:'kosme-esg',externalId:'1351',sourceUrl:'https://kdoctor.kosmes.or.kr/esgplatform/board/board13View.do?idx=1351',
   title:'2026년 중소기업 CBAM 대응 인프라구축 사업 3차 수요기업 모집 공고',contentHash:'a574d387685d5afaa2895f0b498a3389c512d3a48d8eb6c6a6a47cb72c54a50a',detailHash:'1e88b95e8c194169e5cbe8ca9e2a23cdf174dff0a38ad6abaf7b26c29f3fa0f1',checkedAt:'2026-09-03T21:45:36.000Z',
   evidence:{purpose:'중소기업의 EU CBAM 등 탄소규제 대응 역량 강화',audience:'CBAM 대상 품목을 제조하고 EU 직접·간접 수출 또는 수출을 희망하는 중소기업',support:'선택 트랙별 계측설비·모니터링 시스템 구축 및 탄소배출량 검증 서비스',application:'ESG 통합플랫폼의 MRV 보급사업 → 사업신청에서 신청. 본문 접수 안내: 8월 25일~9월 15일 18시.'},
@@ -36,9 +41,11 @@ export function verifyGrant(n:RecordIdentity,audits:GrantAudit[]=grantAudits,now
   if(!['purpose','audience','support','application'].every(k=>typeof a.evidence?.[k as keyof GrantEvidence]==='string'&&a.evidence[k as keyof GrantEvidence].trim().length>0))return candidate('본문 확인 근거 부족');
   return {status:'verified',reason:'공식 본문 4개 요건 확인 · 접수 상태는 별도 확인',checkedAt:a.checkedAt,sourceUrl:a.sourceUrl,evidence:a.evidence,reception:a.reception};
 }
-export async function detailFingerprint(html:string,format:'kosme'|'nipa'='kosme'){
+export async function detailFingerprint(html:string,format:'kosme'|'nipa'|'koat'='kosme'){
   const clean=html.replace(/<!--[\s\S]*?-->/g,'').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'');
-  const body=format==='nipa'?clean.match(/<label[^>]*id="BSNS_ANNC_CONT_323-001"[^>]*>([\s\S]*?)<\/label>/)?.[1]:clean.match(/<div class="detail_text">([\s\S]*?)<\/div>/)?.[1];
+  const koatBodies=format==='koat'?[...clean.matchAll(/<td class="main">([\s\S]*?)<\/td>/g)]:[];
+  if(format==='koat'&&(koatBodies.length!==1||/<table\b|<td\b/i.test(koatBodies[0][1])))throw new Error('KOAT 본문 경계 확인 필요');
+  const body=format==='koat'?koatBodies[0][1]:format==='nipa'?clean.match(/<label[^>]*id="BSNS_ANNC_CONT_323-001"[^>]*>([\s\S]*?)<\/label>/)?.[1]:clean.match(/<div class="detail_text">([\s\S]*?)<\/div>/)?.[1];
   if(!body)throw new Error('본문 구조 확인 필요');
   const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(body.replace(/\s+/g,' ').trim()));
   return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,'0')).join('');
@@ -46,10 +53,11 @@ export async function detailFingerprint(html:string,format:'kosme'|'nipa'='kosme
 export async function verifyGrantDetail(n:RecordIdentity,fetcher:typeof fetch=fetch,now=Date.now()):Promise<GrantVerification>{
   const result=verifyGrant(n,grantAudits,now);if(result.status!=='verified')return result;
   const audit=grantAudits.find(a=>a.sourceId===n.sourceId&&a.externalId===n.externalId)!;
-  const formats:Record<string,'kosme'|'nipa'>={
+  const formats:Record<string,'kosme'|'nipa'|'koat'>={
     'https://kdoctor.kosmes.or.kr/esgplatform/board/board13View.do?idx=1351':'kosme',
     'https://kdoctor.kosmes.or.kr/esgplatform/board/board13View.do?idx=1335':'kosme',
     'https://www.nipa.kr/home/2-2/16900':'nipa',
+    'https://www.koat.or.kr/board/business/16460/view.do':'koat',
   };
   const format=formats[audit.sourceUrl];if(!format)return {status:'candidate',reason:'본문 대조 경로 미설정'};
   try{
@@ -61,5 +69,8 @@ export async function verifyGrantDetail(n:RecordIdentity,fetcher:typeof fetch=fe
 export function grantReception(v:GrantVerification,now=Date.now()):Partial<{applicationFrom:string;applicationTo:string;closesAt:string;status:'closed'|'open';deadlineLabel:string}>{
   if(v.status!=='verified'||!v.reception)return {};
   const r=v.reception;
+  const validDay=(s:string)=>/^\d{4}-\d{2}-\d{2}$/.test(s)&&Number.isFinite(Date.parse(s+'T00:00:00Z'))&&new Date(s+'T00:00:00Z').toISOString().slice(0,10)===s;
+  const end=Date.parse(r.closesAt);
+  if(!validDay(r.applicationFrom)||!validDay(r.applicationTo)||r.applicationFrom>r.applicationTo||!Number.isFinite(end)||new Date(end+9*3600000).toISOString().slice(0,10)!==r.applicationTo)return {};
   return {...r,status:Date.parse(r.closesAt)<now?'closed':'open',deadlineLabel:`${r.applicationTo} ${new Date(Date.parse(r.closesAt)+9*3600000).toISOString().slice(11,16)} (본문 확인)`};
 }
