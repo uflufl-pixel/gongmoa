@@ -4,6 +4,8 @@ import {namhaeUrl,verifyNamhaeEvidence} from './namhae-evidence.ts';
 import {ripcSourceUrl,verifyRipcEvidence} from './ripc-evidence.ts';
 // @ts-expect-error Native Node tests use explicit extensions.
 import {tourazUrl,verifyTourazEvidence} from './touraz-evidence.ts';
+// @ts-expect-error Native Node tests use explicit extensions.
+import {uctfTourazUrl,verifyUctfEvidence} from './uctf-evidence.ts';
 export type GrantEvidence={purpose:string;audience:string;support:string;application:string};
 type Reception={applicationFrom:string;applicationTo:string}&({deadlinePrecision:'date';closesAt:null}|{deadlinePrecision?:'time';closesAt:string});
 export type GrantAudit={sourceId:string;externalId:string;sourceUrl:string;title:string;contentHash:string;detailHash:string;checkedAt:string;evidence:GrantEvidence;reception?:Reception};
@@ -55,6 +57,11 @@ export const grantAudits:GrantAudit[]=[{
   title:'2027 무장애 관광환경 조성 사업 공모 실시',contentHash:'de9aadd6d0f93490d19e499e3c32dbadc236a34b5c48077b39a199ce7c6bd767',detailHash:'6cb5b4bce1fda2d08f3339d8e68462d25a495e7066cbb6282fad670ae68e7c07',checkedAt:'2026-09-04T23:00:00.000Z',
   reception:{applicationFrom:'2026-09-07',applicationTo:'2026-09-30',closesAt:null,deadlinePrecision:'date'},
   evidence:{purpose:'관광지의 물리적·정보적·콘텐츠 접근성을 개선하고 관광교통·민간시설·안내거점·여행상품을 연계한 무장애 관광환경 조성',audience:'광역(시·도) 및 기초자치단체(시·군·자치구). 열린관광지는 원칙적으로 2~4개 관광지점을 권역으로 신청하며 일부 기존 열린관광지·플러스 유형은 단일 지점 가능. 동일 내용 국가보조금 중복지원 불가, 제주는 국비 제외. 민간시설·사업자는 구성에 참여할 수 있으나 직접 신청자가 아님',support:'열린관광지 30개 지점, 지점당 국비 2.5억원. 연계성 강화 1개 권역, 3년간 국비 최대 40억원(10억·15억·15억). 두 분야 모두 국비의 100% 이상 지방비 매칭이며 선정규모·국비는 예산확정·재정협의에 따라 변경 가능',application:'2026년 9월 7일~9월 30일. 공문과 우편을 모두 접수기간 내 도착시켜야 함. 공문은 신청서·전체 전자파일, 우편은 사업계획서 1부·날인 확약서·증빙자료. 기초지자체는 소속 광역에도 공문 발송. 도착 마감시각은 안내서에 없어 날짜형으로 표시'},
+},{
+  sourceId:'touraz-kto',externalId:'1426',sourceUrl:uctfTourazUrl,
+  title:'2026 울산 관광 인재 인턴십 지원사업 참여기업 모집',contentHash:'4338ef8ae0c0198f316dd22df15e9a15367e6f764c3ab8dc7da6fab7a1b2ce4b',detailHash:'ca712d2728286e748f22ec2b183ee5155e2289037a157eed9686be0937b3924d',checkedAt:'2026-09-04T23:45:00.000Z',
+  reception:{applicationFrom:'2026-02-25',applicationTo:'2026-10-30',closesAt:'2026-10-30T09:00:00.000Z'},
+  evidence:{purpose:'울산 관광스타트업·관광기업의 경영 안정과 지역 관광인재 정착을 위한 인턴 채용 인건비 지원',audience:'울산광역시 소재 관광사업체·관광스타트업 또는 울산관광기업지원센터 입주기업 중 최소3개월 채용계획이 있는 기업. 체납·면세사업자·임금체불 명단 공개 사업체, 근로자와 특수관계 또는 이전 사업주와 밀접한 관련성이 있는 경우 등 제외',support:'기업당 인턴 최대2명, 1명당 월150만원을 최대3개월 지원(기업당 이론상 최대900만원). 기업은 월 최저임금 이상을 선지급하고 지원금 외 인건비·4대보험료·법정수당 부담. 매월1일~말일 근무분만 지급하며 중도퇴사 월은 미지급',application:'2026년2월25일09시~10월30일18시, 예산 소진 시 조기마감 가능. 투어라즈 정책지원→공고/공모에서 온라인 신청서와 필수 증빙 업로드. 선정 뒤 인턴은 기업이 자체 채용하고 채용증빙·월별 지원금 증빙은 지정 이메일 제출'},
 }];
 type RecordIdentity={sourceId:string;externalId:string;sourceUrl:string;title:string;contentHash:string};
 export function verifyGrant(n:RecordIdentity,audits:GrantAudit[]=grantAudits,now=Date.now()):GrantVerification{
@@ -92,6 +99,10 @@ export async function verifyGrantDetail(n:RecordIdentity,fetcher:typeof fetch=fe
   if(audit.sourceUrl===tourazUrl){
     try{await verifyTourazEvidence(audit.detailHash,fetcher);return {...result,reason:'공식 본문·공모안내서 4개 요건 확인 · 예산확정·개별 신청자격 별도 확인'};}
     catch(error){const message=error instanceof Error?error.message:'';const safe=['투어라즈 본문 변경','투어라즈 안내서 변경 또는 오류 응답','투어라즈 안내서 첨부 연결 변경','투어라즈 상세 필수항목 누락','투어라즈 공고 제목 불일치','근거 HTTP 응답 오류','근거 크기 제한 초과'].includes(message)?message:'공식 근거 조회 지연 또는 구조 오류';return {status:'candidate',reason:`${safe} · 재검토 필요`};}
+  }
+  if(audit.sourceUrl===uctfTourazUrl){
+    try{await verifyUctfEvidence(audit.detailHash,fetcher);return {...result,reason:'공식 상세·재단 공고문 4개 요건 확인 · 예산소진·개별 적격성 별도 확인'};}
+    catch(error){const message=error instanceof Error?error.message:'';const safe=['울산 관광 인턴십 본문 변경','울산 관광 인턴십 공고문 변경 또는 오류 응답','울산 관광 인턴십 상세 필수항목 누락','울산 관광 인턴십 공고 제목 불일치','울산 관광 인턴십 공고 ID 불일치','근거 HTTP 응답 오류','근거 크기 제한 초과'].includes(message)?message:'공식 근거 조회 지연 또는 구조 오류';return {status:'candidate',reason:`${safe} · 재검토 필요`};}
   }
   const formats:Record<string,'kosme'|'nipa'|'koat'>={
     'https://kdoctor.kosmes.or.kr/esgplatform/board/board13View.do?idx=1351':'kosme',
