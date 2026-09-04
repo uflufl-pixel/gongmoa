@@ -28,10 +28,20 @@ function identity(link:string){
   return new URL(link).searchParams.get('pssrpSeq');
 }
 export function tourazCandidate(title:string){
-  if(/이벤트|위원|임원|기관장|직위|채용|입찰|개찰|용역|합격|결과|선정\s*공고|수상작|수상자|인턴|일자리페스타|설명회|설문|수요\s*조사|강사|매니저|서포터즈|발표\s*(평가|심사)|서류\s*평가|심의\s*참여/.test(title))return false;
+  if(/이벤트|위원|임원|기관장|직위|채용|입찰|개찰|용역|합격|결과|선정\s*공고|수상작|수상자|일자리페스타|설명회|설문|수요\s*조사|강사|매니저|서포터즈|발표\s*(평가|심사)|서류\s*평가|심의\s*참여/.test(title))return false;
+  // Employer support is a potential grant; recruiting individual interns is not.
+  if(/인턴/.test(title)&&!(/인턴십\s*지원사업/.test(title)&&/참여\s*기업\s*(모집|공모)/.test(title)))return false;
   return /공모|모집|지원사업|경진대회/.test(title);
 }
-export function previewTourazCsv(input:string){
+export function tourazReception(sourceState:string,from:string,to:string,now=new Date()):'open'|'upcoming'|'closed'|'unknown'{
+  if(!Number.isFinite(now.getTime())||!date(from)||!date(to)||from>to)return 'unknown';
+  const today=new Date(now.getTime()+9*60*60*1000).toISOString().slice(0,10);
+  if(sourceState==='종료'||to<today)return 'closed';
+  if(from>today)return 'upcoming';
+  if(to===today||sourceState!=='접수')return 'unknown';
+  return 'open';
+}
+export function previewTourazCsv(input:string,now=new Date()){
   const rows=parseCsvRows(input);
   if(!rows.length||JSON.stringify(rows.shift())!==JSON.stringify(headers))throw Error('투어라즈 CSV 필수 열 변경 또는 빈 파일');
   if(!rows.length)throw Error('투어라즈 CSV 데이터 없음');
@@ -50,7 +60,7 @@ export function previewTourazCsv(input:string){
     if(seen.has(externalId)){if(seen.get(externalId)!==signature)throw Error('동일 공고 ID의 상충 데이터');duplicates++;return [];}
     seen.set(externalId,signature);
     institutions[institution]=(institutions[institution]||0)+1;states[sourceState]=(states[sourceState]||0)+1;
-    return [{externalId,institution,title,sourceState,department,posted,sourceUrl,applicationFrom:range[1],applicationTo:range[2],deadlinePrecision:'date' as const,opensAt:null,closesAt:null,candidate:tourazCandidate(title),verification:'candidate' as const}];
+    return [{externalId,institution,title,sourceState,receptionState:tourazReception(sourceState,range[1],range[2],now),department,posted,sourceUrl,applicationFrom:range[1],applicationTo:range[2],deadlinePrecision:'date' as const,opensAt:null,closesAt:null,candidate:tourazCandidate(title),verification:'candidate' as const}];
   });
   return {previewOnly:true,stored:0,verified:0,parsedRows:rows.length,validRows:items.length,duplicates,rejected,institutions,states,latestPosted:items.map(i=>i.posted).sort().at(-1)||null,candidateRows:items.filter(i=>i.candidate).length,items};
 }

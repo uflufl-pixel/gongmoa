@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 // @ts-ignore Native Node test runner uses explicit extensions.
-import {parseCsvRows,previewTourazCsv,fetchTourazCsv,handleTourazPreview} from '../lib/touraz-download.ts';
+import {parseCsvRows,previewTourazCsv,fetchTourazCsv,handleTourazPreview,tourazReception,tourazCandidate} from '../lib/touraz-download.ts';
 const header='상태,기관명,제목,신청기간,담당부서,등록일,링크';
 const row=(id='1709',title='2027 무장애 관광환경 조성 사업 공모 실시')=>`대기,한국관광공사,${title},2026-09-07 ~ 2026-09-30,열린관광콘텐츠팀,2026-08-31,https://touraz.kr/announcementList/pssrpView?pssrpSeq=${id}`;
 const csv=(...rows:string[])=>'\uFEFF'+header+'\r\n'+rows.join('\r\n')+'\r\n';
@@ -14,7 +14,24 @@ test('행 순서와 재처리가 식별자를 바꾸지 않음, 중복 제거',(
  const a=previewTourazCsv(csv(row(),row('1700','데이터 활용 경진대회'))),b=previewTourazCsv(csv(row('1700','데이터 활용 경진대회'),row()));assert.deepEqual(a.items.map(i=>i.externalId).sort(),b.items.map(i=>i.externalId).sort());assert.deepEqual(a,previewTourazCsv(csv(row(),row('1700','데이터 활용 경진대회'))));assert.equal(previewTourazCsv(csv(row(),row())).duplicates,1);assert.throws(()=>previewTourazCsv(csv(row(),row('1709','변경 모집'))),/상충/);
 });
 test('잘못된 날짜·외부 URL 격리, 이벤트·인턴 제외',()=>{
- const r=previewTourazCsv(csv(row(),row('1710').replace('2026-09-30','2026-02-30'),row('1711').replace('touraz.kr','evil.test'),row('1712','공모전 온라인 참여 심사 이벤트'),row('1713','인턴십 지원사업 참여기업 모집')));assert.equal(r.rejected.length,2);assert.equal(r.candidateRows,1);
+ const r=previewTourazCsv(csv(row(),row('1710').replace('2026-09-30','2026-02-30'),row('1711').replace('touraz.kr','evil.test'),row('1712','공모전 온라인 참여 심사 이벤트'),row('1713','청년 인턴 모집')));assert.equal(r.rejected.length,2);assert.equal(r.candidateRows,1);
+});
+test('인턴 개인모집과 기업 지원사업을 구분하되 채용·결과 예외는 없음',()=>{
+ assert.equal(tourazCandidate('2026 울산 관광 인재 인턴십 지원사업 참여기업 모집'),true);
+ assert.equal(tourazCandidate('인턴십 지원사업 참여기업 공모'),true);
+ for(const title of ['인턴 모집','인턴십 지원사업 참여자 모집','인턴십 지원사업 참여기업 모집 결과','인턴십 지원사업 참여기업 채용 모집'])assert.equal(tourazCandidate(title),false);
+});
+test('원문 접수 상태와 날짜 계산을 분리하며 KST 마감일에 시각을 만들지 않음',()=>{
+ const state=(s:string,t:string)=>tourazReception(s,'2026-09-07','2026-09-30',new Date(t));
+ assert.equal(state('접수','2026-09-06T14:59:59Z'),'upcoming');
+ assert.equal(state('접수','2026-09-06T15:00:00Z'),'open');
+ assert.equal(state('접수','2026-09-29T14:59:59Z'),'open');
+ assert.equal(state('접수','2026-09-29T15:00:00Z'),'unknown');
+ assert.equal(state('접수','2026-09-30T15:00:00Z'),'closed');
+ assert.equal(state('종료','2026-09-08T00:00:00Z'),'closed');
+ assert.equal(state('대기','2026-09-08T00:00:00Z'),'unknown');
+ assert.equal(tourazReception('접수','invalid','2026-09-30'),'unknown');
+ const r=previewTourazCsv(csv(row()),new Date('2026-09-04T00:00:00Z'));assert.equal(r.items[0].sourceState,'대기');assert.equal(r.items[0].receptionState,'upcoming');assert.equal(r.items[0].closesAt,null);
 });
 test('휴가지원사업은 근로자라는 단어만으로 채용으로 제외하지 않음',()=>{assert.equal(previewTourazCsv(csv(row('1448','2026 근로자 휴가지원사업 참여기업 확대 모집'))).candidateRows,1);});
 test('공식 POST 파라미터 사용 및 정상 CSV',async()=>{
