@@ -1,3 +1,5 @@
+// @ts-expect-error Native Node tests use explicit extensions.
+import {namhaeUrl,verifyNamhaeEvidence} from './namhae-evidence.ts';
 export type GrantEvidence={purpose:string;audience:string;support:string;application:string};
 type Reception={applicationFrom:string;applicationTo:string}&({deadlinePrecision:'date';closesAt:null}|{deadlinePrecision?:'time';closesAt:string});
 export type GrantAudit={sourceId:string;externalId:string;sourceUrl:string;title:string;contentHash:string;detailHash:string;checkedAt:string;evidence:GrantEvidence;reception?:Reception};
@@ -34,6 +36,11 @@ export const grantAudits:GrantAudit[]=[{
   sourceId:'nipa-board',externalId:'16900',sourceUrl:'https://www.nipa.kr/home/2-2/16900',
   title:'2026년 KoVAC XR 쇼룸 입주기업 2차 모집',contentHash:'ad5debb8612f08df2821c8e6436f65574c6651494e6cf754baabef9f603d1984',detailHash:'c0932d38a3f26d1afa4496f8e2f5f256a55ebf1b7b2d017d9f5d836105a8d8a9',checkedAt:'2026-09-04T07:43:39.000Z',
   evidence:{purpose:'가상융합 콘텐츠 상설 전시를 통한 홍보·마케팅·투자유치 지원',audience:'XR·AI·SW 등 ICT·가상융합 콘텐츠 개발·서비스 전문기업',support:'전시공간 임대료·관리비 무상 및 요청 시 운영인력 지원. 인테리어·설치·철거는 기업 부담',application:'NIPA 사업지원시스템에서 온라인 접수. 2026년 9월 17일 15시 마감. 개인·예비창업자 신청 허용 여부는 별도 확인.'},
+},{
+  sourceId:'bizinfo',externalId:'PBLN_000000000126034',sourceUrl:namhaeUrl,
+  title:'2026년 남해군 면 지역 마을가게 창업 지원사업 참여자 모집 공고',contentHash:'940b423811359f977fee8d38c8d6712cbaebc543811adc3256a63532aa32ebc6',detailHash:'215a518677b309f03ab4bd2e2a62b34ee17798b76a66b4a38957fab70fe75646',checkedAt:'2026-09-04T16:30:00.000Z',
+  reception:{applicationFrom:'2026-09-01',applicationTo:'2026-09-23',closesAt:'2026-09-23T09:00:00.000Z'},
+  evidence:{purpose:'남해군 면 지역 생활 수요에 대응하는 마을가게 창업 지원',audience:'남해군9개 면 창업 희망자. 2026-01-01 주민등록 또는 선정 후1개월 내 전입, 선정 후2개월 내 사업자등록. 예비창업자는2026-09-01 본인 명의 사업자등록 없음, 기창업자는2026-01-01 이후 등록. 체납·동일내용 중복지원·유해업종·대기업 프랜차이즈 직영점 등 제외',support:'10개소, 공급가액70% 이내·최대300만원. 부가세·초과액 자부담, 사업자등록 완료 후 지급. 인테리어·간판·디지털기기 등 지정 항목. 1년 영업유지 등 중지·환수 조건은 공식 첨부 확인',application:'2026-09-23 18시까지 남해군 경제과 지역경제팀 방문 제출. 신청서·견적서·동의서·주민등록초본·납세증명·사업자등록 사실증명 필요. 공식 본문과 공고 HWPX를 대조했으며 개인별 적격성·제출 성공은 별도 확인'},
 }];
 type RecordIdentity={sourceId:string;externalId:string;sourceUrl:string;title:string;contentHash:string};
 export function verifyGrant(n:RecordIdentity,audits:GrantAudit[]=grantAudits,now=Date.now()):GrantVerification{
@@ -60,6 +67,10 @@ export async function detailFingerprint(html:string,format:'kosme'|'nipa'|'koat'
 export async function verifyGrantDetail(n:RecordIdentity,fetcher:typeof fetch=fetch,now=Date.now()):Promise<GrantVerification>{
   const result=verifyGrant(n,grantAudits,now);if(result.status!=='verified')return result;
   const audit=grantAudits.find(a=>a.sourceId===n.sourceId&&a.externalId===n.externalId)!;
+  if(audit.sourceUrl===namhaeUrl){
+    try{await verifyNamhaeEvidence(audit.detailHash,fetcher);return {...result,reason:'공식 본문·공고 첨부 4개 요건 확인 · 개인별 신청자격 별도 확인'};}
+    catch{return {status:'candidate',reason:'본문·첨부 변경 또는 재확인 실패 · 재검토 필요'};}
+  }
   const formats:Record<string,'kosme'|'nipa'|'koat'>={
     'https://kdoctor.kosmes.or.kr/esgplatform/board/board13View.do?idx=1351':'kosme',
     'https://kdoctor.kosmes.or.kr/esgplatform/board/board13View.do?idx=1335':'kosme',
