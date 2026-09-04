@@ -3,6 +3,7 @@ import {withBizinfoDetails} from '@/db/bizinfo-details';
 import {withKoccaDetails} from '@/db/kocca-details';
 import {isCollectedRecord} from '@/lib/data-quality';
 import {verifyGrantDetail,grantReception} from '@/lib/grant-verification';
+import {tourazCandidate,tourazReception} from '@/lib/touraz-download';
 
 function relationKey(institution:string,title:string) {
   const normalizedTitle=title.toLowerCase()
@@ -17,7 +18,11 @@ const isObviousNonGrant=(title:string)=>/(채용|임원|상임이사|이사장|�
 export async function GET() {
   try {
     const [baseItems, sourceItems] = await Promise.all([listNotices(true), listSources()]);
-    const items=await withKoccaDetails(await withBizinfoDetails(baseItems));
+    const items=(await withKoccaDetails(await withBizinfoDetails(baseItems))).filter(i=>i.sourceId!=='touraz-kto'||tourazCandidate(i.title)).map(i=>{
+      if(i.sourceId!=='touraz-kto')return i;
+      const sourceReceptionState=i.status==='closed'?'종료':i.status==='pending'?'대기':'접수';
+      return {...i,sourceReceptionState,deadlinePrecision:'date' as const,status:tourazReception(sourceReceptionState,i.applicationFrom||'',i.applicationTo||'')};
+    });
     const visibleItems=items.filter(item=>isCollectedRecord(item)&&!isObviousNonGrant(item.title));
     const groups=new Map<string,typeof items>();
     for(const item of visibleItems) { const key=relationKey(item.institution,item.title); if(key) groups.set(key,[...(groups.get(key)||[]),item]); }

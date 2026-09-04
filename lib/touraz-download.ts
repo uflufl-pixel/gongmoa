@@ -1,5 +1,6 @@
 // Official public CSV download. Preview only: no database writes or verified grants.
 export const tourazDownloadUrl='https://touraz.kr/fnct/ps/announcementList/getCsvPssrpList?tabMode=ktoip';
+export const tourazSource={id:'touraz-kto',institutionId:'public-183',name:'한국관광공사 투어라즈 공개 CSV',url:'https://touraz.kr/announcementList'};
 const headers=['상태','기관명','제목','신청기간','담당부서','등록일','링크'];
 const maxBytes=2_000_000;
 
@@ -72,6 +73,15 @@ export async function fetchTourazCsv(fetcher:typeof fetch=fetch){
   try{while(true){const {done,value}=await reader.read();if(done)break;bytes+=value.byteLength;if(bytes>maxBytes){await reader.cancel();throw Error('CSV 크기 제한 초과');}text+=decoder.decode(value,{stream:true});}text+=decoder.decode();}finally{reader.releaseLock();}
   if(!bytes)throw Error('빈 CSV 응답');
   return text;
+}
+export function collectTourazKto(input:string,knownIds:readonly string[]=[],now=new Date()){
+  const preview=previewTourazCsv(input,now);
+  if(preview.rejected.length)throw Error('투어라즈 CSV 오류 행 확인 필요');
+  const known=new Set(knownIds);
+  const items=preview.items.filter(i=>i.institution==='한국관광공사'&&(known.has(i.externalId)||(i.candidate&&i.receptionState!=='closed'))).map(i=>({
+    sourceId:tourazSource.id,externalId:i.externalId,institution:i.institution,group:'공사·공단',title:i.title,category:'문화·관광',audience:'원문 지원자격 확인',region:null,sourceName:tourazSource.name,sourceUrl:i.sourceUrl,ministry:'문화체육관광부',announcedFrom:i.posted,applicationFrom:i.applicationFrom,applicationTo:i.applicationTo,opensAt:null,closesAt:null,deadlineLabel:`${i.applicationFrom} ~ ${i.applicationTo} · 마감시각 원문 확인`,status:i.sourceState==='종료'?'closed':i.sourceState==='대기'?'pending':'open',
+  }));
+  return {items,parsedRows:preview.parsedRows};
 }
 export async function handleTourazPreview(request:Request,fetcher:typeof fetch=fetch){
   if(request.method!=='POST'||new URL(request.url).search)return Response.json({error:'POST without parameters required'},{status:400});

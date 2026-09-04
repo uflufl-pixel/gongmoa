@@ -1,4 +1,4 @@
-export type SearchRecord={deadlinePrecision?:'date'|'time';applicationUrls?:string[];ministry?:string|null;businessYear?:number|null;announcedFrom?:string|null;announcedTo?:string|null;applicationFrom?:string|null;applicationTo?:string|null;applicationPeriod?:string|null;detailVerifiedAt?:string|null;supportBudget?:number|null;applicationMethod?:string|null;deadlineLabel?:string;status?:string;createdAt?:string;opensAt?:string|null;closesAt?:string|null};
+export type SearchRecord={sourceReceptionState?:string;deadlinePrecision?:'date'|'time';applicationUrls?:string[];ministry?:string|null;businessYear?:number|null;announcedFrom?:string|null;announcedTo?:string|null;applicationFrom?:string|null;applicationTo?:string|null;applicationPeriod?:string|null;detailVerifiedAt?:string|null;supportBudget?:number|null;applicationMethod?:string|null;deadlineLabel?:string;status?:string;createdAt?:string;opensAt?:string|null;closesAt?:string|null};
 export type SearchNotice={id:string;org:string;tag:string;audience:string;details?:SearchRecord};
 export type AdvancedFilters={category:string;ministry:string;org:string;year:string;status:string;audience:string;period:string;from:string;to:string;minBudget:string;maxBudget:string;unknown:boolean;quick:string;sort:string};
 export const defaultFilters:AdvancedFilters={category:'',ministry:'',org:'',year:'',status:'',audience:'',period:'application',from:'',to:'',minBudget:'',maxBudget:'',unknown:true,quick:'',sort:'deadline'};
@@ -12,6 +12,7 @@ export function receptionState(d:SearchRecord={},today=kstDay(),now=Date.now()){
     if(d.opensAt&&Date.parse(d.opensAt)>now)return 'upcoming';
   }
   if(d.applicationFrom&&d.applicationFrom>today)return 'upcoming';
+  if(d.sourceReceptionState==='대기')return 'unknown';
   if(d.applicationFrom&&d.applicationTo&&d.applicationFrom<=today&&d.applicationTo>=today)return 'open';
   return 'unknown';
 }

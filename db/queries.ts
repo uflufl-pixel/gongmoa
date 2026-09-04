@@ -5,6 +5,7 @@ import publicRegistry from '../data/public-institutions.json';
 import {centralCollectors} from '../lib/central-collectors';
 import {kiatSource,nipaSource,keitiSource,kosmeSource} from '../lib/public-collectors';
 import {koatSource} from '../lib/koat-collector';
+import {tourazSource} from '../lib/touraz-download';
 import {registerCentralInstitutions} from './central-institutions';
 
 const now = new Date('2026-09-01T14:00:00.000Z');
@@ -28,6 +29,7 @@ const seedInstitutions = [
   { id: 'jeju', name: '제주특별자치도', group: '지방자치단체', officialDomain: 'jeju.go.kr', parentId: null, createdAt: now },
 ];
 const seedSources = [
+  {...tourazSource,method:'official-public-csv',cadenceMinutes:1440,status:'ready',lastSuccessAt:null,createdAt:now},
   {...kosmeSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...koatSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...kiatSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},

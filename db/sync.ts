@@ -12,6 +12,7 @@ import {fetchBojoChanges} from '../lib/bojo-changes';
 import {fetchTextWithDiagnostics,FetchDiagnosticError} from '../lib/fetch-diagnostics';
 import {fetchKiatList,parseKiatBoard,parseNipaBoard,fetchKeitiList,parseKeitiBoard,parseKoccaBoard,fetchKosmeList,parseKosmeBoard} from '../lib/public-collectors';
 import {fetchKoatList,parseKoatBoard} from '../lib/koat-collector';
+import {fetchTourazCsv,collectTourazKto} from '../lib/touraz-download';
 
 export const SYNC_BATCHES = [
   ['bojo','bizinfo','moe-board','gov24-orgs','mss-board','kdca-board','mfds-board','moj-board','motir-board','pps-board','mogef-board','mofe-board','police-board','dapa-board','kiat-board'],
@@ -33,7 +34,8 @@ async function inspectSource(source:{id:string;url:string;name:string}) {
     const fetchUrl=source.id==='bojo'?'https://www.bojo.go.kr/':source.id==='kocca-support'?'https://www.kocca.kr/kocca/pims/list.do?menuNo=204104':centralCollectorUrl(source.id,source.url);
     const request=()=>source.id==='koat-board'?fetchKoatList():source.id==='kosme-esg'?fetchKosmeList():source.id==='keiti-board'?fetchKeitiList():source.id==='kiat-board'?fetchKiatList():source.id==='police-board'?fetchPoliceList():source.id==='molit-board'?fetchMolitList():fetch(fetchUrl,{headers:{accept:centralCollectorAccept(source.id),'user-agent':'GongmoaSourceMonitor/1.1 (+https://gongmoa.uflufl.chatgpt.site)'},signal:AbortSignal.timeout(10000),redirect:'follow'});
     let response:Response,body:string;
-    if(source.id==='mnd-board')({response,body}=await fetchTextWithDiagnostics(request));
+    if(source.id==='touraz-kto'){body=await fetchTourazCsv();response=new Response(body,{headers:{'content-type':'text/csv'}});}
+    else if(source.id==='mnd-board')({response,body}=await fetchTextWithDiagnostics(request));
     else {
       try { response=await request(); } catch { response=await request(); }
       if(response.status===408||response.status===429||response.status>=500) response=await request();
@@ -343,6 +345,14 @@ export async function syncOfficialSources(requestedSourceIds?:readonly string[])
     catch(error){koccaParsed.check.outcome='parser_error';koccaParsed.check.message=error instanceof Error?error.message:'KOCCA 공고 구조 확인 필요';}
   }
   const centralItems:IncomingNotice[]=[];
+  const touraz=inspected.find(x=>x.check.sourceId==='touraz-kto');
+  if(touraz?.body&&touraz.check.outcome==='success'){
+    try{
+      const known=await db.select({id:notices.externalId}).from(notices).where(eq(notices.sourceId,'touraz-kto'));
+      const parsed=collectTourazKto(touraz.body,known.map(i=>i.id));
+      centralItems.push(...parsed.items);touraz.check.message=`CSV ${parsed.parsedRows}행 · 한국관광공사 신규·추적 후보 ${parsed.items.length}건`;
+    }catch(error){touraz.check.outcome='parser_error';touraz.check.message=error instanceof Error?error.message:'투어라즈 구조 확인 필요';}
+  }
   const koat=inspected.find(x=>x.check.sourceId==='koat-board');
   if(koat?.body&&koat.check.outcome==='success'){
     try{const parsed=parseKoatBoard(koat.body);centralItems.push(...parsed.items);koat.check.message=`첫 페이지 ${parsed.parsedRows}건 확인 · 공모 후보 ${parsed.items.length}건`;}

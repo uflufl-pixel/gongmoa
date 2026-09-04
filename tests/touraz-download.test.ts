@@ -1,10 +1,20 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 // @ts-ignore Native Node test runner uses explicit extensions.
-import {parseCsvRows,previewTourazCsv,fetchTourazCsv,handleTourazPreview,tourazReception,tourazCandidate} from '../lib/touraz-download.ts';
+import {parseCsvRows,previewTourazCsv,fetchTourazCsv,handleTourazPreview,tourazReception,tourazCandidate,collectTourazKto} from '../lib/touraz-download.ts';
+// @ts-ignore Native Node test runner.
+import {receptionState} from '../lib/notice-search.ts';
 const header='상태,기관명,제목,신청기간,담당부서,등록일,링크';
 const row=(id='1709',title='2027 무장애 관광환경 조성 사업 공모 실시')=>`대기,한국관광공사,${title},2026-09-07 ~ 2026-09-30,열린관광콘텐츠팀,2026-08-31,https://touraz.kr/announcementList/pssrpView?pssrpSeq=${id}`;
 const csv=(...rows:string[])=>'\uFEFF'+header+'\r\n'+rows.join('\r\n')+'\r\n';
+test('한국관광공사만 신규 연결, 기존 마감공고는 계속 추적',()=>{
+ const input=csv(row(),row('1710').replace('한국관광공사','울산문화관광재단'),row('1711').replace('대기','종료'),row('1712','공모전 심사 이벤트'));
+ const now=new Date('2026-09-04T00:00:00Z');
+ assert.deepEqual(collectTourazKto(input,[],now).items.map(i=>i.externalId),['1709']);
+ const r=collectTourazKto(input,['1711'],now);assert.equal(r.items.length,2);assert.equal(r.items[1].status,'closed');assert.equal(r.items[0].closesAt,null);
+ assert.equal(receptionState({sourceReceptionState:'대기',applicationFrom:'2026-09-07',applicationTo:'2026-09-30',deadlinePrecision:'date'},'2026-09-08'),'unknown');
+ assert.throws(()=>collectTourazKto(csv(row().replace('2026-09-30','2026-02-30'))));
+});
 test('공식 7열 계약과 숫자 ID, 날짜 정밀도 보존',()=>{
  const r=previewTourazCsv(csv(row()));assert.equal(r.parsedRows,1);assert.equal(r.items[0].externalId,'1709');assert.equal(r.items[0].closesAt,null);assert.equal(r.items[0].verification,'candidate');assert.equal(r.stored,0);assert.equal(r.verified,0);
 });
