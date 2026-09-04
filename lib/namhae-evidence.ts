@@ -17,7 +17,7 @@ export function namhaeCanonical(html:string){
   for(const k of ['소관부처·지자체','사업수행기관','신청기간','사업개요','사업신청 방법'])if(!fields.get(k))throw Error('남해 상세 필수항목 누락');
   const attachments=[...new Set([...clean.matchAll(/href="(\/cmm\/fms\/fileDown\.do\?[^"<>]+)"/g)].map(m=>m[1].replace(/&amp;/g,'&')))].sort();
   if(!attachments.includes(new URL(namhaeAttachment).pathname+new URL(namhaeAttachment).search))throw Error('남해 공고문 첨부 연결 변경');
-  return JSON.stringify({title:titles[0][1].trim(),fields:[...fields].sort(([a],[b])=>a.localeCompare(b)),attachments});
+  return JSON.stringify({title:titles[0][1].trim(),fields:[...fields].sort(([a],[b])=>a<b?-1:a>b?1:0),attachments});
 }
 export async function readEvidenceBytes(response:Response,limit=2_000_000){
   if(!response.ok||!response.body)throw Error('근거 HTTP 응답 오류');

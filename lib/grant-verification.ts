@@ -69,7 +69,7 @@ export async function verifyGrantDetail(n:RecordIdentity,fetcher:typeof fetch=fe
   const audit=grantAudits.find(a=>a.sourceId===n.sourceId&&a.externalId===n.externalId)!;
   if(audit.sourceUrl===namhaeUrl){
     try{await verifyNamhaeEvidence(audit.detailHash,fetcher);return {...result,reason:'공식 본문·공고 첨부 4개 요건 확인 · 개인별 신청자격 별도 확인'};}
-    catch{return {status:'candidate',reason:'본문·첨부 변경 또는 재확인 실패 · 재검토 필요'};}
+    catch(error){const message=error instanceof Error?error.message:'';const safe=['남해 본문 변경','남해 첨부 변경 또는 오류 응답','남해 공고문 첨부 연결 변경','남해 상세 필수항목 누락','남해 공고 제목 불일치','근거 HTTP 응답 오류','근거 크기 제한 초과'].includes(message)?message:'공식 근거 조회 지연 또는 구조 오류';return {status:'candidate',reason:`${safe} · 재검토 필요`};}
   }
   const formats:Record<string,'kosme'|'nipa'|'koat'>={
     'https://kdoctor.kosmes.or.kr/esgplatform/board/board13View.do?idx=1351':'kosme',
