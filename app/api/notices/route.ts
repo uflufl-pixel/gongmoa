@@ -2,7 +2,7 @@ import { listNotices, listSources } from '@/db/queries';
 import {withBizinfoDetails} from '@/db/bizinfo-details';
 import {withKoccaDetails} from '@/db/kocca-details';
 import {isCollectedRecord} from '@/lib/data-quality';
-import {verifyGrantDetail,grantReception} from '@/lib/grant-verification';
+import {verifyGrantDetail,effectiveGrantFacts} from '@/lib/grant-verification';
 import {tourazCandidate,tourazReception} from '@/lib/touraz-download';
 import {arkoCandidate} from '@/lib/arko-collector';
 import {kawfCandidate} from '@/lib/kawf-collector';
@@ -28,7 +28,7 @@ export async function GET() {
     const visibleItems=items.filter(item=>isCollectedRecord(item)&&!isObviousNonGrant(item.title)&&(item.sourceId!=='arko-board'||arkoCandidate(item.title))&&(item.sourceId!=='kawf-board'||kawfCandidate(item.title)));
     const groups=new Map<string,typeof items>();
     for(const item of visibleItems) { const key=relationKey(item.institution,item.title); if(key) groups.set(key,[...(groups.get(key)||[]),item]); }
-    const enriched=await Promise.all(visibleItems.map(async item=>{const related=groups.get(relationKey(item.institution,item.title))||[];const grantVerification=await verifyGrantDetail(item);return {...item,...grantReception(grantVerification),audience:grantVerification.status==='verified'?grantVerification.evidence!.audience:item.audience,grantVerification,relatedCount:Math.max(0,related.length-1),relatedSources:[...new Set(related.map(x=>x.sourceName))]};}));
+    const enriched=await Promise.all(visibleItems.map(async item=>{const related=groups.get(relationKey(item.institution,item.title))||[];const grantVerification=await verifyGrantDetail(item);return {...effectiveGrantFacts(item,grantVerification),originalFacts:item,relatedCount:Math.max(0,related.length-1),relatedSources:[...new Set(related.map(x=>x.sourceName))]};}));
     return Response.json({ items: enriched, sources: sourceItems, generatedAt: new Date().toISOString(), mode: 'live-db' });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : 'Database unavailable' }, { status: 503 });

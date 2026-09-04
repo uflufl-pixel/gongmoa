@@ -1,0 +1,536 @@
+{
+  "kind": "operational-read-snapshot",
+  "at": "2026-09-04T16:08:24.411Z",
+  "total": 321,
+  "verified": 5,
+  "sources": [
+    {
+      "id": "gyeongnam-business",
+      "institutionId": "gyeongnam",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:09:02.376Z",
+      "visible": 7,
+      "verified": 0
+    },
+    {
+      "id": "police-board",
+      "institutionId": "central-1320000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T14:46:43.677Z",
+      "visible": 0,
+      "verified": 0
+    },
+    {
+      "id": "moel-board",
+      "institutionId": "central-1492000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:08:32.167Z",
+      "visible": 2,
+      "verified": 0
+    },
+    {
+      "id": "moel-support",
+      "institutionId": "central-1492000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:08:32.121Z",
+      "visible": 2,
+      "verified": 0
+    },
+    {
+      "id": "cio-board",
+      "institutionId": "central-1790364",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:08:32.266Z",
+      "visible": 0,
+      "verified": 0
+    },
+    {
+      "id": "moe-board",
+      "institutionId": "moe",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T14:46:42.338Z",
+      "visible": 7,
+      "verified": 0
+    },
+    {
+      "id": "mods-board",
+      "institutionId": "central-1241000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T14:48:15.886Z",
+      "visible": 1,
+      "verified": 0
+    },
+    {
+      "id": "mpva-board",
+      "institutionId": "central-1830000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T14:48:15.606Z",
+      "visible": 1,
+      "verified": 0
+    },
+    {
+      "id": "khs-board",
+      "institutionId": "central-1833100",
+      "status": "attention",
+      "lastSuccessAt": null,
+      "visible": 0,
+      "verified": 0
+    },
+    {
+      "id": "mnd-board",
+      "institutionId": "central-1290000",
+      "status": "attention",
+      "lastSuccessAt": null,
+      "visible": 0,
+      "verified": 0
+    },
+    {
+      "id": "nts-board",
+      "institutionId": "central-1210000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:09:03.415Z",
+      "visible": 1,
+      "verified": 0
+    },
+    {
+      "id": "molit-board",
+      "institutionId": "central-1613000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T14:48:16.745Z",
+      "visible": 1,
+      "verified": 0
+    },
+    {
+      "id": "kma-board",
+      "institutionId": "central-1360000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T14:48:16.191Z",
+      "visible": 1,
+      "verified": 0
+    },
+    {
+      "id": "bizinfo",
+      "institutionId": "mss",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T14:46:42.323Z",
+      "visible": 60,
+      "verified": 0
+    },
+    {
+      "id": "me-board",
+      "institutionId": "me",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:08:35.115Z",
+      "visible": 4,
+      "verified": 0
+    },
+    {
+      "id": "mafra-board",
+      "institutionId": "central-1543000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:08:32.096Z",
+      "visible": 5,
+      "verified": 0
+    },
+    {
+      "id": "rda-board",
+      "institutionId": "central-1390000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:08:32.044Z",
+      "visible": 2,
+      "verified": 0
+    },
+    {
+      "id": "spo-board",
+      "institutionId": "central-1280000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:09:02.958Z",
+      "visible": 0,
+      "verified": 0
+    },
+    {
+      "id": "daegu-board",
+      "institutionId": "daegu",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T14:48:15.279Z",
+      "visible": 1,
+      "verified": 0
+    },
+    {
+      "id": "daejeon-board",
+      "institutionId": "daejeon",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T14:48:15.223Z",
+      "visible": 7,
+      "verified": 0
+    },
+    {
+      "id": "pss-board",
+      "institutionId": "central-1021100",
+      "status": "attention",
+      "lastSuccessAt": null,
+      "visible": 0,
+      "verified": 0
+    },
+    {
+      "id": "mcst-board",
+      "institutionId": "mcst",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:08:33.384Z",
+      "visible": 3,
+      "verified": 0
+    },
+    {
+      "id": "dapa-board",
+      "institutionId": "central-1690000",
+      "status": "attention",
+      "lastSuccessAt": null,
+      "visible": 0,
+      "verified": 0
+    },
+    {
+      "id": "moj-board",
+      "institutionId": "central-1270000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T14:46:43.682Z",
+      "visible": 4,
+      "verified": 0
+    },
+    {
+      "id": "moleg-board",
+      "institutionId": "central-1170000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T14:48:15.434Z",
+      "visible": 0,
+      "verified": 0
+    },
+    {
+      "id": "mma-board",
+      "institutionId": "central-1300000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:09:05.687Z",
+      "visible": 1,
+      "verified": 0
+    },
+    {
+      "id": "mohw-board",
+      "institutionId": "central-1352000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:09:04.606Z",
+      "visible": 0,
+      "verified": 0
+    },
+    {
+      "id": "bojo",
+      "institutionId": null,
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T14:47:02.071Z",
+      "visible": 45,
+      "verified": 0
+    },
+    {
+      "id": "busan-board",
+      "institutionId": "busan",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T14:48:16.631Z",
+      "visible": 5,
+      "verified": 0
+    },
+    {
+      "id": "forest-board",
+      "institutionId": "central-1400000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:09:03.099Z",
+      "visible": 0,
+      "verified": 0
+    },
+    {
+      "id": "forest-news",
+      "institutionId": "central-1400000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:09:03.063Z",
+      "visible": 0,
+      "verified": 0
+    },
+    {
+      "id": "motir-board",
+      "institutionId": "central-1451000",
+      "status": "attention",
+      "lastSuccessAt": "2026-09-03T14:05:15.833Z",
+      "visible": 7,
+      "verified": 0
+    },
+    {
+      "id": "saemangeum-board",
+      "institutionId": "central-1730000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T14:48:16.129Z",
+      "visible": 1,
+      "verified": 0
+    },
+    {
+      "id": "seoul-board",
+      "institutionId": "seoul",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T14:48:15.395Z",
+      "visible": 7,
+      "verified": 0
+    },
+    {
+      "id": "mogef-board",
+      "institutionId": "central-1384000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T14:46:42.910Z",
+      "visible": 2,
+      "verified": 0
+    },
+    {
+      "id": "nfa-board",
+      "institutionId": "central-1661000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:09:02.965Z",
+      "visible": 1,
+      "verified": 0
+    },
+    {
+      "id": "mfds-board",
+      "institutionId": "central-1471000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T14:46:42.927Z",
+      "visible": 0,
+      "verified": 0
+    },
+    {
+      "id": "kasa-board",
+      "institutionId": "central-1834100",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:09:03.386Z",
+      "visible": 3,
+      "verified": 0
+    },
+    {
+      "id": "ulsan-board",
+      "institutionId": "ulsan",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:09:02.326Z",
+      "visible": 5,
+      "verified": 0
+    },
+    {
+      "id": "mpm-board",
+      "institutionId": "central-1760000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:08:32.351Z",
+      "visible": 4,
+      "verified": 0
+    },
+    {
+      "id": "incheon-board",
+      "institutionId": "incheon",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T14:48:16.346Z",
+      "visible": 0,
+      "verified": 0
+    },
+    {
+      "id": "oka-board",
+      "institutionId": "central-1832000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:08:32.336Z",
+      "visible": 3,
+      "verified": 0
+    },
+    {
+      "id": "mofe-board",
+      "institutionId": "central-1053000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T14:46:42.502Z",
+      "visible": 4,
+      "verified": 0
+    },
+    {
+      "id": "jeonbuk-board",
+      "institutionId": "jeonbuk",
+      "status": "attention",
+      "lastSuccessAt": "2026-09-02T05:16:28.064Z",
+      "visible": 0,
+      "verified": 0
+    },
+    {
+      "id": "nipa-board",
+      "institutionId": "public-031",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:08:32.531Z",
+      "visible": 7,
+      "verified": 1
+    },
+    {
+      "id": "gov24-orgs",
+      "institutionId": null,
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T14:46:42.212Z",
+      "visible": 0,
+      "verified": 0
+    },
+    {
+      "id": "jeju-board",
+      "institutionId": "jeju",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:09:02.070Z",
+      "visible": 6,
+      "verified": 0
+    },
+    {
+      "id": "pps-board",
+      "institutionId": "central-1230000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T14:46:42.517Z",
+      "visible": 14,
+      "verified": 0
+    },
+    {
+      "id": "mss-board",
+      "institutionId": "mss",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T14:46:42.190Z",
+      "visible": 14,
+      "verified": 0
+    },
+    {
+      "id": "kosme-esg",
+      "institutionId": "public-301",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:09:03.190Z",
+      "visible": 4,
+      "verified": 2
+    },
+    {
+      "id": "moip-board",
+      "institutionId": "central-1431000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:08:32.318Z",
+      "visible": 3,
+      "verified": 0
+    },
+    {
+      "id": "kdca-board",
+      "institutionId": "central-1790387",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T14:46:42.359Z",
+      "visible": 27,
+      "verified": 0
+    },
+    {
+      "id": "chungbuk-board",
+      "institutionId": "chungbuk",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:09:01.884Z",
+      "visible": 5,
+      "verified": 0
+    },
+    {
+      "id": "unikorea-board",
+      "institutionId": "central-1250000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:09:02.308Z",
+      "visible": 0,
+      "verified": 0
+    },
+    {
+      "id": "touraz-kto",
+      "institutionId": "public-183",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:34:15.127Z",
+      "visible": 4,
+      "verified": 0
+    },
+    {
+      "id": "koat-board",
+      "institutionId": "public-164",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:09:04.514Z",
+      "visible": 4,
+      "verified": 2
+    },
+    {
+      "id": "arko-board",
+      "institutionId": "public-188",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:34:04.999Z",
+      "visible": 3,
+      "verified": 0
+    },
+    {
+      "id": "socialenterprise-board",
+      "institutionId": "public-009",
+      "status": "attention",
+      "lastSuccessAt": null,
+      "visible": 0,
+      "verified": 0
+    },
+    {
+      "id": "kiat-board",
+      "institutionId": "public-251",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T14:46:43.737Z",
+      "visible": 8,
+      "verified": 0
+    },
+    {
+      "id": "kawf-board",
+      "institutionId": "public-193",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T16:01:08.835Z",
+      "visible": 5,
+      "verified": 0
+    },
+    {
+      "id": "kocca-support",
+      "institutionId": "public-198",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:08:32.005Z",
+      "visible": 4,
+      "verified": 0
+    },
+    {
+      "id": "keiti-board",
+      "institutionId": "public-340",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T14:48:17.517Z",
+      "visible": 3,
+      "verified": 0
+    },
+    {
+      "id": "kcg-board",
+      "institutionId": "central-1532000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T14:48:16.511Z",
+      "visible": 2,
+      "verified": 0
+    },
+    {
+      "id": "mof-board",
+      "institutionId": "central-1192000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:09:02.417Z",
+      "visible": 4,
+      "verified": 0
+    },
+    {
+      "id": "naacc-board",
+      "institutionId": "central-1670000",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:08:32.378Z",
+      "visible": 4,
+      "verified": 0
+    },
+    {
+      "id": "mois-board",
+      "institutionId": "mois",
+      "status": "connected",
+      "lastSuccessAt": "2026-09-04T15:08:32.046Z",
+      "visible": 3,
+      "verified": 0
+    }
+  ]
+}

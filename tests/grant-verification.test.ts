@@ -1,8 +1,35 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 // @ts-expect-error Native Node runner.
-import {verifyGrant,verifyGrantDetail,grantAudits,currentGrantVerification,detailFingerprint,grantReception} from '../lib/grant-verification.ts';
+import {verifyGrant,verifyGrantDetail,grantAudits,currentGrantVerification,detailFingerprint,grantReception,effectiveGrantFacts} from '../lib/grant-verification.ts';
 const audit=grantAudits[0],now=Date.parse(audit.checkedAt)+1000;
+test('KOSME refuses truncated nested or duplicate body boundaries',async()=>{
+  await assert.rejects(()=>detailFingerprint('<div class="detail_text"><div>안내</div>신청 변경</div>'));
+  await assert.rejects(()=>detailFingerprint('<div class="detail_text">a</div><div class="detail_text">b</div>'));
+  assert.notEqual(await detailFingerprint('<div class="detail_text">신청</div>'),await detailFingerprint('<div class="detail_text">종료</div>'));
+});
+test('date and exact-time audits are upcoming before KST start without inventing a start time',()=>{
+  for(const precision of ['date','time'] as const){
+    const reception={applicationFrom:'2026-09-07',applicationTo:'2026-09-30',...(precision==='date'?{deadlinePrecision:'date' as const,closesAt:null}:{closesAt:'2026-09-30T09:00:00Z'})};
+    const v={status:'verified' as const,reason:'test',reception};
+    assert.equal(grantReception(v,Date.parse('2026-09-06T14:59:59Z')).status,'upcoming');
+    assert.equal(grantReception(v,Date.parse('2026-09-06T15:00:00Z')).status,'open');
+    assert.equal(grantReception(v,Date.parse('2026-09-06T14:59:59Z')).opensAt,null);
+  }
+});
+test('expired or failed audit restores all original facts, not just badge',()=>{
+  const checked=Date.parse('2026-09-01T00:00:00Z'),end=checked+7*86400000;
+  const v={status:'verified' as const,reason:'test',checkedAt:new Date(checked).toISOString(),evidence:{purpose:'p',audience:'검증대상',support:'s',application:'a'},reception:{applicationFrom:'2026-09-01',applicationTo:'2026-09-10',closesAt:null,deadlinePrecision:'date' as const}};
+  for(const original of [{audience:'원본대상',applicationFrom:null,applicationTo:null,closesAt:null,status:'unknown',deadlineLabel:'원문 확인'}, {audience:'원본대상',applicationFrom:'2026-08-01',applicationTo:'2026-08-31',closesAt:'2026-08-31T09:00:00Z',status:'closed',deadlineLabel:'원본 마감'}]){
+    for(const at of [end-1,end])assert.equal(effectiveGrantFacts(original,v,at).grantVerification.status,'verified');
+    const opened=effectiveGrantFacts(original,v,end+1);
+    const fresh=effectiveGrantFacts(original,currentGrantVerification(v,end+1),end+1);
+    assert.deepEqual(opened,fresh);
+    for(const key of Object.keys(original))assert.deepEqual(opened[key as keyof typeof opened],original[key as keyof typeof original]);
+    assert.equal(effectiveGrantFacts(original,{status:'candidate',reason:'failed'},end).audience,original.audience);
+    if(original.status==='closed')assert.equal(effectiveGrantFacts(original,v,end-1).status,'closed');
+  }
+});
 test('KOAT hashes complete nested body and rejects ambiguous boundaries',async()=>{
   const body='<td class="main"><div>지원</div><div>신청</div></td>';
   assert.equal(await detailFingerprint(body,'koat'),await detailFingerprint(body+'<footer>변경</footer>','koat'));

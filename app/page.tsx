@@ -9,8 +9,8 @@ import {advancedSearch,defaultFilters,type SearchRecord} from "../lib/notice-sea
 import BojoBackfillPanel from './bojo-backfill-panel';
 import CentralInstitutions from './central-institutions';
 import centralRegistry from '../data/central-institutions.json';
-import {currentGrantVerification,type GrantVerification} from '../lib/grant-verification';
-function verification(n:Notice):GrantVerification{return currentGrantVerification((n.details as (SearchRecord&{grantVerification?:GrantVerification})|undefined)?.grantVerification);}
+import {effectiveGrantFacts,type GrantVerification} from '../lib/grant-verification';
+function verification(n:Notice):GrantVerification{return (n.details as (SearchRecord&{grantVerification?:GrantVerification})|undefined)?.grantVerification||{status:'candidate',reason:'본문 검토 필요'};}
 
 type Notice = { details?:SearchRecord; id:string; org:string; group:string; region:string|null; title:string; due:string; dday:number; tag:string; audience:string; source:string; url:string; reviewReason:string|null; relatedCount:number; relatedSources:string[] };
 type SourceCheck = { id:string; sourceId:string; outcome:string; statusCode:number|null; contentBytes:number|null; keywordHits:number|null; pageTitle:string|null; message:string|null; finishedAt:string };
@@ -34,14 +34,23 @@ function getReviewReason(title:string,closesAt:string|null) {
 }
 
 export default function Home() {
-  const [notices,setNotices]=useState<Notice[]>([]); const [query,setQuery]=useState(''); const [group,setGroup]=useState('전체'); const [region,setRegion]=useState('전체 지역');
+  const [rawNotices,setNotices]=useState<Notice[]>([]); const [query,setQuery]=useState(''); const [group,setGroup]=useState('전체'); const [region,setRegion]=useState('전체 지역');
+  const [clockNow,setClockNow]=useState(()=>Date.now());
+  const notices=useMemo(()=>rawNotices.map(n=>{
+    const d=n.details as (SearchRecord&{audience?:string;originalFacts?:SearchRecord&{audience?:string};grantVerification?:GrantVerification})|undefined;
+    if(!d)return n;
+    // Old responses lack provenance: do not retain unverifiable merged facts.
+    const original=d.originalFacts||{audience:'원문 지원자격 확인',applicationFrom:null,applicationTo:null,opensAt:null,closesAt:null,status:'unknown',deadlineLabel:'원문 확인',deadlinePrecision:undefined};
+    const facts=effectiveGrantFacts(original,d.originalFacts?d.grantVerification:undefined,clockNow);
+    return {...n,details:facts,audience:facts.audience||'원문 지원자격 확인',due:facts.deadlineLabel||'원문 확인',dday:facts.closesAt?Math.max(0,Math.ceil((Date.parse(facts.closesAt)-clockNow)/86400000)):99,reviewReason:getReviewReason(n.title,facts.closesAt||null)};
+  }),[rawNotices,clockNow]);
   const [saved,setSaved]=useState<string[]>([]); const [showSaved,setShowSaved]=useState(false); const [mode,setMode]=useState<'connecting'|'live-db'|'fallback'>('connecting'); const [deviceKey,setDeviceKey]=useState('');
   const [checks,setChecks]=useState<SourceCheck[]>([]); const [syncing,setSyncing]=useState(false); const [collection,setCollection]=useState<CollectionSummary|null>(null); const [reviewOnly,setReviewOnly]=useState(false);
   const [sourceCount,setSourceCount]=useState<number|null>(null);
   const [syncError,setSyncError]=useState('');
   const [advanced,setAdvanced]=useState({...defaultFilters});
   const [reviews,setReviews]=useState<Record<string,'approved'|'excluded'>>({});
-  useEffect(()=>{const timer=setInterval(()=>setNotices(items=>[...items]),60000);return ()=>clearInterval(timer)},[]);
+  useEffect(()=>{const timer=setInterval(()=>setClockNow(Date.now()),60000);return ()=>clearInterval(timer)},[]);
   useEffect(()=>{
     const key=localStorage.getItem('gongmoa-device')||crypto.randomUUID().replaceAll('-',''); localStorage.setItem('gongmoa-device',key); setDeviceKey(key);
     fetch('/api/notices').then(r=>r.ok?r.json():Promise.reject()).then(raw=>{const data=raw as {items:Array<{id:string;institution:string;group:string;region:string|null;title:string;deadlineLabel:string;closesAt:string|null;category:string;audience:string;sourceName:string;sourceUrl:string;relatedCount:number;relatedSources:string[]}>};
@@ -57,7 +66,7 @@ export default function Home() {
   const verifiedCount=notices.filter(n=>verification(n).status==='verified'&&reviews[n.id]!=='excluded').length;
   const regions=useMemo(()=>['전체 지역',...Array.from(new Set(notices.map(n=>n.region).filter((x):x is string=>Boolean(x)))).sort((a,b)=>a.localeCompare(b,'ko'))],[notices]);
   const baseFiltered=useMemo(()=>notices.filter(n=>reviews[n.id]!=='excluded'&&(group==='전체'||n.group===group)&&(region==='전체 지역'||n.region===region)&&(!showSaved||saved.includes(n.id))&&(reviewOnly?verification(n).status!=='verified':verification(n).status==='verified')&&(`${n.org} ${n.region||''} ${n.title} ${n.tag} ${n.audience}`).toLowerCase().includes(query.toLowerCase())),[notices,query,group,region,saved,showSaved,reviewOnly,reviews]);
-  const filtered=useMemo(()=>advancedSearch(baseFiltered,advanced),[baseFiltered,advanced]);
+  const filtered=useMemo(()=>advancedSearch(baseFiltered,advanced,clockNow),[baseFiltered,advanced,clockNow]);
   const toggle=(id:string)=>{const next=!saved.includes(id);setSaved(s=>next?[...s,id]:s.filter(x=>x!==id));if(deviceKey)fetch('/api/bookmarks',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceKey,noticeId:id,saved:next})}).catch(()=>{});};
   const review=async(id:string,decision:'approved'|'excluded')=>{const previous=reviews[id];setReviews(x=>({...x,[id]:decision}));const response=await fetch('/api/reviews',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({noticeId:id,decision})});if(!response.ok)setReviews(x=>{const next={...x};if(previous)next[id]=previous;else delete next[id];return next})};
   const runSync=async()=>{setSyncing(true);setSyncError('');try{const totals:CollectionSummary={discovered:0,inserted:0,updated:0,unchanged:0,review:0,closed:0};const latest:SourceCheck[]=[];for(let batch=0;batch<4;batch++){const response=await fetch(`/api/sync?batch=${batch}`,{method:'POST'});if(!response.ok)throw new Error();const data=await response.json() as {results:SourceCheck[];collection:CollectionSummary};latest.push(...data.results);for(const key of Object.keys(totals) as Array<keyof CollectionSummary>)totals[key]+=data.collection[key]||0;setChecks([...latest]);setCollection({...totals});}const refreshed=await fetch('/api/notices').then(r=>r.json()) as {items:Array<{id:string;institution:string;group:string;region:string|null;title:string;deadlineLabel:string;closesAt:string|null;category:string;audience:string;sourceName:string;sourceUrl:string;relatedCount:number;relatedSources:string[]}>};setNotices(refreshed.items.map(n=>({details:n as unknown as SearchRecord,id:n.id,org:n.institution,group:n.group,region:n.region,title:n.title,due:n.deadlineLabel,dday:daysUntil(n.closesAt),tag:n.category,audience:n.audience,source:n.sourceName,url:n.sourceUrl,reviewReason:getReviewReason(n.title,n.closesAt),relatedCount:n.relatedCount||0,relatedSources:n.relatedSources||[]})));setMode('live-db');}catch{setSyncError('일부 수집 또는 새 목록 불러오기에 실패했습니다. 마지막 표시 자료는 유지됩니다. 잠시 후 다시 시도해 주세요.');}finally{setSyncing(false)}};

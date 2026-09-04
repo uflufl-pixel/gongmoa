@@ -48,6 +48,8 @@ export function verifyGrant(n:RecordIdentity,audits:GrantAudit[]=grantAudits,now
 }
 export async function detailFingerprint(html:string,format:'kosme'|'nipa'|'koat'='kosme'){
   const clean=html.replace(/<!--[\s\S]*?-->/g,'').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'');
+  const kosmeBodies=format==='kosme'?[...clean.matchAll(/<div class="detail_text">([\s\S]*?)<\/div>/g)]:[];
+  if(format==='kosme'&&(kosmeBodies.length!==1||/<div\b/i.test(kosmeBodies[0][1])))throw new Error('KOSME 본문 경계 확인 필요');
   const koatBodies=format==='koat'?[...clean.matchAll(/<td class="main">([\s\S]*?)<\/td>/g)]:[];
   if(format==='koat'&&(koatBodies.length!==1||/<table\b|<td\b/i.test(koatBodies[0][1])))throw new Error('KOAT 본문 경계 확인 필요');
   const body=format==='koat'?koatBodies[0][1]:format==='nipa'?clean.match(/<label[^>]*id="BSNS_ANNC_CONT_323-001"[^>]*>([\s\S]*?)<\/label>/)?.[1]:clean.match(/<div class="detail_text">([\s\S]*?)<\/div>/)?.[1];
@@ -72,16 +74,27 @@ export async function verifyGrantDetail(n:RecordIdentity,fetcher:typeof fetch=fe
     return result;
   }catch{return {status:'candidate',reason:'공식 본문 재확인 지연 · 검토 후보 유지'};}
 }
-export function grantReception(v:GrantVerification,now=Date.now()):Partial<{applicationFrom:string;applicationTo:string;opensAt:null;closesAt:string|null;deadlinePrecision:'date'|'time';status:'closed'|'open'|'unknown';deadlineLabel:string}>{
+export function grantReception(v:GrantVerification,now=Date.now()):Partial<{applicationFrom:string;applicationTo:string;opensAt:null;closesAt:string|null;deadlinePrecision:'date'|'time';status:'closed'|'open'|'unknown'|'upcoming';deadlineLabel:string}>{
   if(v.status!=='verified'||!v.reception)return {};
   const r=v.reception;
   const validDay=(s:string)=>/^\d{4}-\d{2}-\d{2}$/.test(s)&&Number.isFinite(Date.parse(s+'T00:00:00Z'))&&new Date(s+'T00:00:00Z').toISOString().slice(0,10)===s;
   if(!validDay(r.applicationFrom)||!validDay(r.applicationTo)||r.applicationFrom>r.applicationTo)return {};
+  const today=new Date(now+9*3600000).toISOString().slice(0,10);
   if(r.deadlinePrecision==='date'){
     const today=new Date(now+9*3600000).toISOString().slice(0,10);
-    return {...r,closesAt:null,opensAt:null,status:r.applicationTo<today?'closed':r.applicationTo===today?'unknown':'open',deadlineLabel:`${r.applicationTo} · 마감시각 원문 확인`};
+    return {...r,closesAt:null,opensAt:null,status:r.applicationFrom>today?'upcoming':r.applicationTo<today?'closed':r.applicationTo===today?'unknown':'open',deadlineLabel:`${r.applicationTo} · 마감시각 원문 확인`};
   }
   const end=Date.parse(r.closesAt);
   if(!Number.isFinite(end)||new Date(end+9*3600000).toISOString().slice(0,10)!==r.applicationTo)return {};
-  return {...r,status:Date.parse(r.closesAt)<now?'closed':'open',deadlineLabel:`${r.applicationTo} ${new Date(Date.parse(r.closesAt)+9*3600000).toISOString().slice(11,16)} (본문 확인)`};
+  return {...r,opensAt:null,status:r.applicationFrom>today?'upcoming':Date.parse(r.closesAt)<now?'closed':'open',deadlineLabel:`${r.applicationTo} ${new Date(Date.parse(r.closesAt)+9*3600000).toISOString().slice(11,16)} (본문 확인)`};
+}
+
+// Always project from unmodified source facts, never from a previous projection.
+export function effectiveGrantFacts<T extends {audience?:string;status?:string}>(original:T,v?:GrantVerification,now=Date.now()){
+  const grantVerification=currentGrantVerification(v,now);
+  const reception=grantReception(grantVerification,now);
+  return {...original,...reception,
+    ...(original.status==='closed'?{status:'closed'}:{}),
+    audience:grantVerification.status==='verified'&&grantVerification.evidence?grantVerification.evidence.audience:original.audience,
+    grantVerification};
 }
