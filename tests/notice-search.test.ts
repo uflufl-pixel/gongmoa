@@ -3,6 +3,14 @@ import assert from 'node:assert/strict';
 // @ts-expect-error Node's native TypeScript runner requires the explicit extension.
 import {advancedSearch,defaultFilters,receptionState,searchError} from '../lib/notice-search.ts';
 const now=Date.parse('2026-09-02T03:00:00Z');
+test('date precision is unknown on deadline day and closed after Korean midnight',()=>{
+  const d={applicationFrom:'2026-08-18',applicationTo:'2026-09-04',deadlinePrecision:'date' as const,closesAt:null};
+  assert.equal(receptionState(d,'2026-09-03'),'open');
+  assert.equal(receptionState(d,'2026-09-04'),'unknown');
+  assert.equal(receptionState(d,'2026-09-05'),'closed');
+  const items=[{id:'date',org:'농진원',tag:'농업',audience:'농가',details:d}];
+  assert.equal(advancedSearch(items,{...defaultFilters,status:'open',unknown:false},Date.parse('2026-09-04T01:00:00Z')).length,0);
+});
 test('explicit reception cutoffs use Korean time within the same day',()=>{
   const d={applicationFrom:'2026-09-01',applicationTo:'2026-09-02',opensAt:'2026-08-31T15:00:00Z',closesAt:'2026-09-02T09:00:00Z',deadlineLabel:'2026-09-01 00:00 ~ 2026-09-02 18:00'};
   assert.equal(receptionState(d,'2026-09-02',Date.parse('2026-09-02T08:59:00Z')),'open');

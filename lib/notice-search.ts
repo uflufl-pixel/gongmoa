@@ -1,10 +1,11 @@
-export type SearchRecord={applicationUrls?:string[];ministry?:string|null;businessYear?:number|null;announcedFrom?:string|null;announcedTo?:string|null;applicationFrom?:string|null;applicationTo?:string|null;applicationPeriod?:string|null;detailVerifiedAt?:string|null;supportBudget?:number|null;applicationMethod?:string|null;deadlineLabel?:string;status?:string;createdAt?:string;opensAt?:string|null;closesAt?:string|null};
+export type SearchRecord={deadlinePrecision?:'date'|'time';applicationUrls?:string[];ministry?:string|null;businessYear?:number|null;announcedFrom?:string|null;announcedTo?:string|null;applicationFrom?:string|null;applicationTo?:string|null;applicationPeriod?:string|null;detailVerifiedAt?:string|null;supportBudget?:number|null;applicationMethod?:string|null;deadlineLabel?:string;status?:string;createdAt?:string;opensAt?:string|null;closesAt?:string|null};
 export type SearchNotice={id:string;org:string;tag:string;audience:string;details?:SearchRecord};
 export type AdvancedFilters={category:string;ministry:string;org:string;year:string;status:string;audience:string;period:string;from:string;to:string;minBudget:string;maxBudget:string;unknown:boolean;quick:string;sort:string};
 export const defaultFilters:AdvancedFilters={category:'',ministry:'',org:'',year:'',status:'',audience:'',period:'application',from:'',to:'',minBudget:'',maxBudget:'',unknown:true,quick:'',sort:'deadline'};
 export function kstDay(time=Date.now()){return new Date(time+9*3600000).toISOString().slice(0,10)}
 export function receptionState(d:SearchRecord={},today=kstDay(),now=Date.now()){
   if(d.status==='closed'||(d.applicationTo&&d.applicationTo<today))return 'closed';
+  if(d.deadlinePrecision==='date'&&d.applicationTo===today)return 'unknown';
   // Exact times are used only when an explicit time range was retained from the source.
   if(d.deadlineLabel&&/\d{2}:\d{2}/.test(d.deadlineLabel)&&d.applicationFrom&&d.applicationTo){
     if(d.closesAt&&Date.parse(d.closesAt)<now)return 'closed';

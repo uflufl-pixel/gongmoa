@@ -1,5 +1,5 @@
 export type GrantEvidence={purpose:string;audience:string;support:string;application:string};
-type Reception={applicationFrom:string;applicationTo:string;closesAt:string};
+type Reception={applicationFrom:string;applicationTo:string}&({deadlinePrecision:'date';closesAt:null}|{deadlinePrecision?:'time';closesAt:string});
 export type GrantAudit={sourceId:string;externalId:string;sourceUrl:string;title:string;contentHash:string;detailHash:string;checkedAt:string;evidence:GrantEvidence;reception?:Reception};
 export type GrantVerification={status:'verified'|'candidate';reason:string;checkedAt?:string;sourceUrl?:string;evidence?:GrantEvidence;reception?:Reception};
 export function currentGrantVerification(v?:GrantVerification,now=Date.now()):GrantVerification{
@@ -12,6 +12,11 @@ export function currentGrantVerification(v?:GrantVerification,now=Date.now()):Gr
 }
 // Reviewed official detail, not an automatic title/keyword decision. Source changes invalidate this audit.
 export const grantAudits:GrantAudit[]=[{
+  sourceId:'koat-board',externalId:'16431',sourceUrl:'https://www.koat.or.kr/board/business/16431/view.do',
+  title:'「2026년 저탄소 인증농산물 품평상담회」참여농가 모집 공고',contentHash:'42ce7f15037b6bc43e2dd7f80d0dd2c67762f202c8935275cf6bdd36976607d5',detailHash:'49729389bbb24c7470ebc7da5fb93e2f12a87c07c3f556881ad6a5bc01537241',checkedAt:'2026-09-04T11:33:27.599Z',
+  reception:{applicationFrom:'2026-08-18',applicationTo:'2026-09-04',closesAt:null,deadlinePrecision:'date'},
+  evidence:{purpose:'행사 내용에 근거한 요약: 저탄소 인증농산물 평가·유통상담·홍보 지원',audience:'행사일 기준 저탄소 인증이 유효하고 인증 농산물을 생산·판매하는 농가 약 20명. 가공식품 제외',support:'전시·시식·평가 및 유통채널 MD 1:1 상담. 우수농가에 한해 설명절선물전 홍보와 목재간판 설치',application:'공식 원문의 온라인 폼으로 신청. 8월 18일~9월 4일, 마감시각 미기재. 폼 제출 가능 여부·첨부 세부조건은 별도 확인'},
+},{
   sourceId:'koat-board',externalId:'16460',sourceUrl:'https://www.koat.or.kr/board/business/16460/view.do',
   title:'스마트팜 청년창업 보육센터 글로벌 역량강화 참여자 모집 수정공고',contentHash:'b24ff6575a423fa300bc55f86c0f43d9d790c057bfdc4d0a691030721410c903',detailHash:'a7fba963f3e643b1e257f1c2626025d511c9cafed3f8efce64470beb008fd207',checkedAt:'2026-09-04T09:00:32.946Z',
   reception:{applicationFrom:'2026-09-01',applicationTo:'2026-09-09',closesAt:'2026-09-09T09:00:00.000Z'},
@@ -58,6 +63,7 @@ export async function verifyGrantDetail(n:RecordIdentity,fetcher:typeof fetch=fe
     'https://kdoctor.kosmes.or.kr/esgplatform/board/board13View.do?idx=1335':'kosme',
     'https://www.nipa.kr/home/2-2/16900':'nipa',
     'https://www.koat.or.kr/board/business/16460/view.do':'koat',
+    'https://www.koat.or.kr/board/business/16431/view.do':'koat',
   };
   const format=formats[audit.sourceUrl];if(!format)return {status:'candidate',reason:'본문 대조 경로 미설정'};
   try{
@@ -66,11 +72,16 @@ export async function verifyGrantDetail(n:RecordIdentity,fetcher:typeof fetch=fe
     return result;
   }catch{return {status:'candidate',reason:'공식 본문 재확인 지연 · 검토 후보 유지'};}
 }
-export function grantReception(v:GrantVerification,now=Date.now()):Partial<{applicationFrom:string;applicationTo:string;closesAt:string;status:'closed'|'open';deadlineLabel:string}>{
+export function grantReception(v:GrantVerification,now=Date.now()):Partial<{applicationFrom:string;applicationTo:string;opensAt:null;closesAt:string|null;deadlinePrecision:'date'|'time';status:'closed'|'open'|'unknown';deadlineLabel:string}>{
   if(v.status!=='verified'||!v.reception)return {};
   const r=v.reception;
   const validDay=(s:string)=>/^\d{4}-\d{2}-\d{2}$/.test(s)&&Number.isFinite(Date.parse(s+'T00:00:00Z'))&&new Date(s+'T00:00:00Z').toISOString().slice(0,10)===s;
+  if(!validDay(r.applicationFrom)||!validDay(r.applicationTo)||r.applicationFrom>r.applicationTo)return {};
+  if(r.deadlinePrecision==='date'){
+    const today=new Date(now+9*3600000).toISOString().slice(0,10);
+    return {...r,closesAt:null,opensAt:null,status:r.applicationTo<today?'closed':r.applicationTo===today?'unknown':'open',deadlineLabel:`${r.applicationTo} · 마감시각 원문 확인`};
+  }
   const end=Date.parse(r.closesAt);
-  if(!validDay(r.applicationFrom)||!validDay(r.applicationTo)||r.applicationFrom>r.applicationTo||!Number.isFinite(end)||new Date(end+9*3600000).toISOString().slice(0,10)!==r.applicationTo)return {};
+  if(!Number.isFinite(end)||new Date(end+9*3600000).toISOString().slice(0,10)!==r.applicationTo)return {};
   return {...r,status:Date.parse(r.closesAt)<now?'closed':'open',deadlineLabel:`${r.applicationTo} ${new Date(Date.parse(r.closesAt)+9*3600000).toISOString().slice(11,16)} (본문 확인)`};
 }

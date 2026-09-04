@@ -3,7 +3,7 @@ import {safeApplicationUrl} from '../lib/application-links';
 export default function NoticeFacts({details={}}:{details?:SearchRecord}){
   const state=receptionState(details);
   const links=[...new Set((details.applicationUrls||[]).map(safeApplicationUrl).filter((url):url is string=>url!==null))];
-  const label={open:'접수 중',closed:'접수 마감',upcoming:'접수 예정',unknown:'접수기간 미확인'}[state];
+  const label=state==='unknown'&&details.deadlinePrecision==='date'?'마감시각 미확인':{open:'접수 중',closed:'접수 마감',upcoming:'접수 예정',unknown:'접수기간 미확인'}[state];
   return <div className="noticeFacts">
     {details.ministry&&<div>소관부처·지자체 · {details.ministry}</div>}
     {details.businessYear&&<div>사업연도 · {details.businessYear}</div>}
