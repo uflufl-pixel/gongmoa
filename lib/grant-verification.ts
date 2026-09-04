@@ -1,7 +1,7 @@
 // @ts-expect-error Native Node tests use explicit extensions.
 import {namhaeUrl,verifyNamhaeEvidence} from './namhae-evidence.ts';
 // @ts-expect-error Native Node tests use explicit extensions.
-import {ripcUrl,verifyRipcEvidence} from './ripc-evidence.ts';
+import {ripcSourceUrl,verifyRipcEvidence} from './ripc-evidence.ts';
 export type GrantEvidence={purpose:string;audience:string;support:string;application:string};
 type Reception={applicationFrom:string;applicationTo:string}&({deadlinePrecision:'date';closesAt:null}|{deadlinePrecision?:'time';closesAt:string});
 export type GrantAudit={sourceId:string;externalId:string;sourceUrl:string;title:string;contentHash:string;detailHash:string;checkedAt:string;evidence:GrantEvidence;reception?:Reception};
@@ -44,8 +44,8 @@ export const grantAudits:GrantAudit[]=[{
   reception:{applicationFrom:'2026-09-01',applicationTo:'2026-09-23',closesAt:'2026-09-23T09:00:00.000Z'},
   evidence:{purpose:'남해군 면 지역 생활 수요에 대응하는 마을가게 창업 지원',audience:'남해군9개 면 창업 희망자. 2026-01-01 주민등록 또는 선정 후1개월 내 전입, 선정 후2개월 내 사업자등록. 예비창업자는2026-09-01 본인 명의 사업자등록 없음, 기창업자는2026-01-01 이후 등록. 체납·동일내용 중복지원·유해업종·대기업 프랜차이즈 직영점 등 제외',support:'10개소, 공급가액70% 이내·최대300만원. 부가세·초과액 자부담, 사업자등록 완료 후 지급. 인테리어·간판·디지털기기 등 지정 항목. 1년 영업유지 등 중지·환수 조건은 공식 첨부 확인',application:'2026-09-23 18시까지 남해군 경제과 지역경제팀 방문 제출. 신청서·견적서·동의서·주민등록초본·납세증명·사업자등록 사실증명 필요. 공식 본문과 공고 HWPX를 대조했으며 개인별 적격성·제출 성공은 별도 확인'},
 },{
-  sourceId:'bizinfo',externalId:'PBLN_000000000126087',sourceUrl:ripcUrl,
-  title:'[강원] 남부권 2026년 소상공인 IP창출지원 레시피 특허 출원 지원사업 모집 공고',contentHash:'797d5e7e8ad53455b98ed0c12194f6d255ae5f8e7020ca2cd82351d539b8ac55',detailHash:'b40fefe142fb33ba438e76ac2c0b20706e244a4b0e24db39853125e94c66d8a8',checkedAt:'2026-09-04T22:20:00.000Z',
+  sourceId:'bizinfo',externalId:'PBLN_000000000126087',sourceUrl:ripcSourceUrl,
+  title:'[강원] 남부권 2026년 소상공인 IP창출지원 레시피 특허 출원 지원사업 모집 공고',contentHash:'797d5e7e8ad53455b98ed0c12194f6d255ae5f8e7020ca2cd82351d539b8ac55',detailHash:'0565e5c1522fc195757cacce8b8e6915b8a1780cc0ec59ef8d7080592bf68c65',checkedAt:'2026-09-04T22:30:00.000Z',
   reception:{applicationFrom:'2026-09-01',applicationTo:'2026-09-10',closesAt:'2026-09-10T08:00:00.000Z'},
   evidence:{purpose:'소상공인이 보유한 음식 조리·식품 제조 레시피를 특허로 출원해 지식재산 피해를 예방하고 안정적 성장을 지원',audience:'사업자등록증을 보유한 소상공인 대표자로, 2026년 상표출원 지원 또는 IP창출 종합패키지 중 정확히 하나를 지원받고 즉시 출원할 정도로 구체적인 레시피를 보유해야 함. 휴·폐업, 금융기관 불량거래, 비영리, 프랜차이즈 가맹점·가맹점이 있는 본부 등 제외. 공고별 관할지역과 제외업종 세부표는 원문에서 미확인',support:'분담금 포함 375만원 이내. 소상공인 분담 20%(현금10%+현물10%), 출원·등록 관납료 별도. 지원금은 선정 협력기관에 지급되며 신청자 현금지원이 아님',application:'RIPC 지원사업 신청시스템에서 지원기업으로 가입해 활용계획서를 제출. 2026년 9월 10일 17시 마감. 공식 본문과 HWP 공고문을 대조했으며 개인별 적격성·실제 제출 성공은 별도 확인'},
 }];
@@ -78,7 +78,7 @@ export async function verifyGrantDetail(n:RecordIdentity,fetcher:typeof fetch=fe
     try{await verifyNamhaeEvidence(audit.detailHash,fetcher);return {...result,reason:'공식 본문·공고 첨부 4개 요건 확인 · 개인별 신청자격 별도 확인'};}
     catch(error){const message=error instanceof Error?error.message:'';const safe=['남해 본문 변경','남해 첨부 변경 또는 오류 응답','남해 공고문 첨부 연결 변경','남해 상세 필수항목 누락','남해 공고 제목 불일치','근거 HTTP 응답 오류','근거 크기 제한 초과'].includes(message)?message:'공식 근거 조회 지연 또는 구조 오류';return {status:'candidate',reason:`${safe} · 재검토 필요`};}
   }
-  if(audit.sourceUrl===ripcUrl){
+  if(audit.sourceUrl===ripcSourceUrl){
     try{await verifyRipcEvidence(audit.detailHash,fetcher);return {...result,reason:'공식 본문·HWP 공고문 4개 요건 확인 · 관할지역·세부 제외업종·개인별 신청자격 별도 확인'};}
     catch(error){const message=error instanceof Error?error.message:'';const safe=['RIPC 본문 변경','RIPC 첨부 변경 또는 오류 응답','RIPC 공고문 첨부 연결 변경','RIPC 상세 필수항목 누락','RIPC 공고 제목 불일치','근거 HTTP 응답 오류','근거 크기 제한 초과'].includes(message)?message:'공식 근거 조회 지연 또는 구조 오류';return {status:'candidate',reason:`${safe} · 재검토 필요`};}
   }
