@@ -354,7 +354,7 @@ export async function syncOfficialSources(requestedSourceIds?:readonly string[])
     try{
       const known=await db.select({id:notices.externalId}).from(notices).where(eq(notices.sourceId,'touraz-kto'));
       const parsed=collectTourazKto(touraz.body,known.map(i=>i.id));
-      centralItems.push(...parsed.items);touraz.check.message=`CSV ${parsed.parsedRows}행 · 한국관광공사 신규·추적 후보 ${parsed.items.length}건`;
+      centralItems.push(...parsed.items);touraz.check.message=`CSV ${parsed.parsedRows}행 · 승인 발행기관 신규·추적 후보 ${parsed.items.length}건`;
     }catch(error){touraz.check.outcome='parser_error';touraz.check.message=error instanceof Error?error.message:'투어라즈 구조 확인 필요';}
   }
   const koat=inspected.find(x=>x.check.sourceId==='koat-board');

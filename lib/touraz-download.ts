@@ -1,6 +1,10 @@
 // Official public CSV download. Preview only: no database writes or verified grants.
 export const tourazDownloadUrl='https://touraz.kr/fnct/ps/announcementList/getCsvPssrpList?tabMode=ktoip';
 export const tourazSource={id:'touraz-kto',institutionId:'public-183',name:'한국관광공사 투어라즈 공개 CSV',url:'https://touraz.kr/announcementList'};
+const tourazIssuers:Record<string,{group:string;region:string|null;ministry:string|null}>={
+  '한국관광공사':{group:'공사·공단',region:null,ministry:'문화체육관광부'},
+  '울산문화관광재단':{group:'공사·공단',region:'울산광역시',ministry:null},
+};
 const headers=['상태','기관명','제목','신청기간','담당부서','등록일','링크'];
 const maxBytes=2_000_000;
 
@@ -78,9 +82,10 @@ export function collectTourazKto(input:string,knownIds:readonly string[]=[],now=
   const preview=previewTourazCsv(input,now);
   if(preview.rejected.length)throw Error('투어라즈 CSV 오류 행 확인 필요');
   const known=new Set(knownIds);
-  const items=preview.items.filter(i=>i.institution==='한국관광공사'&&(known.has(i.externalId)||(i.candidate&&i.receptionState!=='closed'))).map(i=>({
-    sourceId:tourazSource.id,externalId:i.externalId,institution:i.institution,group:'공사·공단',title:i.title,category:'문화·관광',audience:'원문 지원자격 확인',region:null,sourceName:tourazSource.name,sourceUrl:i.sourceUrl,ministry:'문화체육관광부',announcedFrom:i.posted,applicationFrom:i.applicationFrom,applicationTo:i.applicationTo,opensAt:null,closesAt:null,deadlineLabel:`${i.applicationFrom} ~ ${i.applicationTo} · 마감시각 원문 확인`,status:i.sourceState==='종료'?'closed':i.sourceState==='대기'?'pending':'open',
-  }));
+  const items=preview.items.filter(i=>tourazIssuers[i.institution]&&(known.has(i.externalId)||(i.candidate&&i.receptionState!=='closed'))).map(i=>{
+    const issuer=tourazIssuers[i.institution];
+    return {sourceId:tourazSource.id,externalId:i.externalId,institution:i.institution,group:issuer.group,title:i.title,category:'문화·관광',audience:'원문 지원자격 확인',region:issuer.region,sourceName:`투어라즈 공개 CSV · ${i.institution}`,sourceUrl:i.sourceUrl,ministry:issuer.ministry,announcedFrom:i.posted,applicationFrom:i.applicationFrom,applicationTo:i.applicationTo,opensAt:null,closesAt:null,deadlineLabel:`${i.applicationFrom} ~ ${i.applicationTo} · 마감시각 원문 확인`,status:i.sourceState==='종료'?'closed':i.sourceState==='대기'?'pending':'open'};
+  });
   return {items,parsedRows:preview.parsedRows};
 }
 export async function handleTourazPreview(request:Request,fetcher:typeof fetch=fetch){
