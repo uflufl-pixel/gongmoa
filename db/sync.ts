@@ -14,7 +14,7 @@ import {fetchKiatList,parseKiatBoard,parseNipaBoard,fetchKeitiList,parseKeitiBoa
 import {fetchKoatList,parseKoatBoard} from '../lib/koat-collector';
 import {fetchSocialenterpriseList,parseSocialenterpriseBoard} from '../lib/socialenterprise-collector';
 import {fetchArkoList,parseArkoBoard} from '../lib/arko-collector';
-import {fetchKawfList,parseKawfBoard} from '../lib/kawf-collector';
+import {fetchKawfBundle,collectKawfBundle} from '../lib/kawf-collector';
 import {fetchTourazCsv,collectTourazKto} from '../lib/touraz-download';
 
 export const SYNC_BATCHES = [
@@ -38,7 +38,7 @@ async function inspectSource(source:{id:string;url:string;name:string}) {
     const request=()=>source.id==='arko-board'?fetchArkoList():source.id==='socialenterprise-board'?fetchSocialenterpriseList():source.id==='koat-board'?fetchKoatList():source.id==='kosme-esg'?fetchKosmeList():source.id==='keiti-board'?fetchKeitiList():source.id==='kiat-board'?fetchKiatList():source.id==='police-board'?fetchPoliceList():source.id==='molit-board'?fetchMolitList():fetch(fetchUrl,{headers:{accept:centralCollectorAccept(source.id),'user-agent':'GongmoaSourceMonitor/1.1 (+https://gongmoa.uflufl.chatgpt.site)'},signal:AbortSignal.timeout(10000),redirect:'follow'});
     let response:Response,body:string;
     if(source.id==='touraz-kto'){body=await fetchTourazCsv();response=new Response(body,{headers:{'content-type':'text/csv'}});}
-    else if(source.id==='kawf-board'){response=await fetchKawfList();body=await response.text();}
+    else if(source.id==='kawf-board'){body=await fetchKawfBundle();response=new Response(body,{headers:{'content-type':'application/json'}});}
     else if(source.id==='mnd-board')({response,body}=await fetchTextWithDiagnostics(request));
     else {
       try { response=await request(); } catch { response=await request(); }
@@ -361,7 +361,7 @@ export async function syncOfficialSources(requestedSourceIds?:readonly string[])
   const kawf=inspected.find(x=>x.check.sourceId==='kawf-board');
   if(kawf?.body&&kawf.check.outcome==='success'){
     try{const known=await db.select({id:notices.externalId}).from(notices).where(eq(notices.sourceId,'kawf-board'));
-      const parsed=parseKawfBoard(kawf.body,known.map(x=>x.id));centralItems.push(...parsed.items);kawf.check.message=`첫 페이지 ${parsed.parsedRows}건(고정 ${parsed.pinned}) · 후보 ${parsed.items.length}건 · 외부링크 제외 ${parsed.external}건 · 후속페이지 미수집`;
+      const parsed=collectKawfBundle(kawf.body,known.map(x=>x.id));centralItems.push(...parsed.items);kawf.check.message=`2페이지 ${parsed.parsedRows}건(고정 ${parsed.pinned}) · 후보 ${parsed.items.length}건 · 추가검토 ${parsed.deferred}건 · 과거종료 ${parsed.excludedClosed}건 · 3페이지 이후 미수집`;
     }catch{kawf.check.outcome='parser_error';kawf.check.message='예술인복지재단 사업공고 구조 확인 필요';}
   }
   const arko=inspected.find(x=>x.check.sourceId==='arko-board');

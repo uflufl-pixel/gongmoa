@@ -33,5 +33,54 @@ export function parseKawfBoard(html:string,knownIds:string[]=[]){
       sourceName:kawfSource.name,sourceUrl:`https://www.kawf.kr/notice/sub02View.do?selIdx=${cell[1]}`,announcedFrom:posted,
       applicationFrom:null,applicationTo:null,opensAt:null,closesAt:null,deadlineLabel:'접수기간·잔여예산 원문 확인',status:/마감|종료/.test(title)?'closed':'unknown',ministry:'문화체육관광부'}];
   });
-  return {items,parsedRows:rows.length,pinned,external};
+  return {items,parsedRows:rows.length,pinned,external,signatures:Object.fromEntries(seen)};
+}
+
+// Narrow rollout: new second-page candidates require a reviewed detail contract.
+// Closed historical rounds are ID-based, even if moved to the first page.
+const closedRounds=new Set(['19542','19506','19507']);
+export async function fetchKawfBundle(fetcher:typeof fetch=fetch){
+  const signal=AbortSignal.timeout(20000);
+  async function read(url:string,init:RequestInit={}){
+    const r=await fetcher(url,{...init,signal,redirect:'manual'});
+    if(!r.ok)throw new Error(`KAWF HTTP ${r.status}`);
+    const body=await r.text();if(body.length>1_000_000)invalid();return body;
+  }
+  const first=await read(kawfSource.url);
+  const second=await read(kawfSource.url,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:'cpg=2&searchCondition=0&searchKeyword='});
+  if(!/title=현재페이지>1<\/a>/.test(first)||!/title=현재페이지>2<\/a>/.test(second))invalid();
+  const found=[parseKawfBoard(first),parseKawfBoard(second)].some(p=>p.signatures['19590']);
+  const detail=found?await read('https://www.kawf.kr/notice/sub02View.do?selIdx=19590'):null;
+  return JSON.stringify({first,second,detail});
+}
+export function collectKawfBundle(input:string,knownIds:string[]=[],now=new Date()){
+  const data=JSON.parse(input);
+  if(typeof data.first!=='string'||typeof data.second!=='string'||!(data.detail===null||typeof data.detail==='string'))invalid();
+  const first=parseKawfBoard(data.first,knownIds),second=parseKawfBoard(data.second,knownIds);
+  for(const [id,sig] of Object.entries(second.signatures))if(first.signatures[id]&&first.signatures[id]!==sig)invalid();
+  const known=new Set(knownIds),seen=new Set<string>();let deferred=0,excludedClosed=0;
+  const items=[...first.items.map(item=>({item,page:1})),...second.items.map(item=>({item,page:2}))].flatMap(({item,page})=>{
+    const id=item.externalId;if(seen.has(id))return [];seen.add(id);
+    if(closedRounds.has(id)){excludedClosed++;return known.has(id)?[{...item,status:'closed'}]:[];}
+    if(id==='19590'){
+      if(!data.detail)invalid();
+      const clean=data.detail.replace(/<!--[\s\S]*?-->/g,'').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'');
+      const title=plain(clean.match(/<h5 class="view-title">([\s\S]*?)<\/h5>/)?.[1]||'');
+      const body=plain(clean.match(/<div class="view-con">([\s\S]*?)<\/div>/)?.[1]||'');
+      if(!/name="selIdx" value="19590"/.test(clean)||title!==item.title||!body.includes('2026년 전세자금 융자 사업'))invalid();
+      if(item.status==='closed'||/접수\s*:?\s*(종료|중단|마감)|사업\s*(종료|중단)/.test(body)){
+        excludedClosed++;return known.has(id)?[{...item,status:'closed'}]:[];
+      }
+      if(
+        !/접수\s*:\s*상시/.test(body)||!body.includes('예술활동증명을 완료한 예술인')||
+        !body.includes('방문 접수만 가능')||!body.includes('사전 예약')||!body.includes('예산 소진 시 조기 마감'))invalid();
+      if(new Date(now.getTime()+9*60*60*1000).getUTCFullYear()!==2026){
+        deferred++;return known.has(id)?[{...item,status:'unknown'}]:[];
+      }
+      return [{...item,audience:'예술활동증명 완료 예술인 · 임차보증금 등 원문 조건 확인',applicationMethod:'재단 홈페이지 사전 예약 후 방문 접수만 가능',deadlineLabel:'상시·예산 소진 시 조기 마감 · 2026년 한시 운영',status:'unknown'}];
+    }
+    if(!known.has(id)&&(page===2||id==='19562')){deferred++;return [];}
+    return [item];
+  });
+  return {items,parsedRows:first.parsedRows+second.parsedRows,pinned:first.pinned+second.pinned,deferred,excludedClosed};
 }
