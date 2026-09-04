@@ -19,7 +19,7 @@ export default function AdvancedSearch({items,value,onChange}:{items:SearchNotic
       <label>소관부처<select value={value.ministry} onChange={e=>onChange({...value,ministry:e.target.value,org:''})}><option value="">전체</option>{ministries.map(x=><option key={x}>{x}</option>)}</select></label>
       {select('수행·공고기관','org',orgs)}
       {select('사업연도','year',unique(items.map(n=>n.details?.businessYear?String(n.details.businessYear):null)))}
-      <label>지원대상 키워드<input value={value.audience} onChange={e=>set('audience',e.target.value)} placeholder="예: 중소기업, 비영리단체"/></label>
+      <label>신청대상 키워드 (발행기관과 별개)<input value={value.audience} onChange={e=>set('audience',e.target.value)} placeholder="예: 지방자치단체, 개인, 예비창업자, 소상공인"/></label>
     </div><div className="searchRows">
       <label>기간 기준<select value={value.period} onChange={e=>set('period',e.target.value)}><option value="application">접수기간</option><option value="announced">공고기간</option></select></label>
       <label>검색 시작일<input type="date" value={value.from} onChange={e=>set('from',e.target.value)}/></label>
