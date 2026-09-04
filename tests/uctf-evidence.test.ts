@@ -5,7 +5,7 @@ import {uctfTourazUrl,uctfNoticePdf,uctfCanonical,verifyUctfEvidence} from '../l
 // @ts-expect-error Native Node runner.
 import {evidenceHash} from '../lib/namhae-evidence.ts';
 // @ts-expect-error Native Node runner.
-import {grantAudits,verifyGrantDetail} from '../lib/grant-verification.ts';
+import {effectiveGrantFacts,grantAudits,verifyGrantDetail} from '../lib/grant-verification.ts';
 const title='<h3 class="h3">2026 울산 관광 인재 인턴십 지원사업 참여기업 모집</h3>';
 const dl=(k:string,v:string)=>`<dl><dt>${k}</dt><dd>${v}</dd></dl>`;
 const html='<input name="pssrpSeq" value="1426">'+title+dl('신청기간','2026-02-25 09시부터 ~ 10-30 18시까지')+dl('신청대상','기업')+dl('지원분야(선정수)','10')+dl('사업설명','재단법인 울산문화관광재단 대표이사 2026 울산 관광 인재 인턴십 지원사업')+dl('제출서류','관광사업 증명서(해당시)');
@@ -30,4 +30,6 @@ test('UCTF identity, staleness and evidence failures stay candidate',async()=>{
   assert.equal((await verifyGrantDetail(a,failed,now+8*86400000)).status,'candidate');assert.equal(calls,0);
   assert.equal((await verifyGrantDetail(a,failed,now)).status,'candidate');assert.equal(calls,1);
   assert.equal(a.reception?.closesAt,'2026-10-30T09:00:00.000Z');
+  const projected=effectiveGrantFacts({deadlinePrecision:'date' as const,audience:'원문 확인'},{status:'verified',reason:'ok',checkedAt:a.checkedAt,evidence:a.evidence,reception:a.reception},now);
+  assert.equal(projected.deadlinePrecision,'time');
 });

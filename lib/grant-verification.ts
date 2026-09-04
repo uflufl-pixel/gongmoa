@@ -130,7 +130,7 @@ export function grantReception(v:GrantVerification,now=Date.now()):Partial<{appl
   }
   const end=Date.parse(r.closesAt);
   if(!Number.isFinite(end)||new Date(end+9*3600000).toISOString().slice(0,10)!==r.applicationTo)return {};
-  return {...r,opensAt:null,status:r.applicationFrom>today?'upcoming':Date.parse(r.closesAt)<now?'closed':'open',deadlineLabel:`${r.applicationTo} ${new Date(Date.parse(r.closesAt)+9*3600000).toISOString().slice(11,16)} (본문 확인)`};
+  return {...r,deadlinePrecision:'time',opensAt:null,status:r.applicationFrom>today?'upcoming':Date.parse(r.closesAt)<now?'closed':'open',deadlineLabel:`${r.applicationTo} ${new Date(Date.parse(r.closesAt)+9*3600000).toISOString().slice(11,16)} (본문 확인)`};
 }
 
 // Always project from unmodified source facts, never from a previous projection.
