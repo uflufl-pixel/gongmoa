@@ -1,4 +1,4 @@
-export const koregSource={id:'koreg-opportunities',institutionId:'public-296',name:'신용보증재단중앙회 수행 장기접수 사업',url:'https://www.bizinfo.go.kr/sii/siia/selectSIIA200Detail.do?pblancId=PBLN_000000000119801'};
+export const koregSource={id:'koreg-opportunities',institutionId:'public-296',name:'신용보증재단중앙회 수행 장기접수 3건 감사',url:'https://www.bizinfo.go.kr/sii/siia/selectSIIA200Detail.do?pblancId=PBLN_000000000119801'};
 const ids=['PBLN_000000000119801','PBLN_000000000119802','PBLN_000000000117127'] as const;
 const urls=ids.map(id=>`https://www.bizinfo.go.kr/sii/siia/selectSIIA200Detail.do?pblancId=${id}`);
 function invalid():never{throw new Error('신용보증재단중앙회 수행사업 구조 확인 필요');}
@@ -6,8 +6,7 @@ function plain(value:string){return value.replace(/<!--[^]*?-->/g,' ').replace(/
 function labeled(html:string,label:string){const match=html.match(new RegExp(`<span[^>]*class="s_title"[^>]*>${label}<\\/span>\\s*<div[^>]*class="txt"[^>]*>([^]*?)<\\/div>`));return plain(match?.[1]||'');}
 function titleOf(html:string){const headings=[...html.matchAll(/<h[1-4][^>]*>([^]*?)<\/h[1-4]>/gi)].map(x=>plain(x[1])).filter(Boolean);return headings.find(x=>x!=='지원사업 공고'&&!x.startsWith('#'))||'';}
 export async function fetchKoregBundle(fetcher:typeof fetch=fetch){
-  const pages:string[]=[];
-  for(const url of urls){const response=await fetcher(url,{headers:{accept:'text/html','user-agent':'GongmoaSourceMonitor/1.1 (+https://gongmoa.uflufl.chatgpt.site)'},redirect:'manual',signal:AbortSignal.timeout(15000)});if(!response.ok)throw new Error(`KOREG 수행사업 HTTP ${response.status}`);const html=await response.text();if(html.length<50_000||html.length>250_000)invalid();pages.push(html);}
+  const pages=await Promise.all(urls.map(async url=>{const response=await fetcher(url,{headers:{accept:'text/html','user-agent':'GongmoaSourceMonitor/1.1 (+https://gongmoa.uflufl.chatgpt.site)'},redirect:'manual',signal:AbortSignal.timeout(15000)});if(!response.ok)throw new Error(`KOREG 수행사업 ${new URL(url).searchParams.get('pblancId')} HTTP ${response.status}`);const html=await response.text();if(html.length<50_000||html.length>250_000)invalid();return html;}));
   return JSON.stringify({pages});
 }
 export function collectKoregBundle(input:string,knownIds:string[]=[],now=new Date()){

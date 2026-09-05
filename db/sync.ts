@@ -401,7 +401,7 @@ export async function syncOfficialSources(requestedSourceIds?:readonly string[])
   }
   const koreg=inspected.find(x=>x.check.sourceId==='koreg-opportunities');
   if(koreg?.body&&koreg.check.outcome==='success'){
-    try{const known=await db.select({id:notices.externalId}).from(notices).where(eq(notices.sourceId,'bizinfo'));const parsed=collectKoregBundle(koreg.body,known.map(x=>x.id));centralItems.push(...parsed.items);koreg.check.message=`공식 장기접수 상세 ${parsed.parsedPages}건 · 신용보증재단중앙회 수행 기회 ${parsed.items.length}건`;}
+    try{const known=await db.select({id:notices.externalId}).from(notices).where(eq(notices.sourceId,'bizinfo'));const parsed=collectKoregBundle(koreg.body,known.map(x=>x.id));centralItems.push(...parsed.items);koreg.check.message=`고정 공식 상세 ${parsed.parsedPages}건 감사 · 신용보증재단중앙회 수행 기회 ${parsed.items.length}건`;}
     catch{koreg.check.outcome='parser_error';koreg.check.message='신용보증재단중앙회 수행사업 구조 확인 필요';}
   }
   if(koat?.body&&koat.check.outcome==='success'){
