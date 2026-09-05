@@ -11,6 +11,7 @@ import {kawfSource} from '../lib/kawf-collector';
 import {kinfaSource} from '../lib/kinfa-collector';
 import {semasSource} from '../lib/semas-collector';
 import {smtechSource} from '../lib/smtech-collector';
+import {koregSource} from '../lib/koreg-collector';
 import {tourazSource} from '../lib/touraz-download';
 import {registerCentralInstitutions} from './central-institutions';
 
@@ -44,6 +45,7 @@ const seedSources = [
   {...kinfaSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...semasSource,method:'official-policy-loan-notice',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...smtechSource,method:'official-rnd-business-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
+  {...koregSource,method:'official-index-long-lived-opportunities',cadenceMinutes:1440,status:'ready',lastSuccessAt:null,createdAt:now},
   {...kiatSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...nipaSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...keitiSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
