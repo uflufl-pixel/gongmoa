@@ -154,6 +154,16 @@ test('MOTIR extracts business calls without executing scripts or importing admin
   assert.throws(()=>parseCentralBoard(body.replace('사업공고 게시판 목록','접근 제한'),config));
   assert.equal(parseCentralBoard(body.replaceAll('2026-08-31','2026-02-30'),config).items[0].announcedFrom,null);
 });
+test('MOTIR accepts official href plus onclick only when both stable IDs agree',()=>{
+  const config=centralCollectors.find(x=>x.id==='motir-board')!;
+  const row=(id:string,hrefId=id)=>`<tr><td>2026-1</td><td class="ta-l"><div class="board-link"><a href="/kor/article/ATCL2826a2625/${hrefId}/view?mno=&amp;pageIndex=1" onclick="article.view('${id}'); return false;"><i>2026년 기업 지원사업 공고</i></a></div></td><td>산업과</td><td>2026-09-05</td></tr>`;
+  const body=`<table><caption>사업공고 게시판 목록</caption>${row('71304')}${row('71303')}${row('71302')}</table>`;
+  const parsed=parseCentralBoard(body,config);
+  assert.equal(parsed.parsedRows,3);assert.equal(parsed.items.length,3);
+  assert.equal(parsed.items[0].externalId,'71304');assert.equal(parsed.items[0].sourceUrl,'https://www.motir.go.kr/kor/article/ATCL2826a2625/71304/view');
+  assert.throws(()=>parseCentralBoard(body.replace(row('71304'),row('71304','99999')),config));
+  assert.throws(()=>parseCentralBoard(body.replace("article.view('71304')","malicious.run('71304')"),config));
+});
 test('RSS requests negotiate XML while HTML and other collectors keep their existing Accept',()=>{
   for(const config of centralCollectors){
     assert.equal(centralCollectorAccept(config.id),config.format==='oka'?'application/json':config.format==='rss'?'application/rss+xml,application/xml,text/xml;q=0.9,*/*;q=0.5':'text/html,application/xhtml+xml,application/json');

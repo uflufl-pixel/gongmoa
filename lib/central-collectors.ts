@@ -257,9 +257,13 @@ export function parseCentralBoard(body:string,c:Config){
     if(!/사업공고 게시판 목록/.test(body))throw new Error('산업통상부 사업공고 목록 구조 확인 필요');
     for(const match of body.matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)){
       const cell=match[0].match(/<td class="ta-l">([\s\S]*?)<\/td>/);if(!cell)continue;
-      const a=cell[1].match(/<a href="javascript:article\.view\('(\d+)'\);">\s*<i>([\s\S]*?)<\/i>\s*<\/a>/);
-      if(!a)throw new Error('산업통상부 공고 링크·제목 구조 확인 필요');
-      rows.push({title:text(a[2]),link:`${c.origin}/kor/article/ATCL2826a2625/${a[1]}/view`,posted:match[0].match(/<td>\s*(\d{4}-\d{2}-\d{2})\s*<\/td>/)?.[1]||''});
+      const anchor=cell[1].match(/<a\b([^>]*)>\s*<i>([\s\S]*?)<\/i>\s*<\/a>/);
+      const scriptId=anchor?.[1].match(/\bonclick="article\.view\('(\d+)'\);\s*return false;"/)?.[1]
+        ||anchor?.[1].match(/\bhref="javascript:article\.view\('(\d+)'\);"/)?.[1];
+      const href=anchor?.[1].match(/\bhref="([^"]+)"/)?.[1];
+      const hrefId=href?.match(/^\/kor\/article\/ATCL2826a2625\/(\d+)\/view(?:\?[^"#]*)?$/)?.[1];
+      if(!anchor||!scriptId||(href&&!href.startsWith('javascript:')&&hrefId!==scriptId))throw new Error('산업통상부 공고 링크·제목 구조 확인 필요');
+      rows.push({title:text(anchor[2]),link:`${c.origin}/kor/article/ATCL2826a2625/${scriptId}/view`,posted:match[0].match(/<td>\s*(\d{4}-\d{2}-\d{2})\s*<\/td>/)?.[1]||''});
     }
   }else if(c.format==='khs'){
     for(const match of body.matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)){
