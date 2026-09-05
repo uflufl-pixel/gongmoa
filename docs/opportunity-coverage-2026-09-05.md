@@ -358,7 +358,7 @@
 | 한국원자력통제기술원 | public-291 | 미설정 | 미확인 | — | 0/0 |
 | 공무원연금공단 | public-292 | 미설정 | 미확인 | — | 0/0 |
 | 공영홈쇼핑 | public-293 | 미설정 | 미확인 | — | 0/0 |
-| 기술보증기금 | public-294 | kibo-opportunities | 공식 고정 페이지 연결·운영 저장 대기 | https://tb.kibo.or.kr/kbsmna/application/bsmna/bsConsInfo.do | 0/2 |
+| 기술보증기금 | public-294 | kibo-opportunities | 운영 저장 성공·기업지원 2건 candidate/unknown | https://tb.kibo.or.kr/kbsmna/application/bsmna/bsConsInfo.do | 2/2 |
 | 소상공인시장진흥공단 | public-295 | 미설정 | 미확인 | — | 0/0 |
 | 신용보증재단중앙회 | public-296 | 미설정 | 미확인 | — | 0/0 |
 | 장애인기업종합지원센터 | public-297 | 미설정 | 미확인 | — | 0/0 |
