@@ -361,7 +361,7 @@
 | 기술보증기금 | public-294 | kibo-opportunities | 운영 저장 성공·기업지원 2건 candidate/unknown | https://tb.kibo.or.kr/kbsmna/application/bsmna/bsConsInfo.do | 2/2 |
 | 소상공인시장진흥공단 | public-295 | 미설정 | 미확인 | — | 0/0 |
 | 신용보증재단중앙회 | public-296 | 미설정 | 미확인 | — | 0/0 |
-| 장애인기업종합지원센터 | public-297 | 미설정 | 미확인 | — | 0/0 |
+| 장애인기업종합지원센터 | public-297 | 개편 보류 | 한국장애인고용공단 통합 방향·신규 개발 최후순위 | — | 0/0 |
 | 중소기업기술정보진흥원 | public-298 | 미설정 | 미확인 | — | 0/0 |
 | 중소기업연구원 | public-299 | 미설정 | 미확인 | — | 0/0 |
 | 중소기업유통센터 | public-300 | 미설정 | 미확인 | — | 0/0 |
