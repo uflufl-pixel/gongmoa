@@ -1,0 +1,11 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+// @ts-expect-error Native Node tests use explicit extensions.
+import {collectKoreahanaBundle,fetchKoreahanaBundle} from '../lib/koreahana-collector.ts';
+const titles=['2026년도 하반기 남북하나재단 장학생 선발 공고(~9.21)','2026년 창업디딤돌센터 9월 (예비)창업가 창업교육 참여자 모집공고(~9.18)'];
+const list=()=>Array.from({length:15},(_,i)=>`<tr><a onclick="fn_edit('detail', '${i===0?'20469':i===1?'20465':20500+i}', 'N')">${i<2?titles[i]:`일반 ${i}`}</a> ${i===0?'2026-09-04':i===1?'2026-09-01':'2026-09-05'}</tr>`).join('');
+const details=[`${titles[0]} 북한이탈주민지원재단 공고 제2026–98호 접수기간 : 9. 4 ~ 9. 21. 18:00 재단 온라인 신청시스템 장학금 지원 우편접수 불가 부모 명의 신청불가`,`${titles[1]} 북한이탈주민지원재단 공고 제2026-97호 창업에 관심이 있는 북향민 20명 이내 대중교통비 지원 2026년 9월 18일 17시까지 didim@nkrf.or.kr 방문 또는 우편접수`];
+const bundle=()=>JSON.stringify({list:list(),details:[{id:'20469',html:details[0]},{id:'20465',html:details[1]}]});
+test('Koreahana keeps scholarship and startup education distinct with exact cutoffs',()=>{const r=collectKoreahanaBundle(bundle(),[],new Date('2026-09-05'));assert.equal(r.items.length,2);assert.equal(r.items[0].closesAt.toISOString(),'2026-09-21T09:00:00.000Z');assert.equal(r.items[1].closesAt.toISOString(),'2026-09-18T08:00:00.000Z');assert.equal(r.items[1].supportBudget,null);});
+test('Koreahana omits newly expired rounds but tracks known closures',()=>{assert.equal(collectKoreahanaBundle(bundle(),[],new Date('2026-10-01')).items.length,0);assert.equal(collectKoreahanaBundle(bundle(),['20469'],new Date('2026-10-01')).items[0].status,'closed');});
+test('Koreahana rejects identity, evidence and duplicate detail drift',()=>{assert.throws(()=>collectKoreahanaBundle(bundle().replace('20469','20468')));assert.throws(()=>collectKoreahanaBundle(bundle().replace('18:00','19:00')));assert.throws(()=>collectKoreahanaBundle(bundle().replace('20명 이내','30명 이내')));});
+test('Koreahana fetches only fixed public pages without redirects',async()=>{const calls:Array<[string,RequestInit|undefined]>=[];const bodies=[list(),...details];const mock=(async(u,i)=>{calls.push([String(u),i]);return new Response(bodies[calls.length-1]+' '.repeat(160_000));}) as typeof fetch;await fetchKoreahanaBundle(mock);assert.equal(calls.length,3);for(const [,i] of calls)assert.equal(i?.redirect,'manual');});

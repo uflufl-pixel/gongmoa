@@ -17,6 +17,7 @@ import {kofpiSource} from '../lib/kofpi-collector';
 import {kywaSource} from '../lib/kywa-collector';
 import {koicaSource} from '../lib/koica-collector';
 import {kiboSource} from '../lib/kibo-collector';
+import {koreahanaSource} from '../lib/koreahana-collector';
 import {tourazSource} from '../lib/touraz-download';
 import {registerCentralInstitutions} from './central-institutions';
 
@@ -56,6 +57,7 @@ const seedSources = [
   {...kywaSource,method:'official-opportunity-list-and-details',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...koicaSource,method:'fixed-official-contest-detail',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...kiboSource,method:'fixed-official-support-pages',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
+  {...koreahanaSource,method:'official-recruitment-list-and-details',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...kiatSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...nipaSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...keitiSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
