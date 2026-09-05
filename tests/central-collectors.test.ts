@@ -150,6 +150,7 @@ test('MOTIR extracts business calls without executing scripts or importing admin
   const titles=['AX실증밸리조성(R&D) 사업 신규지원 대상과제 공고','자동차부품 인프라 구축 사업 공고','사업화 지원 프로그램 지원 대상과제 하반기 공고','투자지원금 사업 수정 공고','지원사업 선정 공고','민간자격 등록폐지 공고','규제특례 승인 공고','사업 용역 입찰 공고'];
   const body='<table><caption>사업공고 게시판 목록</caption>'+titles.map((t,i)=>`<tr><td>2026-567</td><td class="ta-l"><div class="board-link"><a href="javascript:article.view('${71295+i}');"><i>${t}</i></a></div></td><td>산업과</td><td>2026-08-31</td></tr>`).join('')+'</table>';
   const r=parseCentralBoard(body,config);assert.equal(r.parsedRows,8);assert.equal(r.items.length,4);assert.equal(r.items[0].announcedFrom,'2026-08-31');assert.equal(r.items[0].applicationFrom,null);assert.equal(r.items[0].externalId,'71295');assert.equal(r.items[0].sourceUrl,'https://www.motir.go.kr/kor/article/ATCL2826a2625/71295/view');assert.equal(r.items[1].title,titles[1]);
+  assert.equal(r.items[0].status,'unknown');
   assert.throws(()=>parseCentralBoard(body.replaceAll('article.view','malicious.run'),config));
   assert.throws(()=>parseCentralBoard(body.replace('사업공고 게시판 목록','접근 제한'),config));
   assert.equal(parseCentralBoard(body.replaceAll('2026-08-31','2026-02-30'),config).items[0].announcedFrom,null);

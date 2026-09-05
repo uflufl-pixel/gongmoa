@@ -354,7 +354,7 @@ export function parseCentralBoard(body:string,c:Config){
     const conditional=c.id==='oka-board'&&/잔여\s*사업비.*이후\s*접수분.*소진/.test(row.description||'');
     const period=c.id==='mogef-board'?mogefReception(row.description||''):c.id==='oka-board'?okaReception(row.description||''):c.id==='saemangeum-board'?saemangeumReception(row.description||''):c.id==='mods-board'?modsReception(row.description||''):c.id==='mpm-board'?mpmReception(row.description||'',row.title):null;
     return [{sourceId:c.id,externalId:ref.id,institution:c.institution,group:'중앙부처',title:row.title,category:c.category,audience:'원문 지원자격 확인',region:null,sourceName:c.name,sourceUrl:ref.url,
-      announcedFrom:publicationDate(row.posted),opensAt:period?.opensAt||null,closesAt:period?.closesAt||null,applicationFrom:period?.applicationFrom||null,applicationTo:period?.applicationTo||null,deadlineLabel:conditional?'수시 접수·잔여 사업비 소진 시 종료 (원문 확인)':period?.applicationTo||'접수기간 원문 확인',status:period&&period.closesAt<new Date()?'closed':'open'}];
+      announcedFrom:publicationDate(row.posted),opensAt:period?.opensAt||null,closesAt:period?.closesAt||null,applicationFrom:period?.applicationFrom||null,applicationTo:period?.applicationTo||null,deadlineLabel:conditional?'수시 접수·잔여 사업비 소진 시 종료 (원문 확인)':period?.applicationTo||'접수기간 원문 확인',status:period?period.closesAt<new Date()?'closed':'open':c.id==='motir-board'?'unknown':'open'}];
   });
   return {items,parsedRows:rows.length};
 }
