@@ -352,7 +352,7 @@
 | 재외동포재단 | public-285 | 미설정 | 미확인 | — | 0/0 |
 | 한·아프리카재단 | public-286 | 개편 보류 | 한국국제교류재단 통합 예정·최후순위 | — | 0/0 |
 | 한국국제교류재단 | public-287 | 개편 보류 | 한·아프리카재단 승계기관·신규 개발 대기 | — | 0/0 |
-| 한국국제협력단 | public-288 | koica-youth-contest | 공식 WFK 목록+상세 고정 감사·운영 검증 대기 | https://www.worldfriendskorea.or.kr/kor/info/noticeList.do | 1/1 |
+| 한국국제협력단 | public-288 | koica-youth-contest | 운영 저장 성공·청년공모 1건 candidate/open | https://www.worldfriendskorea.or.kr/kor/info/noticeList.do | 1/1 |
 | 한국원자력안전기술원 | public-289 | 미설정 | 미확인 | — | 0/0 |
 | 한국원자력안전재단 | public-290 | 미설정 | 미확인 | — | 0/0 |
 | 한국원자력통제기술원 | public-291 | 미설정 | 미확인 | — | 0/0 |
