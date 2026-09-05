@@ -1,5 +1,5 @@
-export const fipaSource={id:'fipa-education',institutionId:'public-322',name:'한국어촌어항공단 친환경양식 기술교육',url:'https://www.fipa.or.kr/eco/bbs/i-278/list.do'};
-const base='https://www.fipa.or.kr/eco/bbs/i-278/';
+export const fipaSource={id:'fipa-education',institutionId:'public-322',name:'한국어촌어항공단 친환경양식 기술교육',url:'https://fipa.or.kr/eco/bbs/i-278/list.do'};
+const base='https://fipa.or.kr/eco/bbs/i-278/';
 type FipaItem={sourceId:string;externalId:string;institution:string;group:string;title:string;category:string;audience:string;region:null;sourceName:string;sourceUrl:string;announcedFrom:string;applicationFrom:string|null;applicationTo:string|null;opensAt:Date|null;closesAt:Date|null;deadlineLabel:string;status:string;ministry:string;applicationMethod:string};
 function invalid():never{throw new Error('한국어촌어항공단 기술교육 구조 확인 필요');}
 function plain(value:string){return value.replace(/<!--[^]*?-->/g,' ').replace(/<script\b[^>]*>[^]*?<\/script>/gi,' ').replace(/<[^>]*>/g,' ').replace(/&nbsp;/gi,' ').replace(/&amp;/gi,'&').replace(/&quot;/gi,'"').replace(/&#39;/g,"'").replace(/\s+/g,' ').trim();}
