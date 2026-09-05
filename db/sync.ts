@@ -19,13 +19,14 @@ import {fetchKinfaList,parseKinfaBoard} from '../lib/kinfa-collector';
 import {fetchSemasBundle,collectSemasBundle} from '../lib/semas-collector';
 import {fetchSmtechBundle,collectSmtechBundle} from '../lib/smtech-collector';
 import {fetchKoregBundle,collectKoregBundle,koregOpportunityIds} from '../lib/koreg-collector';
+import {fetchFipaBundle,collectFipaBundle} from '../lib/fipa-collector';
 import {fetchTourazCsv,collectTourazKto} from '../lib/touraz-download';
 
 export const SYNC_BATCHES = [
   ['bojo','bizinfo','moe-board','gov24-orgs','mss-board','kdca-board','mfds-board','moj-board','motir-board','pps-board','mogef-board','mofe-board','police-board','dapa-board','kiat-board'],
   ['mcst-board','mois-board','me-board','kocca-support','mafra-board','rda-board','moel-board','moel-support','khs-board','mpm-board','oka-board','naacc-board','cio-board','moip-board','nipa-board','arko-board','kawf-board'],
   ['seoul-board','busan-board','incheon-board','daejeon-board','daegu-board','moleg-board','kma-board','molit-board','mods-board','mpva-board','saemangeum-board','kcg-board','pss-board','mnd-board','keiti-board'],
-  ['ulsan-board','jeonbuk-board','gyeongnam-business','chungbuk-board','jeju-board','mohw-board','forest-board','forest-news','mof-board','unikorea-board','nfa-board','nts-board','mma-board','spo-board','kasa-board','kosme-esg','koat-board','socialenterprise-board','kinfa-board','semas-loan','smtech-tipa','koreg-opportunities'],
+  ['ulsan-board','jeonbuk-board','gyeongnam-business','chungbuk-board','jeju-board','mohw-board','forest-board','forest-news','mof-board','unikorea-board','nfa-board','nts-board','mma-board','spo-board','kasa-board','kosme-esg','koat-board','socialenterprise-board','kinfa-board','semas-loan','smtech-tipa','koreg-opportunities','fipa-education'],
 ] as const;
 
 const decoder=(value:string)=>value.replace(/<[^>]+>/g,' ').replace(/&#(x?[0-9a-f]+);/gi,(_,n)=>String.fromCodePoint(n[0].toLowerCase()==='x'?parseInt(n.slice(1),16):parseInt(n,10))).replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&middot;/g,'·').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();
@@ -46,6 +47,7 @@ async function inspectSource(source:{id:string;url:string;name:string}) {
     else if(source.id==='semas-loan'){body=await fetchSemasBundle();response=new Response(body,{headers:{'content-type':'application/json'}});}
     else if(source.id==='smtech-tipa'){body=await fetchSmtechBundle();response=new Response(body,{headers:{'content-type':'application/json'}});}
     else if(source.id==='koreg-opportunities'){body=await fetchKoregBundle();response=new Response(body,{headers:{'content-type':'application/json'}});}
+    else if(source.id==='fipa-education'){body=await fetchFipaBundle();response=new Response(body,{headers:{'content-type':'application/json'}});}
     else if(source.id==='mnd-board')({response,body}=await fetchTextWithDiagnostics(request));
     else {
       try { response=await request(); } catch { response=await request(); }
@@ -404,6 +406,11 @@ export async function syncOfficialSources(requestedSourceIds?:readonly string[])
   if(koreg?.body&&koreg.check.outcome==='success'){
     try{const known=await db.select({id:notices.externalId}).from(notices).where(eq(notices.sourceId,'bizinfo'));const parsed=collectKoregBundle(koreg.body,known.map(x=>x.id));centralItems.push(...parsed.items);koreg.check.message=`고정 공식 상세 ${parsed.parsedPages}건 감사 · 신용보증재단중앙회 수행 기회 ${parsed.items.length}건`;}
     catch{koreg.check.outcome='parser_error';koreg.check.message='신용보증재단중앙회 수행사업 구조 확인 필요';}
+  }
+  const fipa=inspected.find(x=>x.check.sourceId==='fipa-education');
+  if(fipa?.body&&fipa.check.outcome==='success'){
+    try{const known=await db.select({id:notices.externalId}).from(notices).where(eq(notices.sourceId,'fipa-education'));const parsed=collectFipaBundle(fipa.body,known.map(x=>x.id));centralItems.push(...parsed.items);fipa.check.message=`전용 목록 ${parsed.parsedRows}행 · 상세 ${parsed.parsedDetails}건 · 현재·추적 교육공모 ${parsed.items.length}건`;}
+    catch{fipa.check.outcome='parser_error';fipa.check.message='한국어촌어항공단 기술교육 구조 확인 필요';}
   }
   if(koat?.body&&koat.check.outcome==='success'){
     try{const parsed=parseKoatBoard(koat.body);centralItems.push(...parsed.items);koat.check.message=`첫 페이지 ${parsed.parsedRows}건 확인 · 공모 후보 ${parsed.items.length}건`;}
