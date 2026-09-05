@@ -16,13 +16,14 @@ import {fetchSocialenterpriseList,parseSocialenterpriseBoard} from '../lib/socia
 import {fetchArkoList,parseArkoBoard} from '../lib/arko-collector';
 import {fetchKawfBundle,collectKawfBundle} from '../lib/kawf-collector';
 import {fetchKinfaList,parseKinfaBoard} from '../lib/kinfa-collector';
+import {fetchSemasBundle,collectSemasBundle} from '../lib/semas-collector';
 import {fetchTourazCsv,collectTourazKto} from '../lib/touraz-download';
 
 export const SYNC_BATCHES = [
   ['bojo','bizinfo','moe-board','gov24-orgs','mss-board','kdca-board','mfds-board','moj-board','motir-board','pps-board','mogef-board','mofe-board','police-board','dapa-board','kiat-board'],
   ['mcst-board','mois-board','me-board','kocca-support','mafra-board','rda-board','moel-board','moel-support','khs-board','mpm-board','oka-board','naacc-board','cio-board','moip-board','nipa-board','arko-board','kawf-board'],
   ['seoul-board','busan-board','incheon-board','daejeon-board','daegu-board','moleg-board','kma-board','molit-board','mods-board','mpva-board','saemangeum-board','kcg-board','pss-board','mnd-board','keiti-board'],
-  ['ulsan-board','jeonbuk-board','gyeongnam-business','chungbuk-board','jeju-board','mohw-board','forest-board','forest-news','mof-board','unikorea-board','nfa-board','nts-board','mma-board','spo-board','kasa-board','kosme-esg','koat-board','socialenterprise-board','kinfa-board'],
+  ['ulsan-board','jeonbuk-board','gyeongnam-business','chungbuk-board','jeju-board','mohw-board','forest-board','forest-news','mof-board','unikorea-board','nfa-board','nts-board','mma-board','spo-board','kasa-board','kosme-esg','koat-board','socialenterprise-board','kinfa-board','semas-loan'],
 ] as const;
 
 const decoder=(value:string)=>value.replace(/<[^>]+>/g,' ').replace(/&#(x?[0-9a-f]+);/gi,(_,n)=>String.fromCodePoint(n[0].toLowerCase()==='x'?parseInt(n.slice(1),16):parseInt(n,10))).replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&middot;/g,'·').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();
@@ -40,6 +41,7 @@ async function inspectSource(source:{id:string;url:string;name:string}) {
     let response:Response,body:string;
     if(source.id==='touraz-kto'){body=await fetchTourazCsv();response=new Response(body,{headers:{'content-type':'text/csv'}});}
     else if(source.id==='kawf-board'){body=await fetchKawfBundle();response=new Response(body,{headers:{'content-type':'application/json'}});}
+    else if(source.id==='semas-loan'){body=await fetchSemasBundle();response=new Response(body,{headers:{'content-type':'application/json'}});}
     else if(source.id==='mnd-board')({response,body}=await fetchTextWithDiagnostics(request));
     else {
       try { response=await request(); } catch { response=await request(); }
@@ -381,6 +383,12 @@ export async function syncOfficialSources(requestedSourceIds?:readonly string[])
     try{const known=await db.select({id:notices.externalId}).from(notices).where(eq(notices.sourceId,'kinfa-board'));
       const parsed=parseKinfaBoard(kinfa.body,known.map(x=>x.id));centralItems.push(...parsed.items);kinfa.check.message=`일반공고 ${parsed.parsedRows}행(고정 ${parsed.pinned}) · 지원 후보 ${parsed.items.length}건 · 확인된 종료 ${parsed.excludedClosed}건`;
     }catch{kinfa.check.outcome='parser_error';kinfa.check.message='서민금융진흥원 일반공고 구조 확인 필요';}
+  }
+  const semas=inspected.find(x=>x.check.sourceId==='semas-loan');
+  if(semas?.body&&semas.check.outcome==='success'){
+    try{const known=await db.select({id:notices.externalId}).from(notices).where(eq(notices.sourceId,'semas-loan'));
+      const parsed=collectSemasBundle(semas.body,known.map(x=>x.id));centralItems.push(...parsed.items);semas.check.message=`정책자금 공지 ${parsed.parsedRows}행 · 검증된 현재 융자 후보 ${parsed.items.length}건`;
+    }catch{semas.check.outcome='parser_error';semas.check.message='소상공인 정책자금 공지 구조 확인 필요';}
   }
   if(koat?.body&&koat.check.outcome==='success'){
     try{const parsed=parseKoatBoard(koat.body);centralItems.push(...parsed.items);koat.check.message=`첫 페이지 ${parsed.parsedRows}건 확인 · 공모 후보 ${parsed.items.length}건`;}
