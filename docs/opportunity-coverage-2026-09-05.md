@@ -370,7 +370,7 @@
 | 한국벤처투자 | public-303 | 미설정 | 미확인 | — | 0/0 |
 | 한국산학연협회 | public-304 | 미설정 | 미확인 | — | 0/0 |
 | 남북교류협력지원협회 | public-305 | 미설정 | 미확인 | — | 0/0 |
-| 북한이탈주민지원재단 | public-306 | koreahana-opportunities | 운영 저장 성공·장학·창업교육 2건 candidate/open | https://www.koreahana.or.kr/home/kor/board.do?menuPos=52 | 2/2 |
+| 북한이탈주민지원재단 | public-306 | koreahana-opportunities | 운영 저장 성공·직접지원 4건·open 2/unknown 2 | https://www.koreahana.or.kr/home/kor/board.do?menuPos=52 | 4/4 |
 | 한국발명진흥회 | public-307 | 미설정 | 미확인 | — | 0/0 |
 | 한국지식재산보호원 | public-308 | 미설정 | 미확인 | — | 0/0 |
 | 한국지식재산연구원 | public-309 | 미설정 | 미확인 | — | 0/0 |
