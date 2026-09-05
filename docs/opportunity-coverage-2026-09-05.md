@@ -354,11 +354,11 @@
 | 한국국제교류재단 | public-287 | 개편 보류 | 한·아프리카재단 승계기관·신규 개발 대기 | — | 0/0 |
 | 한국국제협력단 | public-288 | koica-youth-contest | 운영 저장 성공·청년공모 1건 candidate/open | https://www.worldfriendskorea.or.kr/kor/info/noticeList.do | 1/1 |
 | 한국원자력안전기술원 | public-289 | 미설정 | 미확인 | — | 0/0 |
-| 한국원자력안전재단 | public-290 | 미설정 | 미확인 | — | 0/0 |
+| 한국원자력안전재단 | public-290 | 후순위 | 법정·직무교육 중심·일반 참여 공모 미확인 | https://nsis.kofons.or.kr/ | 0/0 |
 | 한국원자력통제기술원 | public-291 | 미설정 | 미확인 | — | 0/0 |
 | 공무원연금공단 | public-292 | 미설정 | 미확인 | — | 0/0 |
 | 공영홈쇼핑 | public-293 | 미설정 | 미확인 | — | 0/0 |
-| 기술보증기금 | public-294 | 미설정 | 미확인 | — | 0/0 |
+| 기술보증기금 | public-294 | kibo-opportunities | 공식 고정 페이지 연결·운영 저장 대기 | https://tb.kibo.or.kr/kbsmna/application/bsmna/bsConsInfo.do | 0/2 |
 | 소상공인시장진흥공단 | public-295 | 미설정 | 미확인 | — | 0/0 |
 | 신용보증재단중앙회 | public-296 | 미설정 | 미확인 | — | 0/0 |
 | 장애인기업종합지원센터 | public-297 | 미설정 | 미확인 | — | 0/0 |
