@@ -15,6 +15,7 @@ import {koregSource} from '../lib/koreg-collector';
 import {fipaSource} from '../lib/fipa-collector';
 import {kofpiSource} from '../lib/kofpi-collector';
 import {kywaSource} from '../lib/kywa-collector';
+import {koicaSource} from '../lib/koica-collector';
 import {tourazSource} from '../lib/touraz-download';
 import {registerCentralInstitutions} from './central-institutions';
 
@@ -52,6 +53,7 @@ const seedSources = [
   {...fipaSource,method:'official-education-list-and-details',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...kofpiSource,method:'official-support-list-and-details',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...kywaSource,method:'official-opportunity-list-and-details',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
+  {...koicaSource,method:'fixed-official-contest-detail',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...kiatSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...nipaSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...keitiSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
