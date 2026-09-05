@@ -8,6 +8,7 @@ import {koatSource} from '../lib/koat-collector';
 import {socialenterpriseSource} from '../lib/socialenterprise-collector';
 import {arkoSource} from '../lib/arko-collector';
 import {kawfSource} from '../lib/kawf-collector';
+import {kinfaSource} from '../lib/kinfa-collector';
 import {tourazSource} from '../lib/touraz-download';
 import {registerCentralInstitutions} from './central-institutions';
 
@@ -38,6 +39,7 @@ const seedSources = [
   {...socialenterpriseSource,method:'official-public-json',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...arkoSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...kawfSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
+  {...kinfaSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...kiatSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...nipaSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...keitiSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
