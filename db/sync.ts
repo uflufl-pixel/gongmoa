@@ -18,7 +18,7 @@ import {fetchKawfBundle,collectKawfBundle} from '../lib/kawf-collector';
 import {fetchKinfaList,parseKinfaBoard} from '../lib/kinfa-collector';
 import {fetchSemasBundle,collectSemasBundle} from '../lib/semas-collector';
 import {fetchSmtechBundle,collectSmtechBundle} from '../lib/smtech-collector';
-import {fetchKoregBundle,collectKoregBundle} from '../lib/koreg-collector';
+import {fetchKoregBundle,collectKoregBundle,koregOpportunityIds} from '../lib/koreg-collector';
 import {fetchTourazCsv,collectTourazKto} from '../lib/touraz-download';
 
 export const SYNC_BATCHES = [
@@ -82,6 +82,7 @@ function parseBizinfo(html:string):IncomingNotice[] {
     if(cells.length<7) return [];
     const period=cells[3]; const dates=period.match(/\d{4}-\d{2}-\d{2}/g)||[];
     const detail=`https://www.bizinfo.go.kr/sii/siia/selectSIIA200Detail.do?pblancId=${id}`;
+    if(koregOpportunityIds.includes(id as typeof koregOpportunityIds[number]))return [];
     return [{sourceId:'bizinfo',externalId:id,institution:cells[4]||'중소벤처기업부',group:/광역시|특별시|특별자치|[가-힣]+도$/.test(cells[4])?'지방자치단체':'중앙부처',title:decoder(title),category:cells[1]||'지원사업',audience:'기업·소상공인',region:/^\[([^\]]+)\]/.exec(decoder(title))?.[1]||null,sourceName:'기업마당',sourceUrl:detail,opensAt:dates[0]?dateAtSeoul(dates[0]):null,closesAt:dates[1]?dateAtSeoul(dates[1],true):null,deadlineLabel:period||'공고문 확인',status:'open'}];
   }).slice(0,20);
 }

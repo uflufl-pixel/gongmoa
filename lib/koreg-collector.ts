@@ -1,5 +1,6 @@
 export const koregSource={id:'koreg-opportunities',institutionId:'public-296',name:'신용보증재단중앙회 수행 장기접수 3건 감사',url:'https://www.bizinfo.go.kr/sii/siia/selectSIIA200Detail.do?pblancId=PBLN_000000000119801'};
-const ids=['PBLN_000000000119801','PBLN_000000000119802','PBLN_000000000117127'] as const;
+export const koregOpportunityIds=['PBLN_000000000119801','PBLN_000000000119802','PBLN_000000000117127'] as const;
+const ids=koregOpportunityIds;
 const urls=ids.map(id=>`https://www.bizinfo.go.kr/sii/siia/selectSIIA200Detail.do?pblancId=${id}`);
 function invalid():never{throw new Error('신용보증재단중앙회 수행사업 구조 확인 필요');}
 function plain(value:string){return value.replace(/<!--[^]*?-->/g,' ').replace(/<script\b[^>]*>[^]*?<\/script>/gi,' ').replace(/<[^>]*>/g,' ').replace(/&nbsp;/gi,' ').replace(/&amp;/gi,'&').replace(/&#39;/g,"'").replace(/\s+/g,' ').trim();}
@@ -25,7 +26,8 @@ export function collectKoregBundle(input:string,knownIds:string[]=[],now=new Dat
     if(e.id===ids[1]&&!overview.includes('법인사업자'))invalid();
     if(e.id===ids[2]&&(!overview.includes('3년 거치 3년 분할상환')||!method.includes('방문')))invalid();
     const ended=e.applicationTo&&now.getTime()>=Date.parse('2026-11-14T00:00:00+09:00');if(ended&&!knownIds.includes(e.id))return [];
-    return [{sourceId:'bizinfo',externalId:e.id,institution:'신용보증재단중앙회',group:'공사·공단',title:e.title,category:e.id===ids[2]?'융자·금융지원(상환 필요)':'보증·카드 금융지원',audience:e.audience,region:null,sourceName:'기업마당 · 신용보증재단중앙회 수행',sourceUrl:urls[index],announcedFrom:null,applicationFrom:e.id===ids[2]?'2026-01-02':null,applicationTo:e.applicationTo,opensAt:null,closesAt:null,deadlineLabel:e.applicationTo?`${e.applicationTo} · 마감시각 원문 확인`:'예산 소진 시까지 · 접수 가능 여부 확인',status:ended?'closed':e.applicationTo?'open':'unknown',ministry:e.ministry,applicationMethod:e.method}];
+    const deadlineDay=e.applicationTo&&now.getTime()>=Date.parse('2026-11-13T00:00:00+09:00');
+    return [{sourceId:'bizinfo',externalId:e.id,institution:'신용보증재단중앙회',group:'공사·공단',title:e.title,category:e.id===ids[2]?'융자·금융지원(상환 필요)':'보증·카드 금융지원',audience:e.audience,region:null,sourceName:'기업마당 · 신용보증재단중앙회 수행',sourceUrl:urls[index],announcedFrom:null,applicationFrom:e.id===ids[2]?'2026-01-02':null,applicationTo:e.applicationTo,opensAt:null,closesAt:null,deadlineLabel:e.applicationTo?`${e.applicationTo} · 마감시각 원문 확인`:'예산 소진 시까지 · 접수 가능 여부 확인',status:ended?'closed':deadlineDay?'unknown':e.applicationTo?'open':'unknown',ministry:e.ministry,applicationMethod:e.method}];
   });
   return {items,parsedPages:pages.length};
 }
