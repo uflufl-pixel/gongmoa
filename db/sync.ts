@@ -21,13 +21,14 @@ import {fetchSmtechBundle,collectSmtechBundle} from '../lib/smtech-collector';
 import {fetchKoregBundle,collectKoregBundle,koregOpportunityIds} from '../lib/koreg-collector';
 import {fetchFipaBundle,collectFipaBundle} from '../lib/fipa-collector';
 import {fetchKofpiBundle,collectKofpiBundle} from '../lib/kofpi-collector';
+import {fetchKywaBundle,collectKywaBundle} from '../lib/kywa-collector';
 import {fetchTourazCsv,collectTourazKto} from '../lib/touraz-download';
 
 export const SYNC_BATCHES = [
   ['bojo','bizinfo','moe-board','gov24-orgs','mss-board','kdca-board','mfds-board','moj-board','motir-board','pps-board','mogef-board','mofe-board','police-board','dapa-board','kiat-board'],
   ['mcst-board','mois-board','me-board','kocca-support','mafra-board','rda-board','moel-board','moel-support','khs-board','mpm-board','oka-board','naacc-board','cio-board','moip-board','nipa-board','arko-board','kawf-board'],
   ['seoul-board','busan-board','incheon-board','daejeon-board','daegu-board','moleg-board','kma-board','molit-board','mods-board','mpva-board','saemangeum-board','kcg-board','pss-board','mnd-board','keiti-board'],
-  ['ulsan-board','jeonbuk-board','gyeongnam-business','chungbuk-board','jeju-board','mohw-board','forest-board','forest-news','mof-board','unikorea-board','nfa-board','nts-board','mma-board','spo-board','kasa-board','kosme-esg','koat-board','socialenterprise-board','kinfa-board','semas-loan','smtech-tipa','koreg-opportunities','kofpi-support'],
+  ['ulsan-board','jeonbuk-board','gyeongnam-business','chungbuk-board','jeju-board','mohw-board','forest-board','forest-news','mof-board','unikorea-board','nfa-board','nts-board','mma-board','spo-board','kasa-board','kosme-esg','koat-board','socialenterprise-board','kinfa-board','semas-loan','smtech-tipa','koreg-opportunities','kofpi-support','kywa-opportunities'],
 ] as const;
 
 const decoder=(value:string)=>value.replace(/<[^>]+>/g,' ').replace(/&#(x?[0-9a-f]+);/gi,(_,n)=>String.fromCodePoint(n[0].toLowerCase()==='x'?parseInt(n.slice(1),16):parseInt(n,10))).replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&middot;/g,'·').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();
@@ -50,6 +51,7 @@ async function inspectSource(source:{id:string;url:string;name:string}) {
     else if(source.id==='koreg-opportunities'){body=await fetchKoregBundle();response=new Response(body,{headers:{'content-type':'application/json'}});}
     else if(source.id==='fipa-education'){body=await fetchFipaBundle();response=new Response(body,{headers:{'content-type':'application/json'}});}
     else if(source.id==='kofpi-support'){body=await fetchKofpiBundle();response=new Response(body,{headers:{'content-type':'application/json'}});}
+    else if(source.id==='kywa-opportunities'){body=await fetchKywaBundle();response=new Response(body,{headers:{'content-type':'application/json'}});}
     else if(source.id==='mnd-board')({response,body}=await fetchTextWithDiagnostics(request));
     else {
       try { response=await request(); } catch { response=await request(); }
@@ -418,6 +420,11 @@ export async function syncOfficialSources(requestedSourceIds?:readonly string[])
   if(kofpi?.body&&kofpi.check.outcome==='success'){
     try{const known=await db.select({id:notices.externalId}).from(notices).where(eq(notices.sourceId,'kofpi-support'));const parsed=collectKofpiBundle(kofpi.body,known.map(x=>x.id));centralItems.push(...parsed.items);kofpi.check.message=`공지 목록 ${parsed.parsedRows}행 · 고정 상세 ${parsed.parsedDetails}건 · 현재·추적 지원기회 ${parsed.items.length}건`;}
     catch{kofpi.check.outcome='parser_error';kofpi.check.message='한국임업진흥원 지원사업 구조 확인 필요';}
+  }
+  const kywa=inspected.find(x=>x.check.sourceId==='kywa-opportunities');
+  if(kywa?.body&&kywa.check.outcome==='success'){
+    try{const known=await db.select({id:notices.externalId}).from(notices).where(eq(notices.sourceId,'kywa-opportunities'));const parsed=collectKywaBundle(kywa.body,known.map(x=>x.id));centralItems.push(...parsed.items);kywa.check.message=`공지 목록 ${parsed.parsedRows}행 · 고정 상세 ${parsed.parsedDetails}건 · 현재·추적 공모·지원기회 ${parsed.items.length}건`;}
+    catch{kywa.check.outcome='parser_error';kywa.check.message='한국청소년활동진흥원 공모·지원사업 구조 확인 필요';}
   }
   if(koat?.body&&koat.check.outcome==='success'){
     try{const parsed=parseKoatBoard(koat.body);centralItems.push(...parsed.items);koat.check.message=`첫 페이지 ${parsed.parsedRows}건 확인 · 공모 후보 ${parsed.items.length}건`;}
