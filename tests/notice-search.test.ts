@@ -16,6 +16,16 @@ test('explicit reception cutoffs use Korean time within the same day',()=>{
   assert.equal(receptionState(d,'2026-09-02',Date.parse('2026-09-02T08:59:00Z')),'open');
   assert.equal(receptionState(d,'2026-09-02',Date.parse('2026-09-02T09:01:00Z')),'closed');
 });
+test('explicit source uncertainty survives date ranges while exact cutoff works without a start date',()=>{
+  assert.equal(receptionState({status:'unknown',applicationFrom:'2026-04-16',applicationTo:'2026-12-05',closesAt:null},'2026-09-05'),'unknown');
+  const education={status:'open',applicationFrom:null,applicationTo:'2026-09-18',closesAt:'2026-09-18T08:00:00Z',deadlineLabel:'2026-09-18 17:00'};
+  assert.equal(receptionState(education,'2026-09-18',Date.parse('2026-09-18T07:59:59Z')),'open');
+  assert.equal(receptionState(education,'2026-09-18',Date.parse('2026-09-18T08:00:01Z')),'closed');
+  assert.equal(receptionState({status:'unknown',applicationFrom:'2026-09-01',applicationTo:'2026-09-18',closesAt:'2026-09-18T08:00:00Z',deadlineLabel:'2026-09-18 17:00'},'2026-09-05'),'unknown');
+  assert.equal(receptionState({status:'open'},'2026-09-05'),'unknown');
+  assert.equal(receptionState({...education,sourceReceptionState:'대기'},'2026-09-18',Date.parse('2026-09-18T07:59:59Z')),'unknown');
+  assert.equal(receptionState({...education,applicationTo:'2026-09-19'},'2026-09-18',Date.parse('2026-09-18T07:59:59Z')),'unknown');
+});
 const rows=[
   {id:'a',org:'기관A',tag:'문화',audience:'비영리단체',details:{ministry:'부처A',businessYear:2026,applicationFrom:'2026-09-01',applicationTo:'2026-09-07',announcedFrom:'2026-08-01',announcedTo:'2026-08-31',supportBudget:0,createdAt:'2026-09-01T00:00:00Z'}},
   {id:'b',org:'기관B',tag:'창업',audience:'중소기업',details:{ministry:'부처B',businessYear:2025,applicationFrom:'2026-10-01',applicationTo:'2026-10-10',supportBudget:10000000}},

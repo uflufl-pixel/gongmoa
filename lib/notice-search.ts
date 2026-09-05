@@ -6,13 +6,15 @@ export function kstDay(time=Date.now()){return new Date(time+9*3600000).toISOStr
 export function receptionState(d:SearchRecord={},today=kstDay(),now=Date.now()){
   if(d.status==='closed'||(d.applicationTo&&d.applicationTo<today))return 'closed';
   if(d.deadlinePrecision==='date'&&d.applicationTo===today)return 'unknown';
-  // Exact times are used only when an explicit time range was retained from the source.
-  if(d.deadlineLabel&&/\d{2}:\d{2}/.test(d.deadlineLabel)&&d.applicationFrom&&d.applicationTo){
-    if(d.closesAt&&Date.parse(d.closesAt)<now)return 'closed';
-    if(d.opensAt&&Date.parse(d.opensAt)>now)return 'upcoming';
-  }
+  // Exact times are trusted only when the cutoff resolves to the declared Korean application date.
+  const closeMs=d.closesAt?Date.parse(d.closesAt):NaN;
+  const exact=!!(d.deadlineLabel&&/\d{2}:\d{2}/.test(d.deadlineLabel)&&d.applicationTo&&Number.isFinite(closeMs)&&kstDay(closeMs)===d.applicationTo);
+  if(exact&&closeMs<now)return 'closed';
+  if(d.opensAt&&Number.isFinite(Date.parse(d.opensAt))&&Date.parse(d.opensAt)>now)return 'upcoming';
   if(d.applicationFrom&&d.applicationFrom>today)return 'upcoming';
   if(d.sourceReceptionState==='대기')return 'unknown';
+  if(d.status==='unknown')return 'unknown';
+  if(d.status==='open'&&exact)return 'open';
   if(d.applicationFrom&&d.applicationTo&&d.applicationFrom<=today&&d.applicationTo>=today)return 'open';
   return 'unknown';
 }
