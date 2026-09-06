@@ -22,6 +22,7 @@ import {kidpSource} from '../lib/kidp-collector';
 import {koipaSource} from '../lib/koipa-collector';
 import {koipaPatentSource} from '../lib/koipa-patent-collector';
 import {koipaBrandSource} from '../lib/koipa-brand-collector';
+import {koipaRiskCertificationSource} from '../lib/koipa-risk-certification-collector';
 import {tourazSource} from '../lib/touraz-download';
 import {registerCentralInstitutions} from './central-institutions';
 
@@ -66,6 +67,7 @@ const seedSources = [
   {...koipaSource,method:'fixed-official-beneficiary-detail-and-pdf',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...koipaPatentSource,method:'fixed-official-regional-detail-and-pdf',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...koipaBrandSource,method:'fixed-official-brand-detail-and-pdf',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
+  {...koipaRiskCertificationSource,method:'fixed-official-risk-and-certification-detail-audit',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...kiatSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...nipaSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...keitiSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},

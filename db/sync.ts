@@ -29,13 +29,14 @@ import {fetchKidpBundle,collectKidpBundle} from '../lib/kidp-collector';
 import {fetchKoipaBundle,collectKoipaBundle} from '../lib/koipa-collector';
 import {fetchKoipaPatentBundle,collectKoipaPatentBundle} from '../lib/koipa-patent-collector';
 import {fetchKoipaBrandBundle,collectKoipaBrandBundle} from '../lib/koipa-brand-collector';
+import {fetchKoipaRiskCertificationBundle,collectKoipaRiskCertificationBundle} from '../lib/koipa-risk-certification-collector';
 import {fetchTourazCsv,collectTourazKto} from '../lib/touraz-download';
 
 export const SYNC_BATCHES = [
   ['bojo','bizinfo','moe-board','gov24-orgs','mss-board','kdca-board','mfds-board','moj-board','motir-board','pps-board','mogef-board','mofe-board','police-board','dapa-board','kiat-board'],
   ['mcst-board','mois-board','me-board','kocca-support','mafra-board','rda-board','moel-board','moel-support','khs-board','mpm-board','oka-board','naacc-board','cio-board','moip-board','nipa-board','arko-board','kawf-board'],
   ['seoul-board','busan-board','incheon-board','daejeon-board','daegu-board','moleg-board','kma-board','molit-board','mods-board','mpva-board','saemangeum-board','kcg-board','pss-board','mnd-board','keiti-board'],
-  ['ulsan-board','jeonbuk-board','gyeongnam-business','chungbuk-board','jeju-board','mohw-board','forest-board','forest-news','mof-board','unikorea-board','nfa-board','nts-board','mma-board','spo-board','kasa-board','kosme-esg','koat-board','socialenterprise-board','kinfa-board','semas-loan','smtech-tipa','koreg-opportunities','kofpi-support','koica-youth-contest','kibo-opportunities','koreahana-opportunities','kidp-finance','koipa-rights','koipa-patent','koipa-brand'],
+  ['ulsan-board','jeonbuk-board','gyeongnam-business','chungbuk-board','jeju-board','mohw-board','forest-board','forest-news','mof-board','unikorea-board','nfa-board','nts-board','mma-board','spo-board','kasa-board','kosme-esg','koat-board','socialenterprise-board','kinfa-board','semas-loan','smtech-tipa','koreg-opportunities','kofpi-support','koica-youth-contest','kibo-opportunities','koreahana-opportunities','kidp-finance','koipa-rights','koipa-patent','koipa-brand','koipa-risk-certification'],
 ] as const;
 
 const decoder=(value:string)=>value.replace(/<[^>]+>/g,' ').replace(/&#(x?[0-9a-f]+);/gi,(_,n)=>String.fromCodePoint(n[0].toLowerCase()==='x'?parseInt(n.slice(1),16):parseInt(n,10))).replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&middot;/g,'·').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();
@@ -66,6 +67,7 @@ async function inspectSource(source:{id:string;url:string;name:string}) {
     else if(source.id==='koipa-rights'){body=await fetchKoipaBundle();response=new Response(body,{headers:{'content-type':'application/json'}});}
     else if(source.id==='koipa-patent'){body=await fetchKoipaPatentBundle();response=new Response(body,{headers:{'content-type':'application/json'}});}
     else if(source.id==='koipa-brand'){body=await fetchKoipaBrandBundle();response=new Response(body,{headers:{'content-type':'application/json'}});}
+    else if(source.id==='koipa-risk-certification'){body=await fetchKoipaRiskCertificationBundle();response=new Response(body,{headers:{'content-type':'application/json'}});}
     else if(source.id==='mnd-board')({response,body}=await fetchTextWithDiagnostics(request));
     else {
       try { response=await request(); } catch { response=await request(); }
@@ -474,6 +476,11 @@ export async function syncOfficialSources(requestedSourceIds?:readonly string[])
   if(koipaBrand?.body&&koipaBrand.check.outcome==='success'){
     try{const known=await db.select({id:notices.externalId}).from(notices).where(eq(notices.sourceId,'koipa-brand'));const parsed=collectKoipaBrandBundle(koipaBrand.body,known.map(x=>x.id));centralItems.push(...parsed.items);koipaBrand.check.message=`공식 K-브랜드 상세/PDF ${parsed.parsedPages}건 감사 · 현재·추적 기업지원 ${parsed.items.length}건`;}
     catch{koipaBrand.check.outcome='parser_error';koipaBrand.check.message='한국지식재산보호원 K-브랜드 지원공고 구조 확인 필요';}
+  }
+  const koipaRiskCertification=inspected.find(x=>x.check.sourceId==='koipa-risk-certification');
+  if(koipaRiskCertification?.body&&koipaRiskCertification.check.outcome==='success'){
+    try{const known=await db.select({id:notices.externalId}).from(notices).where(eq(notices.sourceId,'koipa-risk-certification'));const parsed=collectKoipaRiskCertificationBundle(koipaRiskCertification.body,known.map(x=>x.id));centralItems.push(...parsed.items);koipaRiskCertification.check.message=`공식 위험진단·위험대응·정부인증 상세/첨부 ${parsed.parsedPages}건 감사 · 현재·추적 기업지원 ${parsed.items.length}건`;}
+    catch{koipaRiskCertification.check.outcome='parser_error';koipaRiskCertification.check.message='한국지식재산보호원 IP위험 대응·K-브랜드 인증 공고 구조 확인 필요';}
   }
   if(koat?.body&&koat.check.outcome==='success'){
     try{const parsed=parseKoatBoard(koat.body);centralItems.push(...parsed.items);koat.check.message=`첫 페이지 ${parsed.parsedRows}건 확인 · 공모 후보 ${parsed.items.length}건`;}
