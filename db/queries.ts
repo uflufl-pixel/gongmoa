@@ -23,6 +23,7 @@ import {koipaSource} from '../lib/koipa-collector';
 import {koipaPatentSource} from '../lib/koipa-patent-collector';
 import {koipaBrandSource} from '../lib/koipa-brand-collector';
 import {koipaRiskCertificationSource} from '../lib/koipa-risk-certification-collector';
+import {kistaSource} from '../lib/kista-collector';
 import {tourazSource} from '../lib/touraz-download';
 import {registerCentralInstitutions} from './central-institutions';
 
@@ -68,6 +69,7 @@ const seedSources = [
   {...koipaPatentSource,method:'fixed-official-regional-detail-and-pdf',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...koipaBrandSource,method:'fixed-official-brand-detail-and-pdf',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...koipaRiskCertificationSource,method:'fixed-official-risk-and-certification-detail-audit',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
+  {...kistaSource,method:'fixed-official-beneficiary-detail-and-pdf',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...kiatSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...nipaSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...keitiSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
@@ -118,6 +120,9 @@ export async function ensureSeeded() {
   if(!registryReady) for(let offset=0;offset<publicInstitutionSeeds.length;offset+=8) {
     await db.insert(institutions).values(publicInstitutionSeeds.slice(offset,offset+8)).onConflictDoNothing();
   }
+  // public-310 is the same legal entity under its current name; the registry
+  // previously retained the pre-2017 name 한국지식재산전략원.
+  await db.update(institutions).set({name:'한국특허전략개발원'}).where(eq(institutions.id,'public-310'));
   // D1 limits the number of bound parameters in one statement. Keep source
   // seeding below that ceiling as the registry grows.
   for(let offset=0;offset<seedSources.length;offset+=8) {

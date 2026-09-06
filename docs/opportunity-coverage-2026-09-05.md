@@ -374,7 +374,7 @@
 | 한국발명진흥회 | public-307 | 미설정 | 미확인 | — | 0/0 |
 | 한국지식재산보호원 | public-308 | koipa-rights · koipa-patent · koipa-brand · koipa-risk-certification | ready | — | 9/0 |
 | 한국지식재산연구원 | public-309 | 미설정 | 미확인 | — | 0/0 |
-| 한국지식재산전략원 | public-310 | 미설정 | 미확인 | — | 0/0 |
+| 한국특허전략개발원 | public-310 | kista-opportunities | ready | https://biz.kista.re.kr/ippro/com/iprndMain/selectBusinessAnnounceList.do?bbsType=bs&pageIndex=1 | 1/0 |
 | 한국특허정보원 | public-311 | 미설정 | 미확인 | — | 0/0 |
 | 국립해양박물관 | public-312 | 미설정 | 미확인 | — | 0/0 |
 | 국립해양생물자원관 | public-313 | 미설정 | 미확인 | — | 0/0 |
