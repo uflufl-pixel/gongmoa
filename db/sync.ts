@@ -506,7 +506,7 @@ export async function syncOfficialSources(requestedSourceIds?:readonly string[])
   }
   const kimstOpportunity=inspected.find(x=>x.check.sourceId==='kimst-opportunities');
   if(kimstOpportunity?.body&&kimstOpportunity.check.outcome==='success'){
-    try{const known=await db.select({id:notices.externalId}).from(notices).where(eq(notices.sourceId,'kimst-opportunities'));const parsed=collectKimstOpportunity(kimstOpportunity.body,known.map(x=>x.id));centralItems.push(...parsed.items);kimstOpportunity.check.message=`공식 공고·첨부 연결 ${parsed.parsedPages}건 감사 · 현재·추적 유망기업 성장지원 ${parsed.items.length}건`;}
+    try{const [known,knownMof]=await Promise.all([db.select({id:notices.externalId}).from(notices).where(eq(notices.sourceId,'kimst-opportunities')),db.select({id:notices.externalId}).from(notices).where(eq(notices.sourceId,'mof-board'))]);const parsed=collectKimstOpportunity(kimstOpportunity.body,[...known,...knownMof].map(x=>x.id));centralItems.push(...parsed.items);kimstOpportunity.check.message=`공식 공고·첨부·IRIS ${parsed.parsedPages}건 감사 · 현재·추적 기업·R&D 기회 ${parsed.items.length}건`;}
     catch{kimstOpportunity.check.outcome='parser_error';kimstOpportunity.check.message='해양수산과학기술진흥원 예비오션스타 구조 확인 필요';}
   }
   if(koat?.body&&koat.check.outcome==='success'){
