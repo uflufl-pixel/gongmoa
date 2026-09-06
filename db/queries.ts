@@ -122,7 +122,7 @@ export async function ensureSeeded() {
   }
   // public-310 is the same legal entity under its current name; the registry
   // previously retained the pre-2017 name 한국지식재산전략원.
-  await db.update(institutions).set({name:'한국특허전략개발원'}).where(eq(institutions.id,'public-310'));
+  await db.update(institutions).set({name:'한국특허전략개발원',parentId:'지식재산처'}).where(eq(institutions.id,'public-310'));
   // D1 limits the number of bound parameters in one statement. Keep source
   // seeding below that ceiling as the registry grows.
   for(let offset=0;offset<seedSources.length;offset+=8) {
