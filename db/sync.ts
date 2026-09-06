@@ -33,13 +33,14 @@ import {fetchKoipaRiskCertificationBundle,collectKoipaRiskCertificationBundle} f
 import {fetchKistaBundle,collectKistaBundle} from '../lib/kista-collector';
 import {fetchFiraBundle,collectFiraBundle} from '../lib/fira-collector';
 import {fetchKimstPage,collectKimstPage,fetchKimstOpportunity,collectKimstOpportunity} from '../lib/kimst-collector';
+import {fetchKimstFamTour,collectKimstFamTour} from '../lib/kimst-fam-tour-collector';
 import {fetchTourazCsv,collectTourazKto} from '../lib/touraz-download';
 
 export const SYNC_BATCHES = [
   ['bojo','bizinfo','moe-board','gov24-orgs','mss-board','kdca-board','mfds-board','moj-board','motir-board','pps-board','mogef-board','mofe-board','police-board','dapa-board','kiat-board'],
   ['mcst-board','mois-board','me-board','kocca-support','mafra-board','rda-board','moel-board','moel-support','khs-board','mpm-board','oka-board','naacc-board','cio-board','moip-board','nipa-board','arko-board','kawf-board'],
   ['seoul-board','busan-board','incheon-board','daejeon-board','daegu-board','moleg-board','kma-board','molit-board','mods-board','mpva-board','saemangeum-board','kcg-board','pss-board','mnd-board','keiti-board'],
-  ['ulsan-board','jeonbuk-board','gyeongnam-business','chungbuk-board','jeju-board','mohw-board','forest-board','forest-news','mof-board','unikorea-board','nfa-board','nts-board','mma-board','spo-board','kasa-board','kosme-esg','koat-board','socialenterprise-board','kinfa-board','semas-loan','smtech-tipa','koreg-opportunities','kofpi-support','koica-youth-contest','kibo-opportunities','koreahana-opportunities','kidp-finance','koipa-rights','koipa-patent','koipa-brand','koipa-risk-certification','kista-opportunities','fira-fiship','kimst-research-facility','kimst-opportunities'],
+  ['ulsan-board','jeonbuk-board','gyeongnam-business','chungbuk-board','jeju-board','mohw-board','forest-board','forest-news','mof-board','unikorea-board','nfa-board','nts-board','mma-board','spo-board','kasa-board','kosme-esg','koat-board','socialenterprise-board','kinfa-board','semas-loan','smtech-tipa','koreg-opportunities','kofpi-support','koica-youth-contest','kibo-opportunities','koreahana-opportunities','kidp-finance','koipa-rights','koipa-patent','koipa-brand','koipa-risk-certification','kista-opportunities','fira-fiship','kimst-research-facility','kimst-opportunities','kimst-fam-tour'],
 ] as const;
 
 const decoder=(value:string)=>value.replace(/<[^>]+>/g,' ').replace(/&#(x?[0-9a-f]+);/gi,(_,n)=>String.fromCodePoint(n[0].toLowerCase()==='x'?parseInt(n.slice(1),16):parseInt(n,10))).replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&middot;/g,'·').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();
@@ -75,6 +76,7 @@ async function inspectSource(source:{id:string;url:string;name:string}) {
     else if(source.id==='fira-fiship'){body=await fetchFiraBundle();response=new Response(body,{headers:{'content-type':'application/json'}});}
     else if(source.id==='kimst-research-facility'){body=await fetchKimstPage();response=new Response(body,{headers:{'content-type':'text/html'}});}
     else if(source.id==='kimst-opportunities'){body=await fetchKimstOpportunity();response=new Response(body,{headers:{'content-type':'text/html'}});}
+    else if(source.id==='kimst-fam-tour'){body=await fetchKimstFamTour();response=new Response(body,{headers:{'content-type':'application/json'}});}
     else if(source.id==='mnd-board')({response,body}=await fetchTextWithDiagnostics(request));
     else {
       try { response=await request(); } catch { response=await request(); }
@@ -111,7 +113,7 @@ function parseBizinfo(html:string):IncomingNotice[] {
     if(cells.length<7) return [];
     const period=cells[3]; const dates=period.match(/\d{4}-\d{2}-\d{2}/g)||[];
     const detail=`https://www.bizinfo.go.kr/sii/siia/selectSIIA200Detail.do?pblancId=${id}`;
-    if(koregOpportunityIds.includes(id as typeof koregOpportunityIds[number])||id==='PBLN_000000000125905'||/2026\s*예비오션스타\s*기업\s*모집/.test(decoder(title)))return [];
+    if(koregOpportunityIds.includes(id as typeof koregOpportunityIds[number])||id==='PBLN_000000000125905'||id==='PBLN_000000000125819'||/2026\s*예비오션스타\s*기업\s*모집/.test(decoder(title)))return [];
     return [{sourceId:'bizinfo',externalId:id,institution:cells[4]||'중소벤처기업부',group:/광역시|특별시|특별자치|[가-힣]+도$/.test(cells[4])?'지방자치단체':'중앙부처',title:decoder(title),category:cells[1]||'지원사업',audience:'기업·소상공인',region:/^\[([^\]]+)\]/.exec(decoder(title))?.[1]||null,sourceName:'기업마당',sourceUrl:detail,opensAt:dates[0]?dateAtSeoul(dates[0]):null,closesAt:dates[1]?dateAtSeoul(dates[1],true):null,deadlineLabel:period||'공고문 확인',status:'open'}];
   }).slice(0,20);
 }
@@ -508,6 +510,11 @@ export async function syncOfficialSources(requestedSourceIds?:readonly string[])
   if(kimstOpportunity?.body&&kimstOpportunity.check.outcome==='success'){
     try{const [known,knownMof]=await Promise.all([db.select({id:notices.externalId}).from(notices).where(eq(notices.sourceId,'kimst-opportunities')),db.select({id:notices.externalId}).from(notices).where(eq(notices.sourceId,'mof-board'))]);const parsed=collectKimstOpportunity(kimstOpportunity.body,[...known,...knownMof].map(x=>x.id));centralItems.push(...parsed.items);kimstOpportunity.check.message=`공식 공고·첨부·IRIS ${parsed.parsedPages}건 감사 · 현재·추적 기업·R&D 기회 ${parsed.items.length}건`;}
     catch{kimstOpportunity.check.outcome='parser_error';kimstOpportunity.check.message='해양수산과학기술진흥원 예비오션스타 구조 확인 필요';}
+  }
+  const kimstFamTour=inspected.find(x=>x.check.sourceId==='kimst-fam-tour');
+  if(kimstFamTour?.body&&kimstFamTour.check.outcome==='success'){
+    try{const known=await db.select({id:notices.externalId}).from(notices).where(eq(notices.sourceId,'bizinfo'));const parsed=collectKimstFamTour(kimstFamTour.body,known.map(x=>x.id));centralItems.push(...parsed.items);kimstFamTour.check.message=`공식 상세·수정PDF·신청서 ${parsed.parsedPages}건 감사 · 현재·추적 팸투어 ${parsed.items.length}건`;}
+    catch{kimstFamTour.check.outcome='parser_error';kimstFamTour.check.message='해양수산 기업현장 팸투어 공고 구조 확인 필요';}
   }
   if(koat?.body&&koat.check.outcome==='success'){
     try{const parsed=parseKoatBoard(koat.body);centralItems.push(...parsed.items);koat.check.message=`첫 페이지 ${parsed.parsedRows}건 확인 · 공모 후보 ${parsed.items.length}건`;}

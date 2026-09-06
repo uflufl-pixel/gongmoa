@@ -26,6 +26,7 @@ import {koipaRiskCertificationSource} from '../lib/koipa-risk-certification-coll
 import {kistaSource} from '../lib/kista-collector';
 import {firaSource} from '../lib/fira-collector';
 import {kimstSource,kimstOpportunitySource} from '../lib/kimst-collector';
+import {kimstFamTourSource} from '../lib/kimst-fam-tour-collector';
 import {tourazSource} from '../lib/touraz-download';
 import {registerCentralInstitutions} from './central-institutions';
 
@@ -75,6 +76,7 @@ const seedSources = [
   {...firaSource,method:'fixed-official-program-page-and-pdf',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...kimstSource,method:'fixed-official-standing-support-page',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...kimstOpportunitySource,method:'fixed-official-announcement-with-attachment',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
+  {...kimstFamTourSource,method:'fixed-official-detail-pdf-and-form',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...kiatSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...nipaSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...keitiSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
