@@ -25,6 +25,7 @@ import {koipaBrandSource} from '../lib/koipa-brand-collector';
 import {koipaRiskCertificationSource} from '../lib/koipa-risk-certification-collector';
 import {kistaSource} from '../lib/kista-collector';
 import {firaSource} from '../lib/fira-collector';
+import {kimstSource} from '../lib/kimst-collector';
 import {tourazSource} from '../lib/touraz-download';
 import {registerCentralInstitutions} from './central-institutions';
 
@@ -72,6 +73,7 @@ const seedSources = [
   {...koipaRiskCertificationSource,method:'fixed-official-risk-and-certification-detail-audit',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...kistaSource,method:'fixed-official-beneficiary-detail-and-pdf',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...firaSource,method:'fixed-official-program-page-and-pdf',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
+  {...kimstSource,method:'fixed-official-standing-support-page',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...kiatSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...nipaSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...keitiSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
@@ -127,6 +129,8 @@ export async function ensureSeeded() {
   await db.update(institutions).set({name:'한국특허전략개발원',parentId:'지식재산처'}).where(eq(institutions.id,'public-310'));
   // The Fisheries Resources Management Agency was renamed in place in 2019.
   await db.update(institutions).set({name:'한국수산자원공단',parentId:'해양수산부'}).where(eq(institutions.id,'public-321'));
+  // Current statutory name since the 2017 marine-science promotion act.
+  await db.update(institutions).set({name:'해양수산과학기술진흥원',parentId:'해양수산부'}).where(eq(institutions.id,'public-325'));
   // D1 limits the number of bound parameters in one statement. Keep source
   // seeding below that ceiling as the registry grows.
   for(let offset=0;offset<seedSources.length;offset+=8) {

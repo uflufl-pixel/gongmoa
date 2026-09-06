@@ -1,0 +1,8 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+// @ts-expect-error Native Node tests use explicit extensions.
+import {collectKimstPage,fetchKimstPage} from '../lib/kimst-collector.ts';
+const page=()=>`<h3>연구시설 공동활용 사업</h3> 연구시설 사용 건당 최대 천만원 이내에서 사용료 지원 중소중견기업 : 사용료의 75% 대학연구소 단체 : 사용료의 80% 학생 및 신진연구자 : 사용료의 100% (상시)시설이용 신청 접수 및 확인(KIMST) 지원금 초과비용 또는 지원비용 외 사용료는 신청자가 부담`;
+test('KIMST imports the standing facility-fee support without inventing a total budget',()=>{const i=collectKimstPage(page()).items[0];assert.equal(i.externalId,'research-facility-standing');assert.equal(i.status,'open');assert.equal(i.closesAt,null);assert.equal(i.supportBudget,null);assert.match(i.applicationMethod,/1천만원/);});
+test('KIMST preserves the three beneficiary rates',()=>{const i=collectKimstPage(page()).items[0];assert.match(i.audience,/중소·중견기업/);assert.match(i.applicationMethod,/75%/);assert.match(i.applicationMethod,/80%/);assert.match(i.applicationMethod,/100%/);});
+test('KIMST closes only a known standing call after an explicit scoped stop notice',()=>{const h=page()+' 시설이용 신청 접수 종료';assert.equal(collectKimstPage(h).items.length,0);assert.equal(collectKimstPage(h,['research-facility-standing']).items[0].status,'closed');assert.equal(collectKimstPage(page()+' 다른 교육 신청 접수 종료').items[0].status,'open');});
+test('KIMST rejects missing or comment-only evidence and redirects',async()=>{assert.throws(()=>collectKimstPage(page().replace('75%','70%')));assert.throws(()=>collectKimstPage(`<!-- ${page()} -->`));const mock=(async()=>new Response('',{status:302,headers:{location:'https://example.com'}})) as typeof fetch;await assert.rejects(()=>fetchKimstPage(mock));});

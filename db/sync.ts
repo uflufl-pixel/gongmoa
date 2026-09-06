@@ -32,13 +32,14 @@ import {fetchKoipaBrandBundle,collectKoipaBrandBundle} from '../lib/koipa-brand-
 import {fetchKoipaRiskCertificationBundle,collectKoipaRiskCertificationBundle} from '../lib/koipa-risk-certification-collector';
 import {fetchKistaBundle,collectKistaBundle} from '../lib/kista-collector';
 import {fetchFiraBundle,collectFiraBundle} from '../lib/fira-collector';
+import {fetchKimstPage,collectKimstPage} from '../lib/kimst-collector';
 import {fetchTourazCsv,collectTourazKto} from '../lib/touraz-download';
 
 export const SYNC_BATCHES = [
   ['bojo','bizinfo','moe-board','gov24-orgs','mss-board','kdca-board','mfds-board','moj-board','motir-board','pps-board','mogef-board','mofe-board','police-board','dapa-board','kiat-board'],
   ['mcst-board','mois-board','me-board','kocca-support','mafra-board','rda-board','moel-board','moel-support','khs-board','mpm-board','oka-board','naacc-board','cio-board','moip-board','nipa-board','arko-board','kawf-board'],
   ['seoul-board','busan-board','incheon-board','daejeon-board','daegu-board','moleg-board','kma-board','molit-board','mods-board','mpva-board','saemangeum-board','kcg-board','pss-board','mnd-board','keiti-board'],
-  ['ulsan-board','jeonbuk-board','gyeongnam-business','chungbuk-board','jeju-board','mohw-board','forest-board','forest-news','mof-board','unikorea-board','nfa-board','nts-board','mma-board','spo-board','kasa-board','kosme-esg','koat-board','socialenterprise-board','kinfa-board','semas-loan','smtech-tipa','koreg-opportunities','kofpi-support','koica-youth-contest','kibo-opportunities','koreahana-opportunities','kidp-finance','koipa-rights','koipa-patent','koipa-brand','koipa-risk-certification','kista-opportunities','fira-fiship'],
+  ['ulsan-board','jeonbuk-board','gyeongnam-business','chungbuk-board','jeju-board','mohw-board','forest-board','forest-news','mof-board','unikorea-board','nfa-board','nts-board','mma-board','spo-board','kasa-board','kosme-esg','koat-board','socialenterprise-board','kinfa-board','semas-loan','smtech-tipa','koreg-opportunities','kofpi-support','koica-youth-contest','kibo-opportunities','koreahana-opportunities','kidp-finance','koipa-rights','koipa-patent','koipa-brand','koipa-risk-certification','kista-opportunities','fira-fiship','kimst-research-facility'],
 ] as const;
 
 const decoder=(value:string)=>value.replace(/<[^>]+>/g,' ').replace(/&#(x?[0-9a-f]+);/gi,(_,n)=>String.fromCodePoint(n[0].toLowerCase()==='x'?parseInt(n.slice(1),16):parseInt(n,10))).replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&middot;/g,'·').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();
@@ -72,6 +73,7 @@ async function inspectSource(source:{id:string;url:string;name:string}) {
     else if(source.id==='koipa-risk-certification'){body=await fetchKoipaRiskCertificationBundle();response=new Response(body,{headers:{'content-type':'application/json'}});}
     else if(source.id==='kista-opportunities'){body=await fetchKistaBundle();response=new Response(body,{headers:{'content-type':'application/json'}});}
     else if(source.id==='fira-fiship'){body=await fetchFiraBundle();response=new Response(body,{headers:{'content-type':'application/json'}});}
+    else if(source.id==='kimst-research-facility'){body=await fetchKimstPage();response=new Response(body,{headers:{'content-type':'text/html'}});}
     else if(source.id==='mnd-board')({response,body}=await fetchTextWithDiagnostics(request));
     else {
       try { response=await request(); } catch { response=await request(); }
@@ -495,6 +497,11 @@ export async function syncOfficialSources(requestedSourceIds?:readonly string[])
   if(fira?.body&&fira.check.outcome==='success'){
     try{const known=await db.select({id:notices.externalId}).from(notices).where(eq(notices.sourceId,'fira-fiship'));const parsed=collectFiraBundle(fira.body,known.map(x=>x.id));centralItems.push(...parsed.items);fira.check.message=`공식 전용 사업페이지·PDF ${parsed.parsedPages}건 감사 · 현재·추적 임대용어선 참여 ${parsed.items.length}건`;}
     catch{fira.check.outcome='parser_error';fira.check.message='한국수산자원공단 임대용어선 모집 구조 확인 필요';}
+  }
+  const kimst=inspected.find(x=>x.check.sourceId==='kimst-research-facility');
+  if(kimst?.body&&kimst.check.outcome==='success'){
+    try{const known=await db.select({id:notices.externalId}).from(notices).where(eq(notices.sourceId,'kimst-research-facility'));const parsed=collectKimstPage(kimst.body,known.map(x=>x.id));centralItems.push(...parsed.items);kimst.check.message=`공식 상시지원 페이지 ${parsed.parsedPages}건 감사 · 현재·추적 연구시설 지원 ${parsed.items.length}건`;}
+    catch{kimst.check.outcome='parser_error';kimst.check.message='해양수산과학기술진흥원 연구시설 공동활용 구조 확인 필요';}
   }
   if(koat?.body&&koat.check.outcome==='success'){
     try{const parsed=parseKoatBoard(koat.body);centralItems.push(...parsed.items);koat.check.message=`첫 페이지 ${parsed.parsedRows}건 확인 · 공모 후보 ${parsed.items.length}건`;}
