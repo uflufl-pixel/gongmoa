@@ -20,6 +20,7 @@ import {kiboSource} from '../lib/kibo-collector';
 import {koreahanaSource} from '../lib/koreahana-collector';
 import {kidpSource} from '../lib/kidp-collector';
 import {koipaSource} from '../lib/koipa-collector';
+import {koipaPatentSource} from '../lib/koipa-patent-collector';
 import {tourazSource} from '../lib/touraz-download';
 import {registerCentralInstitutions} from './central-institutions';
 
@@ -62,6 +63,7 @@ const seedSources = [
   {...koreahanaSource,method:'official-recruitment-list-and-details',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...kidpSource,method:'fixed-official-detail-and-pdf-audit',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...koipaSource,method:'fixed-official-beneficiary-detail-and-pdf',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
+  {...koipaPatentSource,method:'fixed-official-regional-detail-and-pdf',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...kiatSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...nipaSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...keitiSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
