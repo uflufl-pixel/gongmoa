@@ -493,7 +493,7 @@ export async function syncOfficialSources(requestedSourceIds?:readonly string[])
   }
   const fira=inspected.find(x=>x.check.sourceId==='fira-fiship');
   if(fira?.body&&fira.check.outcome==='success'){
-    try{const parsed=collectFiraBundle(fira.body);centralItems.push(...parsed.items);fira.check.message=`공식 전용 사업페이지·PDF ${parsed.parsedPages}건 감사 · 상시 임대용어선 참여 ${parsed.items.length}건`;}
+    try{const known=await db.select({id:notices.externalId}).from(notices).where(eq(notices.sourceId,'fira-fiship'));const parsed=collectFiraBundle(fira.body,known.map(x=>x.id));centralItems.push(...parsed.items);fira.check.message=`공식 전용 사업페이지·PDF ${parsed.parsedPages}건 감사 · 현재·추적 임대용어선 참여 ${parsed.items.length}건`;}
     catch{fira.check.outcome='parser_error';fira.check.message='한국수산자원공단 임대용어선 모집 구조 확인 필요';}
   }
   if(koat?.body&&koat.check.outcome==='success'){
