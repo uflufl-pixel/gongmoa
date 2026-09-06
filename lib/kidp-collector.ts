@@ -9,7 +9,8 @@ export async function fetchKidpBundle(fetcher:typeof fetch=fetch){
   const [detail,pdf]=await Promise.all([fetcher(kidpSource.url,{headers,redirect:'manual',signal:AbortSignal.timeout(20_000)}),fetcher(pdfUrl,{headers,redirect:'manual',signal:AbortSignal.timeout(20_000)})]);
   if(!detail.ok||!pdf.ok)throw new Error(`KIDP finance HTTP ${detail.status}/${pdf.status}`);
   const html=await detail.text(),bytes=await pdf.arrayBuffer(),view=new Uint8Array(bytes);
-  if(html.length<40_000||html.length>100_000||view.length<400_000||view.length>600_000)invalid();
+  const htmlBytes=new TextEncoder().encode(html).length;
+  if(htmlBytes<40_000||htmlBytes>100_000||view.length<400_000||view.length>600_000)invalid();
   return JSON.stringify({html,pdfBytes:view.length,pdfMagic:new TextDecoder().decode(view.slice(0,8)),pdfEnd:new TextDecoder().decode(view.slice(-6)),pdfHash:await hash(bytes)});
 }
 export function collectKidpBundle(input:string,knownIds:string[]=[],now=new Date()){
