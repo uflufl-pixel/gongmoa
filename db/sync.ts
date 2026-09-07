@@ -35,12 +35,14 @@ import {fetchFiraBundle,collectFiraBundle} from '../lib/fira-collector';
 import {fetchKimstPage,collectKimstPage,fetchKimstOpportunity,collectKimstOpportunity} from '../lib/kimst-collector';
 import {fetchKimstFamTour,collectKimstFamTour} from '../lib/kimst-fam-tour-collector';
 import {fetchTourazCsv,collectTourazKto} from '../lib/touraz-download';
+import {fetchKoemList,parseKoemBoard} from '../lib/koem-collector';
+import {fetchKoelsaBundle,collectKoelsaBundle} from '../lib/koelsa-collector';
 
 export const SYNC_BATCHES = [
   ['bojo','bizinfo','moe-board','gov24-orgs','mss-board','kdca-board','mfds-board','moj-board','motir-board','pps-board','mogef-board','mofe-board','police-board','dapa-board','kiat-board'],
   ['mcst-board','mois-board','me-board','kocca-support','mafra-board','rda-board','moel-board','moel-support','khs-board','mpm-board','oka-board','naacc-board','cio-board','moip-board','nipa-board','arko-board','kawf-board'],
   ['seoul-board','busan-board','incheon-board','daejeon-board','daegu-board','moleg-board','kma-board','molit-board','mods-board','mpva-board','saemangeum-board','kcg-board','pss-board','mnd-board','keiti-board'],
-  ['ulsan-board','jeonbuk-board','gyeongnam-business','chungbuk-board','jeju-board','mohw-board','forest-board','forest-news','mof-board','unikorea-board','nfa-board','nts-board','mma-board','spo-board','kasa-board','kosme-esg','koat-board','socialenterprise-board','kinfa-board','semas-loan','smtech-tipa','koreg-opportunities','kofpi-support','koica-youth-contest','kibo-opportunities','koreahana-opportunities','kidp-finance','koipa-rights','koipa-patent','koipa-brand','koipa-risk-certification','kista-opportunities','fira-fiship','kimst-research-facility','kimst-opportunities','kimst-fam-tour'],
+  ['ulsan-board','jeonbuk-board','gyeongnam-business','chungbuk-board','jeju-board','mohw-board','forest-board','forest-news','mof-board','unikorea-board','nfa-board','nts-board','mma-board','spo-board','kasa-board','kosme-esg','koat-board','koem-board','koelsa-startup','socialenterprise-board','kinfa-board','semas-loan','smtech-tipa','koreg-opportunities','kofpi-support','koica-youth-contest','kibo-opportunities','koreahana-opportunities','kidp-finance','koipa-rights','koipa-patent','koipa-brand','koipa-risk-certification','kista-opportunities','fira-fiship','kimst-research-facility','kimst-opportunities','kimst-fam-tour'],
 ] as const;
 
 const decoder=(value:string)=>value.replace(/<[^>]+>/g,' ').replace(/&#(x?[0-9a-f]+);/gi,(_,n)=>String.fromCodePoint(n[0].toLowerCase()==='x'?parseInt(n.slice(1),16):parseInt(n,10))).replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&middot;/g,'·').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();
@@ -54,7 +56,7 @@ async function inspectSource(source:{id:string;url:string;name:string}) {
   const startedAt=new Date();
   try {
     const fetchUrl=source.id==='bojo'?'https://www.bojo.go.kr/':source.id==='kocca-support'?'https://www.kocca.kr/kocca/pims/list.do?menuNo=204104':centralCollectorUrl(source.id,source.url);
-    const request=()=>source.id==='arko-board'?fetchArkoList():source.id==='kinfa-board'?fetchKinfaList():source.id==='socialenterprise-board'?fetchSocialenterpriseList():source.id==='koat-board'?fetchKoatList():source.id==='kosme-esg'?fetchKosmeList():source.id==='keiti-board'?fetchKeitiList():source.id==='kiat-board'?fetchKiatList():source.id==='police-board'?fetchPoliceList():source.id==='molit-board'?fetchMolitList():fetch(fetchUrl,{headers:{accept:centralCollectorAccept(source.id),'user-agent':'GongmoaSourceMonitor/1.1 (+https://gongmoa.uflufl.chatgpt.site)'},signal:AbortSignal.timeout(10000),redirect:'follow'});
+    const request=()=>source.id==='koem-board'?fetchKoemList():source.id==='arko-board'?fetchArkoList():source.id==='kinfa-board'?fetchKinfaList():source.id==='socialenterprise-board'?fetchSocialenterpriseList():source.id==='koat-board'?fetchKoatList():source.id==='kosme-esg'?fetchKosmeList():source.id==='keiti-board'?fetchKeitiList():source.id==='kiat-board'?fetchKiatList():source.id==='police-board'?fetchPoliceList():source.id==='molit-board'?fetchMolitList():fetch(fetchUrl,{headers:{accept:centralCollectorAccept(source.id),'user-agent':'GongmoaSourceMonitor/1.1 (+https://gongmoa.uflufl.chatgpt.site)'},signal:AbortSignal.timeout(10000),redirect:'follow'});
     let response:Response,body:string;
     if(source.id==='touraz-kto'){body=await fetchTourazCsv();response=new Response(body,{headers:{'content-type':'text/csv'}});}
     else if(source.id==='kawf-board'){body=await fetchKawfBundle();response=new Response(body,{headers:{'content-type':'application/json'}});}
@@ -77,6 +79,7 @@ async function inspectSource(source:{id:string;url:string;name:string}) {
     else if(source.id==='kimst-research-facility'){body=await fetchKimstPage();response=new Response(body,{headers:{'content-type':'text/html'}});}
     else if(source.id==='kimst-opportunities'){body=await fetchKimstOpportunity();response=new Response(body,{headers:{'content-type':'text/html'}});}
     else if(source.id==='kimst-fam-tour'){body=await fetchKimstFamTour();response=new Response(body,{headers:{'content-type':'application/json'}});}
+    else if(source.id==='koelsa-startup'){body=await fetchKoelsaBundle();response=new Response(body,{headers:{'content-type':'application/json'}});}
     else if(source.id==='mnd-board')({response,body}=await fetchTextWithDiagnostics(request));
     else {
       try { response=await request(); } catch { response=await request(); }
@@ -519,6 +522,16 @@ export async function syncOfficialSources(requestedSourceIds?:readonly string[])
   if(koat?.body&&koat.check.outcome==='success'){
     try{const parsed=parseKoatBoard(koat.body);centralItems.push(...parsed.items);koat.check.message=`첫 페이지 ${parsed.parsedRows}건 확인 · 공모 후보 ${parsed.items.length}건`;}
     catch(error){koat.check.outcome='parser_error';koat.check.message=error instanceof Error?error.message:'KOAT 구조 확인 필요';}
+  }
+  const koem=inspected.find(x=>x.check.sourceId==='koem-board');
+  if(koem?.body&&koem.check.outcome==='success'){
+    try{const parsed=parseKoemBoard(koem.body);centralItems.push(...parsed.items);koem.check.message=`공식 목록 ${parsed.parsedRows}건 확인 · 공모 후보 ${parsed.items.length}건`;}
+    catch(error){koem.check.outcome='parser_error';koem.check.message=error instanceof Error?error.message:'KOEM 공고 구조 확인 필요';}
+  }
+  const koelsa=inspected.find(x=>x.check.sourceId==='koelsa-startup');
+  if(koelsa?.body&&koelsa.check.outcome==='success'){
+    try{const parsed=collectKoelsaBundle(koelsa.body);centralItems.push(...parsed.items);koelsa.check.message=`공식 상세·포스터 ${parsed.parsedPages}건 감사 · 조건부 기업지원 ${parsed.items.length}건`;}
+    catch(error){koelsa.check.outcome='parser_error';koelsa.check.message=error instanceof Error?error.message:'KOELSA 지원사업 구조 확인 필요';}
   }
   const kosme=inspected.find(x=>x.check.sourceId==='kosme-esg');
   if(kosme?.body&&kosme.check.outcome==='success'){

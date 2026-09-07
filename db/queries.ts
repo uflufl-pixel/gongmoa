@@ -4,6 +4,8 @@ import { bookmarks, institutions, noticeReviews, notices, sourceChecks, sources 
 import publicRegistry from '../data/public-institutions.json';
 import {centralCollectors} from '../lib/central-collectors';
 import {kiatSource,nipaSource,keitiSource,kosmeSource} from '../lib/public-collectors';
+import {koemSource} from '../lib/koem-collector';
+import {koelsaSource} from '../lib/koelsa-collector';
 import {koatSource} from '../lib/koat-collector';
 import {socialenterpriseSource} from '../lib/socialenterprise-collector';
 import {arkoSource} from '../lib/arko-collector';
@@ -80,6 +82,8 @@ const seedSources = [
   {...kiatSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...nipaSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   {...keitiSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
+  {...koemSource,method:'public-institution-support-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
+  {...koelsaSource,method:'fixed-official-detail-and-poster',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now},
   ...centralCollectors.map(c=>({id:c.id,institutionId:c.institutionId,name:c.name,url:c.url,method:'institution-board',cadenceMinutes:180,status:'ready',lastSuccessAt:null,createdAt:now})),
   { id:'bizinfo', institutionId:'mss', name:'기업마당', url:'https://www.bizinfo.go.kr/sii/siia/selectSIIA200View.do', method:'official-index', cadenceMinutes:60, status:'connected', lastSuccessAt:now, createdAt:now },
   { id:'bojo', institutionId:null, name:'보조금통합포털', url:'https://www.bojo.go.kr/retrieveSearchPubBiz.do', method:'official-index', cadenceMinutes:60, status:'connected', lastSuccessAt:now, createdAt:now },
@@ -134,6 +138,7 @@ export async function ensureSeeded() {
   await db.update(institutions).set({name:'한국수산자원공단',parentId:'해양수산부'}).where(eq(institutions.id,'public-321'));
   // Current statutory name since the 2017 marine-science promotion act.
   await db.update(institutions).set({name:'해양수산과학기술진흥원',parentId:'해양수산부'}).where(eq(institutions.id,'public-325'));
+  await db.update(institutions).set({name:'해양환경공단',parentId:'해양수산부'}).where(eq(institutions.id,'public-328'));
   // D1 limits the number of bound parameters in one statement. Keep source
   // seeding below that ceiling as the registry grows.
   for(let offset=0;offset<seedSources.length;offset+=8) {
