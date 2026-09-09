@@ -1,6 +1,10 @@
 export type BojoRow = Record<string,string|undefined>;
 export const BOJO_PAGE_SIZE = 500;
 
+export function isBojoOpportunityTitle(title:string) {
+  return !/(선정자\s*대상|선정기업\s*대상|선정기관\s*대상|협약체결을\s*위한|협약\s*체결\s*안내|사업자등록\s*(?:요청|안내)?$)/.test(title);
+}
+
 export function unpackBojoPage(payload:unknown, requestedPage:number, pageSize:number) {
   const response=(payload as {response?:{header?:{resultCode?:string};body?:{totalCount?:number|string;pageNo?:number|string;numOfRows?:number|string;items?:{item?:BojoRow|BojoRow[]}}}})?.response;
   if(response?.header?.resultCode!=='00') throw new Error(`보조금 API 오류 (${response?.header?.resultCode||'invalid response'})`);

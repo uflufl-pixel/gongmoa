@@ -3,7 +3,7 @@ import { env } from 'cloudflare:workers';
 import { getDb } from './index';
 import { ensureSeeded } from './queries';
 import { notices, revisions, sourceChecks, sources } from './schema';
-import { bojoDate } from '../lib/bojo-page';
+import { bojoDate, isBojoOpportunityTitle } from '../lib/bojo-page';
 import { applicationPeriod } from '../lib/application-period';
 import {centralCollectors,parseCentralBoard,centralCollectorUrl,centralCollectorAccept,enrichMmaItems} from '../lib/central-collectors';
 import {fetchMolitList} from '../lib/molit-fetch';
@@ -290,7 +290,7 @@ export function parseBojoItems(rows:BojoItem[]) {
   const seen=new Set<string>(); const items:IncomingNotice[]=[];
   for(const item of rows) {
     const title=cdata(item.PBLANC_NM); const closes=bojoDate(cdata(item.RCEPT_END_DE)||cdata(item.PBLANC_END_DE));
-    if(!title||(closes&&closes<today)) continue;
+    if(!title||!isBojoOpportunityTitle(title)||(closes&&closes<today)) continue;
     const popup=cdata(item.PBLANC_POPUP_URL)||cdata(item.BSNS_POPUP_URL)||'https://www.bojo.go.kr/bojo.do';
     const externalId=/nttId=([^&]+)/.exec(popup)?.[1]||`${cdata(item.DDTLBZ_ID)}-${cdata(item.PBLANC_BEGIN_DE)}`;
     if(!externalId||seen.has(externalId)) continue; seen.add(externalId);
