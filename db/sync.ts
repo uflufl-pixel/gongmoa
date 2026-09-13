@@ -11,7 +11,7 @@ import {fetchPoliceList} from '../lib/police-fetch';
 import {fetchBojoChanges} from '../lib/bojo-changes';
 import {fetchTextWithDiagnostics,FetchDiagnosticError} from '../lib/fetch-diagnostics';
 import {fetchKiatList,parseKiatBoard,parseNipaBoard,fetchKeitiList,parseKeitiBoard,parseKoccaBoard,fetchKosmeList,parseKosmeBoard} from '../lib/public-collectors';
-import {fetchKoatList,parseKoatBoard} from '../lib/koat-collector';
+import {fetchKoatList,parseKoatBoard,reviewedClosed} from '../lib/koat-collector';
 import {fetchSocialenterpriseList,parseSocialenterpriseBoard} from '../lib/socialenterprise-collector';
 import {fetchArkoList,parseArkoBoard} from '../lib/arko-collector';
 import {fetchKawfBundle,collectKawfBundle} from '../lib/kawf-collector';
@@ -564,6 +564,16 @@ export async function syncOfficialSources(requestedSourceIds?:readonly string[])
   }
   const incoming=[...bizItems,...moeItems,...mcstItems,...moisItems,...meItems,...seoulItems,...busanItems,...incheonItems,...daejeonItems,...daeguItems,...ulsanItems,...jeonbukItems,...gyeongnamItems,...chungbukItems,...jejuItems,...koccaItems,...(bojoItems||[])];
   const collection=await upsertCollected([...incoming,...centralItems]);
+  // The list is only one page; correct already-stored, source-reviewed calls that scrolled off it.
+  // Exact ID and title guards prevent a recycled identifier from changing unrelated records.
+  if(selected.has('koat-board')) for(const [externalId,fact] of Object.entries(reviewedClosed)) {
+    const old=(await db.select().from(notices).where(and(eq(notices.sourceId,'koat-board'),eq(notices.externalId,externalId))).limit(1))[0];
+    if(!old||old.title!==fact.title||old.status==='closed'&&old.applicationTo===fact.applicationTo)continue;
+    const newHash=await sha256(JSON.stringify({previous:old.contentHash,sourceId:'koat-board',externalId,title:fact.title,status:'closed',applicationTo:fact.applicationTo}));
+    await db.insert(revisions).values({noticeId:old.id,contentHash:newHash,changedFields:JSON.stringify(['status','applicationTo','deadlineLabel']),discoveredAt:new Date()});
+    await db.update(notices).set({status:'closed',applicationTo:fact.applicationTo,deadlineLabel:'공식 본문 접수 종료 확인',contentHash:newHash,verifiedAt:new Date(),updatedAt:new Date()}).where(and(eq(notices.id,old.id),eq(notices.title,fact.title)));
+    collection.updated++;
+  }
   collection.closed=expired.length;
   return {results:inspected.map(x=>x.check),collection,sourceIds:[...selected]};
 }

@@ -2,7 +2,7 @@
 import {centralGrantCandidate} from './central-collectors.ts';
 export const koatSource={id:'koat-board',institutionId:'public-164',name:'한국농업기술진흥원 사업공고',url:'https://www.koat.or.kr/board/business/list.do'};
 // Exact official details were checked on 2026-09-13. Do not infer deadlines for other list rows.
-const reviewedClosed:Record<string,{title:string;applicationTo:string}>={
+export const reviewedClosed:Record<string,{title:string;applicationTo:string}>={
   '16416':{title:'2026년 테스트베드(카자흐스탄·베트남·중국) 지원사업 연계 현지 수출상담회 참가기업 모집 공고',applicationTo:'2026-08-19'},
   '16438':{title:'2026년 중국 테스트베드 연계 현지 수출상담회 참가기업 모집 연장 공고',applicationTo:'2026-08-28'},
 };
