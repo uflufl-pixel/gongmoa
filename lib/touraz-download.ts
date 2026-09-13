@@ -36,7 +36,9 @@ export function tourazCandidate(title:string){
   if(/이벤트|위원|임원|기관장|직위|채용|입찰|개찰|용역|합격|결과|선정\s*공고|수상작|수상자|일자리페스타|설명회|설문|수요\s*조사|강사|매니저|서포터즈|발표\s*(평가|심사)|서류\s*평가|심의\s*참여/.test(title))return false;
   // Employer support is a potential grant; recruiting individual interns is not.
   if(/인턴/.test(title)&&!(/인턴십\s*지원사업/.test(title)&&/참여\s*기업\s*(모집|공모)/.test(title)))return false;
-  return /공모|모집|지원사업|경진대회/.test(title);
+  // Official detail confirms these two title families invite tourism firms
+  // to a supported project or exhibition, even without "모집" in the title.
+  return /공모|모집|지원사업|경진대회|AI\s*기반\s*지역관광\s*문제해결\s*프로젝트|관광\s*홍보관.*참가\s*안내/.test(title);
 }
 export function tourazReception(sourceState:string,from:string,to:string,now=new Date()):'open'|'upcoming'|'closed'|'unknown'{
   if(!Number.isFinite(now.getTime())||!date(from)||!date(to)||from>to)return 'unknown';

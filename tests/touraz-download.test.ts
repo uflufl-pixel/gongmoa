@@ -45,6 +45,15 @@ test('원문 접수 상태와 날짜 계산을 분리하며 KST 마감일에 시
  const r=previewTourazCsv(csv(row()),new Date('2026-09-04T00:00:00Z'));assert.equal(r.items[0].sourceState,'대기');assert.equal(r.items[0].receptionState,'upcoming');assert.equal(r.items[0].closesAt,null);
 });
 test('휴가지원사업은 근로자라는 단어만으로 채용으로 제외하지 않음',()=>{assert.equal(previewTourazCsv(csv(row('1448','2026 근로자 휴가지원사업 참여기업 확대 모집'))).candidateRows,1);});
+test('공식 본문에서 기업 참여가 확인된 AI 과제와 관광 홍보관 안내를 후보로 수집',()=>{
+ const ai=row('1710','AI 기반 지역관광 문제해결 프로젝트(역사문화형) - AI 배리어프리').replace('대기,','접수,').replace('2026-09-30','2026-09-16');
+ const booth=row('1711',"충칭 한국 소비재 판촉전 연계 'K-관광 홍보관' 참가안내").replace('대기,','접수,').replace('2026-09-30','2026-09-23');
+ const result=collectTourazKto(csv(ai,booth,row('1712','관광 홍보관 행사 안내')),[],new Date('2026-09-13T00:00:00Z'));
+ assert.deepEqual(result.items.map(i=>i.externalId),['1710','1711']);
+ assert.deepEqual(result.items.map(i=>i.status),['open','open']);
+ assert.deepEqual(result.items.map(i=>i.applicationTo),['2026-09-16','2026-09-23']);
+ assert.ok(result.items.every(i=>i.closesAt===null&&i.audience==='원문 지원자격 확인'));
+});
 test('공식 POST 파라미터 사용 및 정상 CSV',async()=>{
  const fake:typeof fetch=async (url,init)=>{assert.match(String(url),/^https:\/\/touraz.kr\//);assert.equal(init?.method,'POST');assert.equal(init?.redirect,'manual');assert.equal((init?.body as URLSearchParams).get('isComsubmit'),'1');return new Response(csv(row()),{headers:{'content-type':'text/csv;charset=UTF-8'}});};assert.equal(await fetchTourazCsv(fake),csv(row()).replace(/^\uFEFF/,''));
 });
