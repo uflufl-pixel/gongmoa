@@ -1,6 +1,11 @@
 // @ts-ignore Native Node test runner uses explicit extensions.
 import {centralGrantCandidate} from './central-collectors.ts';
 export const koatSource={id:'koat-board',institutionId:'public-164',name:'한국농업기술진흥원 사업공고',url:'https://www.koat.or.kr/board/business/list.do'};
+// Exact official details were checked on 2026-09-13. Do not infer deadlines for other list rows.
+const reviewedClosed:Record<string,{title:string;applicationTo:string}>={
+  '16416':{title:'2026년 테스트베드(카자흐스탄·베트남·중국) 지원사업 연계 현지 수출상담회 참가기업 모집 공고',applicationTo:'2026-08-19'},
+  '16438':{title:'2026년 중국 테스트베드 연계 현지 수출상담회 참가기업 모집 연장 공고',applicationTo:'2026-08-28'},
+};
 export function fetchKoatList(fetcher:typeof fetch=fetch){
   return fetcher(koatSource.url,{redirect:'manual',signal:AbortSignal.timeout(10000),headers:{accept:'text/html','user-agent':'GongmoaSourceMonitor/1.1 (+https://gongmoa.uflufl.chatgpt.site)'}});
 }
@@ -26,7 +31,8 @@ export function parseKoatBoard(html:string){
     if(!id||linkAction!==`postLink(${id})`||cells.length!==6||!title||!/^\d{4}-\d{2}-\d{2}$/.test(posted)||!Number.isFinite(date.getTime())||date.toISOString().slice(0,10)!==posted)throw new Error('KOAT 공고 식별자·제목·게시일 확인 필요');
     if(seen.has(id))return [];seen.add(id);
     if(!centralGrantCandidate(title)||/인턴|심사원|양성교육|설명회|세미나|수요\s*조사/.test(title))return [];
-    return [{sourceId:koatSource.id,externalId:id,institution:'한국농업기술진흥원',group:'공사·공단',title,category:'농업·농식품',audience:'원문 지원자격 확인',region:null,sourceName:koatSource.name,sourceUrl:`https://www.koat.or.kr/board/business/${id}/view.do`,announcedFrom:posted,applicationFrom:null,applicationTo:null,opensAt:null,closesAt:null,deadlineLabel:'접수기간 원문 확인',status:'open',ministry:'농촌진흥청'}];
+    const closed=reviewedClosed[id]?.title===title?reviewedClosed[id]:null;
+    return [{sourceId:koatSource.id,externalId:id,institution:'한국농업기술진흥원',group:'공사·공단',title,category:'농업·농식품',audience:'원문 지원자격 확인',region:null,sourceName:koatSource.name,sourceUrl:`https://www.koat.or.kr/board/business/${id}/view.do`,announcedFrom:posted,applicationFrom:null,applicationTo:closed?.applicationTo||null,opensAt:null,closesAt:null,deadlineLabel:closed?'공식 본문 접수 종료 확인':'접수기간 원문 확인',status:closed?'closed':'unknown',ministry:'농촌진흥청'}];
   });
   return {items,parsedRows:rows.length};
 }
