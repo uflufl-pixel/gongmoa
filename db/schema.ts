@@ -116,3 +116,12 @@ export const noticeDetails = sqliteTable('notice_details', {
   leaseToken:text('lease_token'),
   leaseUntil:integer('lease_until').notNull().default(0),
 },t=>[index('idx_notice_details_next').on(t.nextAttemptAt)]);
+
+// Successful official-detail rechecks only. Identity hashes prevent stale
+// evidence from surviving a source/list or audit-contract change.
+export const grantAuditRechecks = sqliteTable('grant_audit_rechecks', {
+  noticeId:text('notice_id').primaryKey().references(()=>notices.id),
+  contentHash:text('content_hash').notNull(),
+  detailHash:text('detail_hash').notNull(),
+  checkedAt:integer('checked_at',{mode:'timestamp_ms'}).notNull(),
+});
