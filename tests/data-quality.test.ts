@@ -1,7 +1,11 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 // @ts-expect-error Node native TypeScript runner requires explicit extension.
-import {dataQuality,isCollectedRecord,latestSourceChecks,isStaleCheck} from '../lib/data-quality.ts';
+import {dataQuality,isCollectedRecord,isObviousNonGrant,latestSourceChecks,isStaleCheck} from '../lib/data-quality.ts';
+test('outsourced surveys and accreditation administration are not participant opportunities',()=>{
+  for(const title of ['2026년도 공공기관 고객만족도 조사 주관사업자 선정 재공고(정정)','2026년 평생교육기관 평가·인증 업무 위탁 공고'])assert.equal(isObviousNonGrant(title),true);
+  for(const title of ['2026년 평생교육기관 평가·인증 신청 공고','2026년 중소기업 CBAM 대응 지원사업 참여기업 선정 공고'])assert.equal(isObviousNonGrant(title),false);
+});
 test('unverified seed data is not a collected record',()=>{
   assert.equal(isCollectedRecord({contentHash:'seed-example-v1'}),false);
   assert.equal(isCollectedRecord({contentHash:'abcdef'}),true);

@@ -1,7 +1,7 @@
 import { listNotices, listSources } from '@/db/queries';
 import {withBizinfoDetails} from '@/db/bizinfo-details';
 import {withKoccaDetails} from '@/db/kocca-details';
-import {isCollectedRecord} from '@/lib/data-quality';
+import {isCollectedRecord,isObviousNonGrant} from '@/lib/data-quality';
 import {verifyGrantDetail,effectiveGrantFacts} from '@/lib/grant-verification';
 import {tourazCandidate,tourazReception} from '@/lib/touraz-download';
 import {arkoCandidate} from '@/lib/arko-collector';
@@ -14,8 +14,6 @@ function relationKey(institution:string,title:string) {
     .replace(/[^0-9a-z가-힣]/g,'');
   return normalizedTitle.length>=8?`${institution.replace(/\s/g,'')}:${normalizedTitle}`:'';
 }
-
-const isObviousNonGrant=(title:string)=>/(채용|임원|상임이사|이사장|기관장|원장|본부장|강사|매니저|후보자|위원|참여단|입찰|개찰결과|공시송달)/.test(title);
 
 export async function GET() {
   try {
