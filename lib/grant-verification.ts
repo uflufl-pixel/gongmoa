@@ -21,7 +21,7 @@ export function currentGrantVerification(v?:GrantVerification,now=Date.now()):Gr
 // Reviewed official detail, not an automatic title/keyword decision. Source changes invalidate this audit.
 export const grantAudits:GrantAudit[]=[{
   sourceId:'koat-board',externalId:'16431',sourceUrl:'https://www.koat.or.kr/board/business/16431/view.do',
-  title:'「2026년 저탄소 인증농산물 품평상담회」참여농가 모집 공고',contentHash:'42ce7f15037b6bc43e2dd7f80d0dd2c67762f202c8935275cf6bdd36976607d5',detailHash:'49729389bbb24c7470ebc7da5fb93e2f12a87c07c3f556881ad6a5bc01537241',checkedAt:'2026-09-04T11:33:27.599Z',
+  title:'「2026년 저탄소 인증농산물 품평상담회」참여농가 모집 공고',contentHash:'cb37c6d42a26a07a329b37be7e34faa7220f28ad6b5ac2d8e75c930a8bed5a3b',detailHash:'49729389bbb24c7470ebc7da5fb93e2f12a87c07c3f556881ad6a5bc01537241',checkedAt:'2026-09-13T06:53:00.000Z',
   reception:{applicationFrom:'2026-08-18',applicationTo:'2026-09-04',closesAt:null,deadlinePrecision:'date'},
   evidence:{purpose:'행사 내용에 근거한 요약: 저탄소 인증농산물 평가·유통상담·홍보 지원',audience:'행사일 기준 저탄소 인증이 유효하고 인증 농산물을 생산·판매하는 농가 약 20명. 가공식품 제외',support:'전시·시식·평가 및 유통채널 MD 1:1 상담. 우수농가에 한해 설명절선물전 홍보와 목재간판 설치',application:'공식 원문의 온라인 폼으로 신청. 8월 18일~9월 4일, 마감시각 미기재. 폼 제출 가능 여부·첨부 세부조건은 별도 확인'},
 },{

@@ -314,6 +314,11 @@ export async function upsertCollected(items:IncomingNotice[]) {
       await db.insert(notices).values({...item,id:`${item.sourceId}-${item.externalId.toLowerCase()}`,summary:null,applicationUrl:null,contentHash,verifiedAt:now,createdAt:now,updatedAt:now});
       summary.inserted++; continue;
     }
+    // A KOAT list row has no reception period; it cannot revoke previously
+    // confirmed date-bearing facts from an earlier detail review.
+    if(item.sourceId==='koat-board'&&item.status==='unknown'&&item.applicationTo==null&&existing.status==='closed'&&existing.applicationTo) {
+      summary.unchanged++; continue;
+    }
     if(existing.contentHash===contentHash) { await db.update(notices).set({verifiedAt:now}).where(eq(notices.id,existing.id)); summary.unchanged++; continue; }
     const changedFields=['institution','group','title','category','audience','region','sourceUrl','deadlineLabel','status'].filter(key=>existing[key as keyof typeof existing]!==item[key as keyof IncomingNotice]);
     if(existing.opensAt?.getTime()!==item.opensAt?.getTime()) changedFields.push('opensAt');
