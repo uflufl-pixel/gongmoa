@@ -64,13 +64,13 @@ export const grantAudits:GrantAudit[]=[{
   evidence:{purpose:'울산 관광스타트업·관광기업의 경영 안정과 지역 관광인재 정착을 위한 인턴 채용 인건비 지원',audience:'울산광역시 소재 관광사업체·관광스타트업 또는 울산관광기업지원센터 입주기업 중 최소3개월 채용계획이 있는 기업. 체납·면세사업자·임금체불 명단 공개 사업체, 근로자와 특수관계 또는 이전 사업주와 밀접한 관련성이 있는 경우 등 제외',support:'기업당 인턴 최대2명, 1명당 월150만원을 최대3개월 지원(기업당 이론상 최대900만원). 기업은 월 최저임금 이상을 선지급하고 지원금 외 인건비·4대보험료·법정수당 부담. 매월1일~말일 근무분만 지급하며 중도퇴사 월은 미지급',application:'2026년2월25일09시~10월30일18시, 예산 소진 시 조기마감 가능. 투어라즈 정책지원→공고/공모에서 온라인 신청서와 필수 증빙 업로드. 선정 뒤 인턴은 기업이 자체 채용하고 채용증빙·월별 지원금 증빙은 지정 이메일 제출'},
 }];
 type RecordIdentity={sourceId:string;externalId:string;sourceUrl:string;title:string;contentHash:string};
-export function verifyGrant(n:RecordIdentity,audits:GrantAudit[]=grantAudits,now=Date.now()):GrantVerification{
+export function verifyGrant(n:RecordIdentity,audits:GrantAudit[]=grantAudits,now=Date.now(),recheckingExpired=false):GrantVerification{
   const a=audits.find(a=>a.sourceId===n.sourceId&&a.externalId===n.externalId);
   const candidate=(reason:string):GrantVerification=>({status:'candidate',reason});
   if(!a)return candidate('사업 목적·지원대상·지원내용·신청절차 본문 검토 필요');
   if(a.sourceUrl!==n.sourceUrl||a.title!==n.title||a.contentHash!==n.contentHash)return candidate('공고 변경 또는 원문 불일치 · 재검토 필요');
   const age=now-Date.parse(a.checkedAt);
-  if(!Number.isFinite(age)||age<0||age>7*86400000)return candidate('본문 확인 후 7일 경과 · 재검토 필요');
+  if(!Number.isFinite(age)||age<0||(age>7*86400000&&!recheckingExpired))return candidate('본문 확인 후 7일 경과 · 재검토 필요');
   if(!['purpose','audience','support','application'].every(k=>typeof a.evidence?.[k as keyof GrantEvidence]==='string'&&a.evidence[k as keyof GrantEvidence].trim().length>0))return candidate('본문 확인 근거 부족');
   return {status:'verified',reason:'공식 본문 4개 요건 확인 · 접수 상태는 별도 확인',checkedAt:a.checkedAt,sourceUrl:a.sourceUrl,evidence:a.evidence,reception:a.reception};
 }
@@ -86,22 +86,25 @@ export async function detailFingerprint(html:string,format:'kosme'|'nipa'|'koat'
   return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,'0')).join('');
 }
 export async function verifyGrantDetail(n:RecordIdentity,fetcher:typeof fetch=fetch,now=Date.now()):Promise<GrantVerification>{
-  const result=verifyGrant(n,grantAudits,now);if(result.status!=='verified')return result;
+  // An expired audit is only eligible for a fresh official-source comparison.
+  // Never extend its validity merely because its stored title and hash still match.
+  const result=verifyGrant(n,grantAudits,now,true);if(result.status!=='verified')return result;
+  const refreshed={...result,checkedAt:new Date(now).toISOString()};
   const audit=grantAudits.find(a=>a.sourceId===n.sourceId&&a.externalId===n.externalId)!;
   if(audit.sourceUrl===namhaeUrl){
-    try{await verifyNamhaeEvidence(audit.detailHash,fetcher);return {...result,reason:'공식 본문·공고 첨부 4개 요건 확인 · 개인별 신청자격 별도 확인'};}
+    try{await verifyNamhaeEvidence(audit.detailHash,fetcher);return {...refreshed,reason:'공식 본문·공고 첨부 4개 요건 확인 · 개인별 신청자격 별도 확인'};}
     catch(error){const message=error instanceof Error?error.message:'';const safe=['남해 본문 변경','남해 첨부 변경 또는 오류 응답','남해 공고문 첨부 연결 변경','남해 상세 필수항목 누락','남해 공고 제목 불일치','근거 HTTP 응답 오류','근거 크기 제한 초과'].includes(message)?message:'공식 근거 조회 지연 또는 구조 오류';return {status:'candidate',reason:`${safe} · 재검토 필요`};}
   }
   if(audit.sourceUrl===ripcSourceUrl){
-    try{await verifyRipcEvidence(audit.detailHash,fetcher);return {...result,reason:'공식 본문·HWP 공고문 4개 요건 확인 · 관할지역·세부 제외업종·개인별 신청자격 별도 확인'};}
+    try{await verifyRipcEvidence(audit.detailHash,fetcher);return {...refreshed,reason:'공식 본문·HWP 공고문 4개 요건 확인 · 관할지역·세부 제외업종·개인별 신청자격 별도 확인'};}
     catch(error){const message=error instanceof Error?error.message:'';const safe=['RIPC 본문 변경','RIPC 첨부 변경 또는 오류 응답','RIPC 공고문 첨부 연결 변경','RIPC 상세 필수항목 누락','RIPC 공고 제목 불일치','근거 HTTP 응답 오류','근거 크기 제한 초과'].includes(message)?message:'공식 근거 조회 지연 또는 구조 오류';return {status:'candidate',reason:`${safe} · 재검토 필요`};}
   }
   if(audit.sourceUrl===tourazUrl){
-    try{await verifyTourazEvidence(audit.detailHash,fetcher);return {...result,reason:'공식 본문·공모안내서 4개 요건 확인 · 예산확정·개별 신청자격 별도 확인'};}
+    try{await verifyTourazEvidence(audit.detailHash,fetcher);return {...refreshed,reason:'공식 본문·공모안내서 4개 요건 확인 · 예산확정·개별 신청자격 별도 확인'};}
     catch(error){const message=error instanceof Error?error.message:'';const safe=['투어라즈 본문 변경','투어라즈 안내서 변경 또는 오류 응답','투어라즈 안내서 첨부 연결 변경','투어라즈 상세 필수항목 누락','투어라즈 공고 제목 불일치','근거 HTTP 응답 오류','근거 크기 제한 초과'].includes(message)?message:'공식 근거 조회 지연 또는 구조 오류';return {status:'candidate',reason:`${safe} · 재검토 필요`};}
   }
   if(audit.sourceUrl===uctfTourazUrl){
-    try{await verifyUctfEvidence(audit.detailHash,fetcher);return {...result,reason:'공식 상세·재단 공고문 4개 요건 확인 · 예산소진·개별 적격성 별도 확인'};}
+    try{await verifyUctfEvidence(audit.detailHash,fetcher);return {...refreshed,reason:'공식 상세·재단 공고문 4개 요건 확인 · 예산소진·개별 적격성 별도 확인'};}
     catch(error){const message=error instanceof Error?error.message:'';const safe=['울산 관광 인턴십 본문 변경','울산 관광 인턴십 공고문 변경 또는 오류 응답','울산 관광 인턴십 상세 필수항목 누락','울산 관광 인턴십 공고 제목 불일치','울산 관광 인턴십 공고 ID 불일치','근거 HTTP 응답 오류','근거 크기 제한 초과'].includes(message)?message:'공식 근거 조회 지연 또는 구조 오류';return {status:'candidate',reason:`${safe} · 재검토 필요`};}
   }
   const formats:Record<string,'kosme'|'nipa'|'koat'>={
@@ -115,7 +118,7 @@ export async function verifyGrantDetail(n:RecordIdentity,fetcher:typeof fetch=fe
   try{
     const r=await fetcher(audit.sourceUrl,{redirect:'manual',signal:AbortSignal.timeout(8000),headers:{accept:'text/html','user-agent':'GongmoaSourceMonitor/1.1 (+https://gongmoa.uflufl.chatgpt.site)'}});
     if(!r.ok||await detailFingerprint(await r.text(),format)!==audit.detailHash)return {status:'candidate',reason:'본문 변경 또는 응답 오류 · 재검토 필요'};
-    return result;
+    return refreshed;
   }catch{return {status:'candidate',reason:'공식 본문 재확인 지연 · 검토 후보 유지'};}
 }
 export function grantReception(v:GrantVerification,now=Date.now()):Partial<{applicationFrom:string;applicationTo:string;opensAt:null;closesAt:string|null;deadlinePrecision:'date'|'time';status:'closed'|'open'|'unknown'|'upcoming';deadlineLabel:string}>{

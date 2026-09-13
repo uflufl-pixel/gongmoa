@@ -27,8 +27,8 @@ test('UCTF identity, staleness and evidence failures stay candidate',async()=>{
   const a=grantAudits.find(x=>x.sourceId==='touraz-kto'&&x.externalId==='1426')!,now=Date.parse(a.checkedAt)+1000;
   let calls=0;const failed=(async()=>{calls++;throw Error('timeout');}) as typeof fetch;
   assert.equal((await verifyGrantDetail({...a,contentHash:'changed'},failed,now)).status,'candidate');assert.equal(calls,0);
-  assert.equal((await verifyGrantDetail(a,failed,now+8*86400000)).status,'candidate');assert.equal(calls,0);
-  assert.equal((await verifyGrantDetail(a,failed,now)).status,'candidate');assert.equal(calls,1);
+  assert.equal((await verifyGrantDetail(a,failed,now+8*86400000)).status,'candidate');assert.equal(calls,1);
+  assert.equal((await verifyGrantDetail(a,failed,now)).status,'candidate');assert.equal(calls,2);
   assert.equal(a.reception?.closesAt,'2026-10-30T09:00:00.000Z');
   const projected=effectiveGrantFacts({deadlinePrecision:'date' as const,audience:'원문 확인'},{status:'verified',reason:'ok',checkedAt:a.checkedAt,evidence:a.evidence,reception:a.reception},now);
   assert.equal(projected.deadlinePrecision,'time');

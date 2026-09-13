@@ -28,7 +28,7 @@ test('RIPC identity, staleness and evidence failures stay candidate',async()=>{
   const a=grantAudits.find(x=>x.externalId==='PBLN_000000000126087')!,now=Date.parse(a.checkedAt)+1000;
   let calls=0;const failed=(async()=>{calls++;throw Error('timeout');}) as typeof fetch;
   assert.equal((await verifyGrantDetail({...a,title:'changed'},failed,now)).status,'candidate');assert.equal(calls,0);
-  assert.equal((await verifyGrantDetail(a,failed,now+8*86400000)).status,'candidate');assert.equal(calls,0);
-  assert.equal((await verifyGrantDetail(a,failed,now)).status,'candidate');assert.equal(calls,1);
+  assert.equal((await verifyGrantDetail(a,failed,now+8*86400000)).status,'candidate');assert.equal(calls,1);
+  assert.equal((await verifyGrantDetail(a,failed,now)).status,'candidate');assert.equal(calls,2);
   assert.match(a.evidence.audience,/관할지역.*미확인/);
 });

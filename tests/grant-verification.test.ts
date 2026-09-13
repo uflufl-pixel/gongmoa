@@ -67,6 +67,14 @@ test('audit age is enforced both server-side and on an already-open page',()=>{
   assert.equal(currentGrantVerification(verifyGrant(audit,grantAudits,now),now+8*86400000).status,'candidate');
   assert.equal(currentGrantVerification(undefined,now).status,'candidate');
 });
+test('expired audit only reopens for a fresh identity-matched detail check',async()=>{
+  const late=now+8*86400000;
+  assert.equal(verifyGrant(audit,grantAudits,late,true).status,'verified');
+  assert.equal(verifyGrant({...audit,contentHash:'changed'},grantAudits,late,true).status,'candidate');
+  assert.equal(verifyGrant(audit,grantAudits,Date.parse(audit.checkedAt)-1,true).status,'candidate');
+  assert.equal((await verifyGrantDetail(audit,async()=>{throw Error('timeout')},late)).status,'candidate');
+  assert.equal((await verifyGrantDetail(audit,async()=>new Response('error',{status:500}),late)).status,'candidate');
+});
 test('detail changes, error pages and timeouts cannot retain verified status',async()=>{
   const fetcher:typeof fetch=async(url,init)=>{assert.equal(url,audit.sourceUrl);assert.equal(init?.redirect,'manual');assert.ok(init?.signal);return new Response('<div class="detail_text">changed</div>')};
   assert.equal((await verifyGrantDetail(audit,fetcher,now)).status,'candidate');
