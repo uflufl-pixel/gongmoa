@@ -5,6 +5,8 @@ import {ripcSourceUrl,verifyRipcEvidence} from './ripc-evidence.ts';
 // @ts-expect-error Native Node tests use explicit extensions.
 import {tourazUrl,verifyTourazEvidence} from './touraz-evidence.ts';
 // @ts-expect-error Native Node tests use explicit extensions.
+import {tourazAiUrl,verifyTourazAiEvidence} from './touraz-ai-evidence.ts';
+// @ts-expect-error Native Node tests use explicit extensions.
 import {uctfTourazUrl,verifyUctfEvidence} from './uctf-evidence.ts';
 export type GrantEvidence={purpose:string;audience:string;support:string;application:string};
 type Reception={applicationFrom:string;applicationTo:string}&({deadlinePrecision:'date';closesAt:null}|{deadlinePrecision?:'time';closesAt:string});
@@ -20,6 +22,11 @@ export function currentGrantVerification(v?:GrantVerification,now=Date.now()):Gr
 }
 // Reviewed official detail, not an automatic title/keyword decision. Source changes invalidate this audit.
 export const grantAudits:GrantAudit[]=[{
+  sourceId:'touraz-kto',externalId:'1710',sourceUrl:tourazAiUrl,
+  title:'AI 기반 지역관광 문제해결 프로젝트(역사문화형) - AI 배리어프리',contentHash:'7a8f7bca91deebf2793fef0fc506a33635b9c1448c8e5ab091e834ab9af4b4cd',detailHash:'83284fd4e0bd8f68cbb79e7e0c8c80944178ba01bf8c89f3c3abd7635dbc03eb',checkedAt:'2026-09-13T07:29:00.000Z',
+  reception:{applicationFrom:'2026-09-07',applicationTo:'2026-09-16',closesAt:'2026-09-16T02:00:00.000Z'},
+  evidence:{purpose:'AI 기술로 하동군 지리산쌍계사·화개장터 일원의 이동약자 관광 편의와 안전 문제를 해결하는 실증과제',audience:'사업자등록이 된 ICT·AI 분야 중소기업으로 현장에서 즉시 실증할 기술이 있어야 함. 예비창업자·대기업·중견기업·지자체·공공기관, 체납·휴폐업·동일 현장 동일 사업 실증참여 기업 등은 신청 불가',support:'AI 배리어프리 부문 1개 기업 선정. 실증비 5,500만원(VAT 포함)은 현장과 최종 협의 후 확정하며 2026년 실증사업 완료 시 지급',application:'2026년 9월 16일 11시까지 온오프믹스 온라인 접수. 참가신청서·기술기획서, 사업자등록증, 중소기업확인서, 납세증명서 등 공고문 필수서류를 제출. 개별 적격성과 접수 성공은 별도 확인'},
+},{
   sourceId:'koat-board',externalId:'16431',sourceUrl:'https://www.koat.or.kr/board/business/16431/view.do',
   title:'「2026년 저탄소 인증농산물 품평상담회」참여농가 모집 공고',contentHash:'cb37c6d42a26a07a329b37be7e34faa7220f28ad6b5ac2d8e75c930a8bed5a3b',detailHash:'49729389bbb24c7470ebc7da5fb93e2f12a87c07c3f556881ad6a5bc01537241',checkedAt:'2026-09-13T06:53:00.000Z',
   reception:{applicationFrom:'2026-08-18',applicationTo:'2026-09-04',closesAt:null,deadlinePrecision:'date'},
@@ -102,6 +109,10 @@ export async function verifyGrantDetail(n:RecordIdentity,fetcher:typeof fetch=fe
   if(audit.sourceUrl===tourazUrl){
     try{await verifyTourazEvidence(audit.detailHash,fetcher);return {...refreshed,reason:'공식 본문·공모안내서 4개 요건 확인 · 예산확정·개별 신청자격 별도 확인'};}
     catch(error){const message=error instanceof Error?error.message:'';const safe=['투어라즈 본문 변경','투어라즈 안내서 변경 또는 오류 응답','투어라즈 안내서 첨부 연결 변경','투어라즈 상세 필수항목 누락','투어라즈 공고 제목 불일치','근거 HTTP 응답 오류','근거 크기 제한 초과'].includes(message)?message:'공식 근거 조회 지연 또는 구조 오류';return {status:'candidate',reason:`${safe} · 재검토 필요`};}
+  }
+  if(audit.sourceUrl===tourazAiUrl){
+    try{await verifyTourazAiEvidence(audit.detailHash,fetcher);return {...refreshed,reason:'공식 상세·공고문 4개 요건 확인 · 개별 신청자격 별도 확인'};}
+    catch(error){const message=error instanceof Error?error.message:'';const safe=['AI 배리어프리 본문 변경','AI 배리어프리 공고문 변경','AI 배리어프리 공고문 첨부 변경','AI 배리어프리 상세 필수항목 누락','AI 배리어프리 제목 불일치','근거 HTTP 응답 오류','근거 크기 제한 초과'].includes(message)?message:'공식 근거 조회 지연 또는 구조 오류';return {status:'candidate',reason:`${safe} · 재검토 필요`};}
   }
   if(audit.sourceUrl===uctfTourazUrl){
     try{await verifyUctfEvidence(audit.detailHash,fetcher);return {...refreshed,reason:'공식 상세·재단 공고문 4개 요건 확인 · 예산소진·개별 적격성 별도 확인'};}
