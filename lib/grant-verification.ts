@@ -7,6 +7,8 @@ import {tourazUrl,verifyTourazEvidence} from './touraz-evidence.ts';
 // @ts-expect-error Native Node tests use explicit extensions.
 import {tourazAiUrl,verifyTourazAiEvidence} from './touraz-ai-evidence.ts';
 // @ts-expect-error Native Node tests use explicit extensions.
+import {tourazChongqingUrl,verifyTourazChongqingEvidence} from './touraz-chongqing-evidence.ts';
+// @ts-expect-error Native Node tests use explicit extensions.
 import {uctfTourazUrl,verifyUctfEvidence} from './uctf-evidence.ts';
 export type GrantEvidence={purpose:string;audience:string;support:string;application:string};
 type Reception={applicationFrom:string;applicationTo:string}&({deadlinePrecision:'date';closesAt:null}|{deadlinePrecision?:'time';closesAt:string});
@@ -22,6 +24,11 @@ export function currentGrantVerification(v?:GrantVerification,now=Date.now()):Gr
 }
 // Reviewed official detail, not an automatic title/keyword decision. Source changes invalidate this audit.
 export const grantAudits:GrantAudit[]=[{
+  sourceId:'touraz-kto',externalId:'1711',sourceUrl:tourazChongqingUrl,
+  title:"충칭 한국 소비재 판촉전 연계 'K-관광 홍보관' 참가안내",contentHash:'6c4cb05555739964518b443f6f11d08732913265d5ee3778208dcdf4c8a6b75f',detailHash:'0dd093e8b95ee8a404074cf5a26896172d3e8fa5843d89323a6da26ef277f16d',checkedAt:'2026-09-13T07:36:00.000Z',
+  reception:{applicationFrom:'2026-09-08',applicationTo:'2026-09-23',closesAt:'2026-09-23T09:00:00.000Z'},
+  evidence:{purpose:'충칭 한국 프리미엄 소비재 판촉전과 연계한 K-관광 홍보관에서 중국 서남부 시장 진출과 현지 소비자·바이어 접점을 지원',audience:'충칭 등 중국 서남부지역 진출을 희망하는 국내 관광분야 기업 1~3개사. 사업취지 부합성과 현지 사업연계 가능성 등을 심사하며 의료관광 등 현지 관심 분야를 우선 고려',support:'기본 부스 임차·장치와 현지 바이어 B2B 상담매칭 지원. 추가 인테리어·물류·운송·출장 항공숙박·통역비는 참가기업 부담이며 직접 현금지원 총액은 공고되지 않음',application:'2026년 9월 23일 18시 한국시간까지 투어라즈에서 참가신청서와 개인정보 수집이용 동의서를 제출. 보유 시 국문·영문 또는 중문 기업소개서도 제출. 개별 선정·신청 성공은 별도 확인'},
+},{
   sourceId:'touraz-kto',externalId:'1710',sourceUrl:tourazAiUrl,
   title:'AI 기반 지역관광 문제해결 프로젝트(역사문화형) - AI 배리어프리',contentHash:'7a8f7bca91deebf2793fef0fc506a33635b9c1448c8e5ab091e834ab9af4b4cd',detailHash:'83284fd4e0bd8f68cbb79e7e0c8c80944178ba01bf8c89f3c3abd7635dbc03eb',checkedAt:'2026-09-13T07:29:00.000Z',
   reception:{applicationFrom:'2026-09-07',applicationTo:'2026-09-16',closesAt:'2026-09-16T02:00:00.000Z'},
@@ -113,6 +120,10 @@ export async function verifyGrantDetail(n:RecordIdentity,fetcher:typeof fetch=fe
   if(audit.sourceUrl===tourazAiUrl){
     try{await verifyTourazAiEvidence(audit.detailHash,fetcher);return {...refreshed,reason:'공식 상세·공고문 4개 요건 확인 · 개별 신청자격 별도 확인'};}
     catch(error){const message=error instanceof Error?error.message:'';const safe=['AI 배리어프리 본문 변경','AI 배리어프리 공고문 변경','AI 배리어프리 공고문 첨부 변경','AI 배리어프리 상세 필수항목 누락','AI 배리어프리 제목 불일치','근거 HTTP 응답 오류','근거 크기 제한 초과'].includes(message)?message:'공식 근거 조회 지연 또는 구조 오류';return {status:'candidate',reason:`${safe} · 재검토 필요`};}
+  }
+  if(audit.sourceUrl===tourazChongqingUrl){
+    try{await verifyTourazChongqingEvidence(audit.detailHash,fetcher);return {...refreshed,reason:'공식 상세·모집안 4개 요건 확인 · 개별 선정 및 비용 별도 확인'};}
+    catch(error){const message=error instanceof Error?error.message:'';const safe=['충칭 홍보관 본문 변경','충칭 홍보관 공고문 변경','충칭 홍보관 첨부 변경','충칭 홍보관 상세 필수항목 누락','충칭 홍보관 제목 불일치','근거 HTTP 응답 오류','근거 크기 제한 초과'].includes(message)?message:'공식 근거 조회 지연 또는 구조 오류';return {status:'candidate',reason:`${safe} · 재검토 필요`};}
   }
   if(audit.sourceUrl===uctfTourazUrl){
     try{await verifyUctfEvidence(audit.detailHash,fetcher);return {...refreshed,reason:'공식 상세·재단 공고문 4개 요건 확인 · 예산소진·개별 적격성 별도 확인'};}
